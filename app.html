@@ -4345,10 +4345,10 @@ function openSettings(){
 $('settingsBtn').onclick=openSettings;
 // Shortcut hints (40): shown in tooltips and in the application menu, as ⌘⌥⇧ on macOS and Ctrl/Alt/Shift on Windows.
 function shortcutText(spec){
- const names={Mod:IS_MAC?'⌘':'Ctrl',Shift:IS_MAC?'⇧':'Shift',Alt:IS_MAC?'⌥':'Alt',Backslash:'\\',PageUp:IS_MAC?'Page Up':'PgUp',PageDown:IS_MAC?'Page Down':'PgDn'};
+ const names={Mod:IS_MAC?'⌘':'Ctrl',Ctrl:IS_MAC?'⌃':'Ctrl',Shift:IS_MAC?'⇧':'Shift',Alt:IS_MAC?'⌥':'Alt',Backslash:'\\',PageUp:IS_MAC?'Page Up':'PgUp',PageDown:IS_MAC?'Page Down':'PgDn'};
  return spec.split('+').map(k=>names[k]??k).join(IS_MAC?'':'+');
 }
-const SHORTCUT_HINTS={openFile:'Mod+O',saveFile:'Mod+S',saveAsFile:'Mod+Shift+S',settingsBtn:'Mod+,',helpBtn:'?',outlineSearchButton:'/',filtersToggle:'Alt+Shift+F',outlineGroupButton:'Alt+Shift+G',documentFindButton:'Mod+F',sidebarToggle:'Mod+Backslash',editorFocusToggle:'Alt+5','sidebarTab-properties':'Mod+Shift+1','sidebarTab-headings':'Mod+Shift+2',plannerToggle:'Mod+Shift+D',today:'Home',weeksEarlier:'PageUp',weeksLater:'PageDown'};
+const SHORTCUT_HINTS={openFile:'Mod+O',saveFile:'Mod+S',saveAsFile:'Mod+Shift+S',settingsBtn:'Mod+,',helpBtn:'?',outlineSearchButton:'/',filtersToggle:'Alt+Shift+F',outlineGroupButton:'Alt+Shift+G',documentFindButton:'Mod+F',sidebarToggle:'Mod+Backslash',editorFocusToggle:IS_MAC?'Ctrl+Mod+F':'F11','sidebarTab-properties':'Mod+Shift+1','sidebarTab-headings':'Mod+Shift+2',plannerToggle:'Mod+Shift+D',today:'Home',weeksEarlier:'PageUp',weeksLater:'PageDown'};
 const FORMAT_SHORTCUT_HINTS={bold:'Mod+B',italic:'Mod+I',ol:'Mod+Shift+7',ul:'Mod+Shift+8',check:'Mod+Shift+9',quote:'Mod+Shift+Q'};
 function applyShortcutHints(){
  for(const [id,spec] of Object.entries(SHORTCUT_HINTS)){const el=$(id);if(el){el.dataset.shortcut=spec;el.setAttribute('aria-keyshortcuts',spec.replace('Mod',IS_MAC?'Meta':'Control').replace('Backslash','\\'))}}
@@ -7045,6 +7045,12 @@ function setEditorFocus(on){
 }
 window.addEventListener('keydown',e=>{
  if(!e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||e.code!=='Digit5'||e.isComposing||isTextEntry(e.target)||$('modalbg').classList.contains('open')||document.querySelector('dialog[open]'))return;
+ e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)setEditorFocus(!$('layout').classList.contains('editor-focus'));
+},true);
+// Focus Mode: F11 on both systems; Control-Command-F as the reliable macOS alternative (F11 often shows the desktop there).
+window.addEventListener('keydown',e=>{
+ const f11=e.key==='F11'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey,macFull=IS_MAC&&e.code==='KeyF'&&e.ctrlKey&&e.metaKey&&!e.altKey&&!e.shiftKey;
+ if(!(f11||macFull)||e.isComposing||$('modalbg').classList.contains('open')||document.querySelector('dialog[open]'))return;
  e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)setEditorFocus(!$('layout').classList.contains('editor-focus'));
 },true);
 function restoreSidebarCaret(){if(sidebarSelection?.id===selected){sidebarRestoringCaret=true;try{restoreEditorSelection(sidebarSelection);document.querySelector('.documentScroll').scrollTop=sidebarSelection.scrollTop||0;sidebarSelection=null}finally{sidebarRestoringCaret=false}}}
