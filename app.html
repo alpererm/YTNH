@@ -1693,6 +1693,13 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body :is(#tree,#pinnedOutline) .row>.outlineChevron:hover{background:var(--workspace-hover);border-radius:5px;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){:root body :is(#tree,#pinnedOutline) .row>.outlineChevron{transition:none}}
 
+/* Completion feedback (43): the marker pops when a Todo is completed; after the grace period the row fades and collapses. */
+@keyframes ytnhCompletePop{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
+:root body .itemMarker.justCompleted svg{animation:ytnhCompletePop .36s cubic-bezier(.3,1.6,.5,1)}
+@keyframes ytnhCompleteOut{from{opacity:1;max-height:80px}to{opacity:0;max-height:0;padding-top:0;padding-bottom:0;margin-top:0;margin-bottom:0}}
+:root body :is(.row,.chip).completingOut{animation:ytnhCompleteOut .22s ease forwards;overflow:hidden;pointer-events:none}
+@media (prefers-reduced-motion:reduce){:root body .itemMarker.justCompleted svg,:root body :is(.row,.chip).completingOut{animation:none}}
+
 /* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */
 :root body #layout.editor-focus #editor .editorDocument{width:100%;max-width:calc(var(--editor-size,14px) * 40 + 72px);margin-inline:auto}
 :root body #layout.editor-focus #editor #richEditor .editorTable,:root body #layout.editor-focus #editor #richEditor [data-mdblock="table"]{max-width:100%;overflow-x:auto}
@@ -1955,7 +1962,7 @@ function markerAction(marker){
  const row=marker.closest('.row'),date=marker.dataset.markerDate;
  if(row){selected=item.id;selectedLocation=row.dataset.location;setOutlineCompletion(item,item.status==='Done'?'Todo':'Done')}
  else if(date&&isRecurringTodo(item)){setOccurrenceCalendarStatus(item,date,occurrenceStatus(item,date)==='Done'?'Todo':'Done');renderTree()}
- else {checkpoint();setItemCompletionStatus(item,item.status==='Done'?'Todo':'Done');render();if(editorIsOpen()&&selected===item.id)edit(item.id)}
+ else {const next=item.status==='Done'?'Todo':'Done';checkpoint();setItemCompletionStatus(item,next);if(next==='Done'&&!showDoneItems()&&!isRecurringTodo(item))startCompletionGrace(item);else{cancelCompletionGrace(item.id);render();if(editorIsOpen()&&selected===item.id)edit(item.id)}}
  document.querySelector('#refSearch')?.dispatchEvent(new Event('input'));
  return true;
 }
@@ -3639,9 +3646,51 @@ function revealOutlineItem(id,{focus=false}={}){
  for(const g of outlineGroups([item],currentGroupBy()))collapsedOutlineGroups.delete(currentGroupBy()+'|'+g.key);
  renderTree();const row=$('tree').querySelector(`.row[data-id="${id}"]`);row?.scrollIntoView({block:'nearest'});if(focus)focusOutlineItem(id);
 }
+// The completed Todo stays in place (ticked, muted, struck through) for two seconds so it can be undone with
+// one more click; then its rows fade and collapse, and selection moves on as before.
+function startCompletionGrace(item,{candidates=[],wasOpen=false}={}){
+ cancelCompletionGrace(item.id);
+ const timer=setTimeout(()=>finishCompletionGrace(item.id),2000);
+ completionGrace.set(item.id,{timer,candidates,wasOpen});
+ render();if(editorIsOpen()&&selected===item.id)edit(item.id);
+ markJustCompleted(item.id);playCompletionSound();
+ focusOutlineItem(selected);
+}
+function cancelCompletionGrace(id){const g=completionGrace.get(id);if(g){clearTimeout(g.timer);completionGrace.delete(id)}}
+function finishCompletionGrace(id){
+ const g=completionGrace.get(id);if(!g)return;
+ const rows=[...document.querySelectorAll(`#tree .row[data-id="${CSS.escape(id)}"],#calendarBody [data-marker-id="${CSS.escape(id)}"]`)].map(n=>n.closest('.row,.chip')||n);
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ rows.forEach(r=>r.classList.add('completingOut'));
+ setTimeout(()=>{
+   if(completionGrace.get(id)!==g)return;
+   completionGrace.delete(id);
+   const item=itemById(db,id);
+   render();
+   if(item&&selected===id&&!doneIsVisible(item.status,null,item)){
+     const visible=new Set(visibleOutlineIds());selected=g.candidates.find(c=>visible.has(c))||null;multiSelected.clear();paintOutlineSelection();
+     if(g.wasOpen){if(selected)edit(selected);else showCalendar()}
+     if(document.activeElement?.closest?.('#tree')||document.activeElement===document.body)focusOutlineItem(selected);
+   }
+ },reduce?0:220);
+}
+function markJustCompleted(id){
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ requestAnimationFrame(()=>document.querySelectorAll(`[data-marker-id="${CSS.escape(id)}"]`).forEach(m=>{m.classList.remove('justCompleted');void m.offsetWidth;m.classList.add('justCompleted');setTimeout(()=>m.classList.remove('justCompleted'),450)}));
+}
+// Optional completion sound (Settings, off by default): a short, quiet two-note chime made with Web Audio.
+let completionAudio=null;
+function playCompletionSound(){
+ try{if(localStorage.getItem('ytnh-completion-sound')!=='on')return}catch{return}
+ try{completionAudio??=new AudioContext();const ctx=completionAudio,now=ctx.currentTime;
+   [[880,0],[1320,.07]].forEach(([f,t])=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.0001,now+t);g.gain.exponentialRampToValueAtTime(0.06,now+t+.01);g.gain.exponentialRampToValueAtTime(0.0001,now+t+.18);o.connect(g).connect(ctx.destination);o.start(now+t);o.stop(now+t+.2)});
+ }catch{}
+}
 function setOutlineCompletion(item,status){
  const ids=visibleOutlineIds(),index=ids.indexOf(item.id),candidates=[...ids.slice(index+1),...ids.slice(0,Math.max(0,index)).reverse()].filter(id=>id!==item.id),wasOpen=editorIsOpen();
- checkpoint();setItemCompletionStatus(item,status);completeSearchAction(item.id);outlineRevealId=null;render();
+ checkpoint();setItemCompletionStatus(item,status);completeSearchAction(item.id);outlineRevealId=null;
+ if(status==='Done'&&!isRecurringTodo(item)&&!showDoneItems()){startCompletionGrace(item,{candidates,wasOpen});return}
+ cancelCompletionGrace(item.id);render();
  const statuses=parseSearchQuery($('search').value).statuses.length?parseSearchQuery($('search').value).statuses:selectedStatusFilters();
  if(!isRecurringTodo(item)&&!doneIsVisible(item.status,statuses)){
    const visible=new Set(visibleOutlineIds());selected=candidates.find(id=>visible.has(id))||null;multiSelected.clear();paintOutlineSelection();
@@ -4280,6 +4329,9 @@ function openSettings(){
  };
  ['settingsDefaultView','settingsTheme','settingsInterfaceSize','settingsEditorSize','settingsLimitWidth','settingsSpellcheck','settingsLanguage'].forEach(id=>$(id).addEventListener('change',applyNow));
  if(hours)['plannerStart','plannerEnd'].forEach(id=>$(id).addEventListener('change',commitHours));
+ {const row=document.createElement('label');row.innerHTML='<span><input id="settingsCompletionSound" type="checkbox"> Play a sound when completing a Todo</span>';
+   $('settingsPreview').before(row);try{$('settingsCompletionSound').checked=localStorage.getItem('ytnh-completion-sound')==='on'}catch{}
+   $('settingsCompletionSound').onchange=()=>{try{localStorage.setItem('ytnh-completion-sound',$('settingsCompletionSound').checked?'on':'off')}catch{}if($('settingsCompletionSound').checked)playCompletionSound()};}
  if(window.notesGlobalQuickOpen){
    const row=document.createElement('label');row.innerHTML='<span><input id="settingsGlobalQuickOpen" type="checkbox"> Quick Open from any app ('+(IS_MAC?'⌃⇧Space':'Ctrl+Shift+Space')+')</span>';
    $('settingsPreview').before(row);$('settingsGlobalQuickOpen').checked=window.notesGlobalQuickOpen.enabled;
@@ -4422,7 +4474,9 @@ function statusNotRecurring(){return $('filterRecurrence').value==='non-recurrin
 function clearStatusTypeMode(){for(const o of $('filterType').options)o.selected=false;$('filterRecurrence').value='';syncTypeFilter()}
 function syncTypeFilter(){const types=selectedItemTypes();document.querySelectorAll('[data-type-filter]').forEach(c=>c.checked=types.includes(c.dataset.typeFilter))}
 function showDoneItems(){return !!$('showDone')?.checked}
-function doneIsVisible(status){return !['Done','Cancelled','On hold'].includes(status)||showDoneItems()}
+// Completion feedback (43): a just-completed Todo stays visible for a short grace period.
+const completionGrace=new Map();
+function doneIsVisible(status,_statuses,item){return !['Done','Cancelled','On hold'].includes(status)||showDoneItems()||!!(item&&completionGrace.has(item.id))}
 let outlineDayFilter=null,outlineRevealId=null;
 function weekendsHidden(){return db?.settings?.hideWeekends!==false}
 function displayFilterActive(){return !!(weekendsHidden()||db?.settings?.hideRecurring)}
@@ -4435,7 +4489,7 @@ function isWeekendDateString(ds){
  return day===0||day===6;
 }
 function itemPassesDisplayFilters(item){
- if(!itemMatchesSelectedTypes(item)||(item.type==='Todo'&&!doneIsVisible(item.status,parseSearchQuery($("search").value).statuses.length?parseSearchQuery($("search").value).statuses:selectedStatusFilters())))return false;
+ if(!itemMatchesSelectedTypes(item)||(item.type==='Todo'&&!doneIsVisible(item.status,parseSearchQuery($("search").value).statuses.length?parseSearchQuery($("search").value).statuses:selectedStatusFilters(),item)))return false;
  if(outlineDayFilter&&!scheduledGroupingDates(item).includes(outlineDayFilter))return false;
  if(db?.settings?.hideRecurring&&item.type==="Todo"&&item.recurrence?.frequency)return false;
  if(weekendsHidden()){
@@ -4538,7 +4592,7 @@ function updateBranchZoomBar(){
 function directMatchedItems(){
  if(!db)return [];
  const q=parseSearchQuery($("search").value),uiStatus=selectedStatusFilters();
- if($('search').value.trim())return filterItems(db,{texts:q.texts,tags:q.tags,status:q.statuses,createdFrom:q.createdFrom,createdTo:q.createdTo,scheduledFrom:q.scheduledFrom,scheduledTo:q.scheduledTo,scheduledDatesForItem:scheduledGroupingDates}).filter(item=>item.type!=='Todo'||doneIsVisible(item.status));
+ if($('search').value.trim())return filterItems(db,{texts:q.texts,tags:q.tags,status:q.statuses,createdFrom:q.createdFrom,createdTo:q.createdTo,scheduledFrom:q.scheduledFrom,scheduledTo:q.scheduledTo,scheduledDatesForItem:scheduledGroupingDates}).filter(item=>item.type!=='Todo'||doneIsVisible(item.status,null,item));
  const statuses=q.statuses.length?q.statuses:uiStatus;
  const tags=[...q.tags].filter(Boolean);
  const typeMode=statusNotesOnly()?"notes":statusTodosOnly()?"todos":"";
@@ -4656,7 +4710,7 @@ function pinContext(e){
 }
 function disclosureIcon(open){return sidebarIcon(open?'<path d="m6 9 6 6 6-6"/>':'<path d="m9 18 6-6-6-6"/>')}
 function hasDisclosureChild(children){
- return children.some(child=>{const item=child.item||child;return item.type!=='Todo'||doneIsVisible(item.status)});
+ return children.some(child=>{const item=child.item||child;return item.type!=='Todo'||doneIsVisible(item.status,null,item)});
 }
 function disclosureButton(open,cls){return '<button type="button" tabindex="-1" class="outlineChevron '+cls+'" aria-label="'+(open?'Collapse':'Expand')+' children" aria-expanded="'+open+'">'+disclosureIcon(open)+'</button>'}
 function paintPins(row,graph){
@@ -4783,7 +4837,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
    if(!grouped&&(filtering||graph)&&!(match?.locations?match.locations.has(location.id):match.has(i.id)))return '';
    const kids=graph?graph.siblings(location.id):childrenOf(db,i.id),ks=kids;
    const renderChild=(child,depth)=>row(graph?child.item:child,depth,{grouped,hierarchy,allowed,location:graph?child:undefined});
-   if(!shortcut&&i.type==='Todo'&&!doneIsVisible(i.status))return heading?'':ks.map(k=>renderChild(k,d)).join('');
+   if(!shortcut&&i.type==='Todo'&&!doneIsVisible(i.status,null,i))return heading?'':ks.map(k=>renderChild(k,d)).join('');
    const cl=i.type==='Todo'&&i.status==='Done'?'done':i.status==='Cancelled'?'cancelled':'',tags=inheritedTags(db,i);
    let visualDepth=d;
    if(grouped&&!hierarchy){
@@ -4894,7 +4948,7 @@ function calendarItemMatchesType(item,state=calendarSharedFilterState()){
  return true;
 }
 function calendarStatusMatches(item,status,state=calendarSharedFilterState()){
- if(item.type==='Todo'&&!doneIsVisible(status,state.statuses))return false;
+ if(item.type==='Todo'&&!doneIsVisible(status,state.statuses,item))return false;
  if(!state.statuses.length)return true;
  return item.type==="Todo"&&state.statuses.includes(normalizeStatusValue(status||"Todo"));
 }
