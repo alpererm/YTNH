@@ -201,7 +201,7 @@ fn main() {
             }
         })
         .build(tauri::generate_context!())
-        .expect("Unable to start Local Notes and Todos");
+        .expect("Unable to start YTNH");
     app.run(|app, event| {
         if let tauri::RunEvent::Exit = event {
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
