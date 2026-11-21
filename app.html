@@ -1671,6 +1671,15 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body #editorSidebar .scheduledDateBox .dayFirstField:not(:focus-within) .dayPickerGlyph{opacity:.6}
 :root body #editorSidebar .scheduledDateBox .dates:not(:empty){margin-top:6px}
 
+/* Help (14): search box, grouped shortcut tables. */
+:root body .helpContent .helpSearch{width:100%;margin:0 0 10px;box-sizing:border-box}
+:root body .helpContent>details>p{margin:6px 0 10px;line-height:1.55}
+:root body .helpContent .helpShortcuts h4{margin:14px 0 6px;font-size:13px;color:var(--ink)}
+:root body .helpContent .helpShortcuts h4:first-child{margin-top:4px}
+:root body .helpContent .helpShortcuts .helpGrid{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:4px 14px;align-items:baseline}
+:root body .helpContent .helpKeys{font-family:var(--app-font,system-ui);font-size:12px;color:var(--ink);white-space:nowrap;font-weight:600}
+:root body .helpContent [hidden]{display:none!important}
+
 /* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */
 :root body #layout.editor-focus #editor .editorDocument{width:100%;max-width:calc(var(--editor-size,14px) * 40 + 72px);margin-inline:auto}
 :root body #layout.editor-focus #editor #richEditor .editorTable,:root body #layout.editor-focus #editor #richEditor [data-mdblock="table"]{max-width:100%;overflow-x:auto}
@@ -4003,116 +4012,50 @@ function closeModalShell(){
  $("modalbg").classList.remove("open");
  resetModalShell();
 }
+// Help (14): task-based sections for people using the app, a searchable shortcut list in the
+// platform's own notation, and no internal details (those live in docs/development/).
+const HELP_SHORTCUTS=[
+ ['General',[['Mod+,','Settings'],['?','Help (outside text fields)'],['Mod+O','Open a library'],['Mod+S','Save'],['Mod+Shift+S','Save As'],['Mod+N','New Note'],['Mod+T','New Todo'],['Mod+Z','Undo'],['Mod+Shift+Z','Redo'],['Mod+Plus / Mod+Minus / Mod+0','Zoom in, out or reset'],['Ctrl+Shift+Space','Quick Open from any app (can be turned off in Settings)'],['Mod+Alt+D','Jump to a date']]],
+ ['Panes and views',[['Mod+1','Outline'],['Mod+2','Editor for the selected item'],['Mod+3','Calendar'],['Mod+4','Targets'],['Mod+Backslash','Show or hide the side panel'],['Mod+Shift+1','Side panel: Properties'],['Mod+Shift+2','Side panel: document outline'],['Mod+Shift+D','Daily Planner'],[IS_MAC?'F11 or Ctrl+Mod+F':'F11','Focus Mode'],['/ or Mod+Shift+F','Search the Outline'],['Alt+Shift+F','Filters'],['Alt+Shift+G','Group by'],[IS_MAC?'Alt+Tab':'Ctrl+Tab','Switch between the Outline and the right pane'],[IS_MAC?'Mod+[ / Mod+]':'Alt+Left / Alt+Right','Back or forward through items you opened'],['Escape','Close a dialog or the editor; clear Search']]],
+ ['Outline',[['Up / Down','Move the selection'],['Left / Right','Collapse or expand'],['Shift+Left / Shift+Right','Promote or demote'],['Shift+Up / Shift+Down','Reorder among siblings'],['Mod+Up / Mod+Down','First or last item'],['Enter or F2','Rename the selected item'],['Shift+Enter','Open the editor'],['Space','Mark a Todo done or not done'],['Backspace or Delete','Delete (asks first)'],['N / T','New Note or Todo at the same level'],['Alt+N / Alt+T','New child Note or Todo'],['Mod+Enter','Show in Calendar'],['Mod+Shift+C','Also place the item under another parent (linked)'],['Mod+A','Select all visible items'],['Mod+Space','Add or remove an item from the selection'],['Mod+Right / Mod+Left','Zoom into a branch or back out'],['Alt+Shift+T','Show today in the Outline and Calendar'],['Alt+Shift+N / R / D','Show or hide Notes, recurring items or finished items']]],
+ ['Calendar and Targets',[['Left / Right','Previous or next day'],['Up / Down','Previous or next week'],['Home','Today, or the current years in Targets'],['Page Up / Page Down','Ten weeks back or forward (five years in Targets)']]],
+ ['Writing',[['Mod+B / Mod+I','Bold or italic'],['Mod+K','Add or edit a link'],['Mod+Shift+7 / 8 / 9','Numbered list, bullet list or checklist'],['Mod+Shift+Q','Quote'],['Mod+Shift+Enter','Tick or untick a checklist item'],['Tab / Shift+Tab','Indent or outdent a list item; next or previous table cell'],[IS_MAC?'Mod+Shift+Up / Down':'Alt+Shift+Up / Down','Move paragraphs'],['Mod+F','Find in the document'],[IS_MAC?'Mod+Alt+F':'Mod+H','Find and replace']]]
+];
 function openHelp(){
  resetModalShell();
  const modalEl=document.querySelector(".modal");
  if(modalEl)modalEl.classList.add("wideModal");
  $("modalTitle").textContent="Help";
- $("modalText").textContent="A guide to writing, planning and keeping your work safe.";
+ $("modalText").textContent="How YTNH works, and the keys that make it quicker.";
+ const keys=HELP_SHORTCUTS.map(([group,rows])=>`<h4>${esc(group)}</h4><div class="helpGrid">${rows.map(([spec,desc])=>`<span class="helpKeys">${esc(spec.split(' / ').map(part=>part.split(' or ').map(k=>/^[A-Za-z?\/]$|^(Up|Down|Left|Right|Home|Escape|Space|Enter|Tab|Backspace|Delete|Page Up|Page Down|F2|F11|N|T)$/.test(k)||!/[+]/.test(k)?k:shortcutText(k)).join(' or ')).join(' / '))}</span><span>${esc(desc)}</span>`).join('')}</div>`).join('');
  $("modalExtra").innerHTML=`
  <div class="helpContent">
-   <details><summary>Inline Todos</summary><p>Type &lt;wording&gt; to create a child Todo inside a sentence. Prefix with d, w, h or c for Done, Waiting for, On hold or Cancelled. Use t&lt;wording&gt; for a Target or m&lt;wording&gt; for a Milestone. Inside the unfinished phrase, @ opens the existing date picker and [ chooses a different parent. Type !&lt; to reference an existing Todo. Ctrl-click (Cmd-click on macOS) opens a linked Todo; right-click changes its status or removes only the link. Inline wording and Todo titles are independent. Use inline code for literal angle-bracket expressions.</p></details>
-   <details><summary>Outline & hierarchy</summary>
-     <div class="helpGrid">
-       <span>Single-click row</span><span>Select it. If the right editor is already open, switch the editor to it.</span>
-       <span>Double-click row</span><span>Open the full editor.</span>
-       <span>Todo marker: left-click</span><span>Toggle Todo / Done.</span>
-       <span>Todo marker: middle-click</span><span>Mark Cancelled.</span>
-       <span>Drag row</span><span>Top quarter = before, middle = child, bottom quarter = after. Drop on blank outline space to make it a root item.</span><span>Group by</span><span>Choose Creation date, Scheduled date, Type, or Tag. Multiple explicit dates can place a non-recurring item in several Scheduled-date groups. Notes, Milestones and Targets also appear in their own sections at the bottom; Unscheduled contains only ordinary Todos. Recurring Todos appear at most once, under their next active occurrence from today onward. Multiple tags can place an item in several Tag groups. Grouped display is flat. Promotion/demotion, including promotion during deletion, is disabled until Group by returns to None. Click a group heading to collapse or expand that group. Keyboard Up/Down visits each item once even if the same item appears in multiple groups.</span><span>Mixed Note/Todo codes</span><span>Codes contain only the root ID and mixed sibling positions, e.g. 001.001.3.2. Type comes from the item field and existing code text color. UUID is the immutable identity.</span><span>RootID capacity</span><span>RootIDs run from 001.001 to 999.999: 998,001 shared roots across Notes and Todos. Deleted, archived and cold-archived roots are not released. Demotion explicitly releases a root ID; the lowest released ID is used first. Legacy codes remain aliases after schema v9 migration.</span><span>Cold archive</span><span>The in-file Archive can move older archived subtrees into separate cold-archive JSON files. The active database retains a lightweight UUID/code/title/file index, and cold archiving never releases a historical RootID.</span>
-       <span>Drag to calendar</span><span>Schedule the Note/Todo on that date. Ctrl/Cmd-click toggles items; Shift-click selects a range. Drag any selected row to schedule the whole selection in one undo step. Multiple-row dragging is calendar-only; outline reordering remains single-item.</span>
-     </div>
-   </details>
-   <details><summary>Calendar</summary>
-     <div class="helpGrid">
-       <span>Todo: single left-click</span><span>Toggle Todo / Done. For a recurring Todo, completion records that occurrence and displays only its next active occurrence, keeping the same code.</span>
-       <span>Todo: double left-click</span><span>Open full editor.</span>
-       <span>Todo: middle-click</span><span>Mark Cancelled. On a generated recurring occurrence, only that date is cancelled.</span>
-       <span>Note code</span><span>Open full editor.</span>
-       <span>Drag scheduled chip</span><span>Move that scheduled date to another calendar day. Generated recurrence-only occurrences are not draggable.</span>
-       <span>Recurring status button</span><span>Set that occurrence independently to Todo, Done, Cancelled, Waiting for, or On hold.</span>
-       <span>Calendar day menu</span><span>Right-click a day background to move unfinished Todos scheduled for today to tomorrow.</span><span>Application menu</span><span>The ☰ menu sits at the top-left of the Outline pane beside Search. Database groups file, backup and recovery actions. Calendar groups Outlook imports. Settings, Help and About remain directly accessible. Calendar controls are hidden while the Editor is open. Show weekends is under More inside Filters. Weekends are hidden by default; enabling it includes weekend columns and weekend-scheduled items. Recurrence filters both Outline and Calendar.</span>
-       <span>Calendar view</span><span>The default calendar view. Shows a 21-week window with the current week visibly centered when you enter Calendar or jump to Today. At the 2026/2150 boundaries the window shifts inward and dates outside the supported range are blank.</span>
-       <span>More than 20 codes</span><span>A collapsed busy week shows up to 20 items distributed across its days, with a muted ··· indicator on each affected day. Expand only that week row to see everything.</span>
-     </div>
-   </details>
-   <details><summary>Keyboard</summary>
-     <div class="helpGrid">
-       <span>?</span><span>Open Help.</span><span>Alt/Option + 5</span><span>Toggle Focus Mode and restore the previous workspace on exit.</span>
-
-     <span>Ctrl/Cmd + Shift + Right / Left</span><span>Reveal parent path and children / restore the filtered Outline.</span><span>Ctrl/Cmd + Right / Left</span><span>Zoom into the focused Outline branch / return to the previous scope. Filters remain active; grouping returns when zoom ends.</span><span>Alt/Option + Shift + T</span><span>Filter for today and show its calendar week.</span><span>Alt/Option + Shift + N</span><span>Show or hide Notes.</span><span>Alt/Option + Shift + R</span><span>Show or hide recurring items.</span><span>Alt/Option + Shift + D</span><span>Show or hide Done, Cancelled and On hold items.</span><span>Left / Right or Up / Down in Calendar</span><span>Left/Right step one visible day. Up/Down step one week while a calendar day filter is active.</span><span>/</span><span>Search Outline (outside text fields). Ctrl/Cmd+Shift+F also opens Search while editing.</span><span>Alt/Option + Shift + F / G</span><span>Toggle Filters / Group by. Escape closes Search or Group by.</span><span>Alt/Option + 1</span><span>Focus Outline and keep the editor open.</span>
-     <span>Alt/Option + 3</span><span>Show and focus Calendar.</span>
-     <span>Alt/Option + 2</span><span>Show and focus the selected item's editor; restore its saved caret position.</span>
-     <span>Alt/Option + 4</span><span>Show and focus Targets.</span>
-   <span>Ctrl+Alt+1 / Cmd+Option+1</span><span>Open Properties.</span><span>Ctrl+Alt+2 / Cmd+Option+2</span><span>Open document Outline.</span><span>Ctrl+Alt+0 / Cmd+Option+0</span><span>Toggle sidebar, retaining the selected tab.</span><span>Ctrl/Cmd + Shift + C</span><span>Link the selected Outline occurrence under another parent. The link icon lists its locations.</span><span>Ctrl/Cmd + F</span><span>Find in the open document. Use Ctrl/Cmd+H for Replace, or Cmd+Option+F on macOS. Enter and Shift + Enter move between matches.</span><span>Ctrl+Tab / Option+Tab on Mac</span><span>Switch between the Outline and the open right pane.</span>
-       <span>Tab in Search</span><span>Focus the matching results.</span><span>Ctrl+Alt+D / Cmd+Option+D</span><span>Jump to Date from any pane; type a date or choose from the calendar.</span><span>Ctrl/Cmd+Alt/Option+P</span><span>Toggle the Daily Planner.</span><span>Ctrl+Alt / Cmd+Option + K, N, T</span><span>Global Quick Open, capture Note or capture Todo.</span>
-       <span>Cmd+[ / ] or Alt+Left / Right on Windows</span><span>Go back or forward in item history.</span>
-       <span>Ctrl/Cmd+S</span><span>Save.</span><span>Ctrl/Cmd + Plus / Minus / 0</span><span>Desktop zoom in / out / reset.</span>
-       <span>Space in Outline</span><span>Toggle Todo completion.</span><span>Ctrl/Cmd+Enter</span><span>Reveal the selected item on Calendar.</span><span>Ctrl/Cmd+Up / Down</span><span>First / last Outline item. Add Shift for the current group.</span>
-       <span>Ctrl/Cmd+B / I / K</span><span>Bold, italic, or edit link.</span><span>Ctrl/Cmd+Shift+7 / 8 / 9 / Q</span><span>Numbered list, bullets, checklist or quote.</span><span>Ctrl/Cmd+Shift+Enter</span><span>Toggle checklist completion.</span><span>Tab / Shift+Tab</span><span>Indent / outdent a list. In tables move to the next / previous cell.</span><span>Enter / Shift+Enter in a table</span><span>Move down / insert a line break.</span><span>Cmd+Shift+Up / Down or Alt+Shift+Up / Down on Windows</span><span>Move editor paragraphs.</span>
-       <span>Outline ↑ / ↓</span><span>Move selection.</span>
-       <span>Calendar ↑ / ↓</span><span>Move one week earlier/later.</span>
-       <span>Calendar Home</span><span>Return to today.</span>
-       <span>Calendar Page Up / Down</span><span>Move ten weeks earlier/later.</span>
-       <span>Enter / F2</span><span>Edit the selected title inline. Enter finishes editing.</span>
-       <span>Shift+Enter</span><span>Open full editor.</span>
-       <span>Escape</span><span>Close a modal or close the right editor. Escape also clears the calendar-day Outline filter. In Search: first Escape clears; Escape again returns focus to the outline.</span>
-       <span>N / T</span><span>Create a sibling Note / Todo at the selected item’s hierarchy level, or a root item when nothing is selected.</span>
-       <span>Alt/Option+N / T</span><span>Create a child Note / Todo under the selected item and focus its title. </span>
-       <span>Alt/Option+D</span><span>Open selected item Details in navigation mode.</span>
-       <span>Alt/Option+W / Y</span><span>Calendar / Today in navigation mode.</span>
-       <span>Ctrl/Cmd+A</span><span>Select all visible outline items while navigating.</span>
-       <span>Ctrl/Cmd+Space</span><span>Toggle the current item in the multiple selection while navigating.</span>
-       <span>Tag suggestions</span><span>Up/Down selects a suggestion, Enter/Tab accepts it, Escape dismisses it. Other shortcuts are unchanged.</span>
-       <span>Left / Right</span><span>Collapse / expand selected item.</span>
-
-       <span>Shift+Left / Right</span><span>Promote / demote selected item.</span>
-       <span>Shift+Up / Down</span><span>Reorder siblings.</span>
-       <span>Backspace in Outline</span><span>Delete selected items after confirmation.</span><span>Alt+Down in a toolbar date field</span><span>Open its calendar. Arrows select a day, Page Up/Down moves by month, Enter confirms and Escape cancels.</span><span>Home / Page Up / Page Down in Targets</span><span>Current year / previous five years / next five years.</span><span>Ctrl/Cmd+Z / Y or Ctrl/Cmd+Shift+Z</span><span>Undo / redo.</span>
-     </div>
-   </details>
-   <details><summary>Search & filters</summary>
-     <div class="helpText">
-       Type #tags in titles or note bodies. Press Enter to commit a title and move its tags into Explicit tags; the body stays unchanged. Both title editors offer existing-tag suggestions. Enter/Tab accepts an open suggestion; press Enter again to commit the title. Body tags remain inline, searchable and inherited by children. Code, reference tokens and URL fragments do not create tags. Removing inline text removes its derived tag, without changing explicit tags. Suggestions use existing tags in the current database and work in titles, body, Source, explicit tags and Search. Fuzzy text search tolerates small typos. Use <code>#project</code> or <code>tag:#project</code> for hierarchical tags.
-       Done, Cancelled and On hold Todos are hidden by default; Show inactive includes them without excluding Notes. A focused Todo can be toggled with Space; inactive items disappear immediately unless Show inactive is enabled. Clear all shares the Filters heading row. With no selected item, clicking an empty part of a calendar day filters only the Outline to that day, preserving other filters and grouping. The day badge clears this restriction. Calendar item titles appear after a one-second hover. Double-click calendar items or target bars to open the editor, focus its title and reveal the item in the Outline.
-       After searching, Tab focuses a matching Outline row. Committing an item action clears Search and keeps that item selected and visible. Shortcuts also work from Filters and Group by headings. Right-click an item marker for Copy item code, status and explicit-date actions. Right-click a Calendar chip to remove only that explicit date. Recurrence and occurrence states stay unchanged.
-       Drag between Scheduled-date or Tag groups to change group membership; other grouping modes reject drops. Date moves affect only the dragged item and retain its other explicit dates, except Unscheduled clears all explicit dates. For recurring Todos, they change the recurrence start; the next valid occurrence determines its group, and Unscheduled is unavailable while recurrence is enabled. Tag moves affect the item and descendants, with branch-local exclusions for inherited tags; parents and siblings stay unchanged. Moving to No tag removes all effective tags from that branch. Group moves support Undo.
-       The collapsible <strong>Filters</strong> section contains Type checkboxes (Todos, Notes, Targets), the five Todo statuses, Recurrence checkboxes (neither selected means all items), and a More subsection for Show inactive, Created/Scheduled dates and Show weekends. Removable chips beside Filters stay visible when collapsed. Group by is a separate dropdown. Type, status and recurrence can be combined. Status selections apply to Todos only. Non-recurring includes Notes and non-recurring Todos. Date ranges affect the Outline only. Individual chips clear their own restriction; Clear all also resets Search. Group by remains separate. Use <code>status:Done</code> for a precise Todo-status query,
-       <code>created:&gt;=2026-01-01</code>, and <code>scheduled:&lt;=2026-12-31</code>.
-       Text, tags, and status filter both Outline and Calendar. Created/scheduled date-range fields filter the Outline only. Matching branches open initially; manual collapse/expand choices are respected until the filter changes.
-     </div>
-   </details>
-   <details><summary>Editor, links & embeds</summary>
-     <div class="helpText">
-       Rich mode stores Markdown underneath. The toolbar supports headings, bullet lists, numbered lists, checklists, and blockquotes; Source mode round-trips the standard Markdown forms. Enter continues list/checklist/quote blocks, while Enter on an empty item exits back to a normal paragraph. Select multiple paragraphs to move or indent them together. Typing shortcuts at the start of a paragraph: <code>- </code> bullet, <code>1. </code> numbered list, <code>[] </code> checklist, <code>&gt; </code> quote, and <code># </code>/<code>## </code>/<code>### </code> headings.
-       The Keyboard section lists the commands for indenting and moving paragraphs or list subtrees. Nested items move only among siblings. Numbered lists display derived decimal hierarchy (1, 1.1, 1.1.1). Each move is one undo step. Active text selections, title editing and Source keep normal selection behavior. Underline and strikethrough are available in the formatting menu. Formatted paste preserves supported text styles, headings, lists, quotes and links; standalone web links become clickable. Type --- followed by Space or Enter for a horizontal rule. Numbered lists restart after a blank paragraph and count independently of bullets.
-       Link and Embed use a fuzzy item picker. References are UUID-backed, so visible-code changes do not break them.
-       Embedded cards can edit their actual source item. Double-click a valid reference to open its source.
-       Broken references are marked and can be repaired by choosing a replacement. Backlinks list active items that link to or embed the current item.
-       Scheduled-date chips in the editor jump directly to that calendar date; × removes the date. Use <strong>Details</strong> for timestamps, aliases, scheduling, hierarchy metadata, copyable link/embed references, and less-common hierarchy/archive/delete actions.
-     </div>
-   </details>
-   <details><summary>Long-term targets</summary><div class="helpText">Todos can have a month-based target window, independently of their scheduled dates and recurrence. Enable Long-term target in the editor and choose Start/End months. Targets shows five calendar years, with separate lanes for overlapping targets. Previous/Next moves five years; Current years returns to the current year and the next four. Double-click a target segment to open its Todo. Search, tags and Todo status apply; scheduled-date ranges and Hide weekends do not. The flag marks an unfinished target whose end month has passed. Targets never create Calendar events. Target windows are edited only in the editor and support Undo/Redo.</div></details>
-   <details><summary>Recurrence, archive & deletion</summary>
-     <div class="helpText">
-       Todo recurrence supports daily, weekdays (Monday–Friday), weekly with selected days, and monthly by date or first/second/third/fourth/last day, weekday, weekend day or named weekday. The interval applies to the selected frequency. Weekly intervals use Monday-based weeks containing the start date; no occurrence precedes the start. Dates 29–31 clamp to the last day of shorter months. Existing recurrence patterns retain their dates until edited. Each occurrence can have its own status. Scheduled-date grouping derives the next occurrence on or after today and the recurrence start, skipping Done and Cancelled occurrence states. It ignores explicit dates for recurring Todos only in this grouping. Scheduled From/To checks that one date. Hide weekends hides a weekend result without moving it forward. This calculation never changes stored data or the parent status.
-       The <strong>Hide weekends</strong> choice is remembered in the data file. A saved Hide recurring preference from older versions opens as Non-recurring in the new Recurrence selector. On a date that is both explicit and recurring, the occurrence status takes precedence.
-       Archive is reversible and archives a subtree. Permanent deletion asks whether to delete the subtree or promote children.
-       Deletion and archiving never release RootIDs. Only explicit structural release, such as demotion, permits reuse; cold-archive reservations are retained. Existing links are stored by UUID before hierarchy changes; ambiguous old codes require repair.
-     </div>
-   </details>
-   <details><summary>Files, saving & cloud folders</summary>
-     <div class="helpText">
-       Your portable <strong>.ytnh</strong> file contains your library. Open or create it from <strong>Database</strong> in the application menu. Changes are saved automatically to a local working database. Save publishes your work to the portable file; closing the app also attempts verified publication. If saving fails, follow the recovery dialog and retain your local work.
-       Use Backup for a recovery copy and Recover local portable library when you need to recover local work. Keep backups before replacing files or moving between computers.
-       A successful file save does not confirm cloud synchronization. Allow your cloud provider to finish transferring the portable file before opening it on another computer, and avoid editing the same library on two computers at once.
-     </div>
-   </details>
-   <details><summary>Outlook calendar imports</summary><div class="helpText">Export your Outlook calendar as an .ics file, then choose Calendar → Import Outlook Calendar. Review the proposed changes before importing. Reimport Outlook Calendar reads the most recently imported file again; use Import when your new export has a different filename. Both match existing meetings. This is a file-based import; export again from Outlook to bring in later changes.</div></details>
+   <input id="helpSearch" class="field helpSearch" type="search" placeholder="Search help" aria-label="Search help">
+   <details open><summary>Getting started</summary><p>Your notes, todos and plans live in a <strong>library</strong>, a single .ytnh file you choose. Use <strong>☰ → New Library…</strong> or <strong>Open Library…</strong> to start. The <strong>Outline</strong> on the left holds everything; the right side shows the <strong>Calendar</strong>, <strong>Targets</strong> or the <strong>editor</strong> for the selected item.</p><p>Press <strong>N</strong> or <strong>T</strong> in the Outline (or ${esc(shortcutText('Mod+N'))} / ${esc(shortcutText('Mod+T'))} anywhere) to add a Note or a Todo. Double-click an item to write in it.</p></details>
+   <details><summary>Outline and items</summary><p><strong>Notes</strong> hold writing; <strong>Todos</strong> have a status: Todo, Done, Waiting for, On hold or Cancelled. Click a Todo's marker to mark it done; middle-click to cancel it; right-click for more.</p><p>Drag a row to move it: drop on the top quarter of another row to place it before, the middle to make it a child, the bottom quarter to place it after. Drop on empty space to make it a top-level item. Use Group by to see items by date, type or tag.</p><p><strong>Archive</strong> hides a branch but keeps it; you can restore it later. Deleting asks whether to delete the children too or keep them.</p></details>
+   <details><summary>Writing</summary><p>The editor is rich text with Markdown underneath; switch to Source to see the Markdown. Type at the start of a line: <code>-</code> for a bullet, <code>1.</code> for a numbered list, <code>[]</code> for a checklist, <code>&gt;</code> for a quote, <code>#</code> to <code>###</code> for headings, <code>---</code> for a divider and three backticks then Enter for a code block.</p><p>Type <code>[[</code> to link or embed another item. Links survive renaming and moving; the side panel lists backlinks.</p><p><strong>Inline Todos:</strong> type <code>&lt;call the supplier&gt;</code> inside a sentence to create a child Todo. Start with d, w, h or c for Done, Waiting for, On hold or Cancelled; t or m for a Target or Milestone.</p><p><strong>Images:</strong> paste or drop an image into a note. YTNH keeps a copy inside your library, so it still shows on another computer.</p></details>
+   <details><summary>Calendar</summary><p>Drag an item onto a day to schedule it; drag a chip to another day to move it. An item can have several dates. Todos can repeat daily, on weekdays, weekly on chosen days or monthly; each occurrence keeps its own status.</p><p>Click an empty part of a day to show only that day's items in the Outline. Weekends are hidden by default; show them under Filters → More. Busy weeks show up to 20 items; use + on the week to see everything.</p></details>
+   <details><summary>Daily Planner</summary><p>Open it with the panel button beside Targets or ${esc(shortcutText('Mod+Shift+D'))}. Click an empty time slot (or press Enter on it) to plan a Note, Todo or meeting, or drag an item from the Outline onto the timeline. Planning an unscheduled item also schedules it for that day.</p><p>Double-click a meeting to write in its document. The red line shows the current time. The pin keeps the planner on one day while you browse the Calendar.</p></details>
+   <details><summary>Targets and milestones</summary><p>A <strong>Target</strong> is a Todo with a start and end month, shown as a bar in Targets. A <strong>Milestone</strong> is a Todo planned for a week. Items under a target count towards it; the number on a bar shows milestones done out of the total.</p></details>
+   <details><summary>Search and filters</summary><p>Search is forgiving about typos. Use <code>#tag</code> for tags, <code>status:Done</code>, <code>created:&gt;=2026-01-01</code> or <code>scheduled:&lt;=2026-12-31</code>. Filters narrow by type, status, recurrence and dates; chips beside Filters show what's active, and Clear all resets them.</p></details>
+   <details><summary>Files, saving and syncing</summary><p>Changes save automatically to a working copy on this computer. <strong>Save</strong> (and closing the app) updates your library file. If saving fails, your local work is kept and YTNH offers to retry or Save As.</p><p>Keep a backup with <strong>Back Up Library…</strong>. If you use OneDrive or another sync service, let it finish before opening the library on another computer, and don't edit the same library on two computers at once.</p></details>
+   <details><summary>Outlook calendar</summary><p>Export your Outlook calendar as an .ics file, then choose <strong>☰ → Import Outlook Calendar…</strong> and review the changes before importing. Reimport reads the last file again; export again from Outlook to bring in later changes. Meetings in a time zone YTNH can't recognise are skipped and listed in the review.</p></details>
+   <details><summary>Keyboard shortcuts</summary><div class="helpShortcuts">${keys}</div></details>
  </div>`;
+ const search=$('helpSearch');
+ search.oninput=()=>{
+   const q=search.value.trim().toLowerCase();
+   $('modalExtra').querySelectorAll('.helpContent>details').forEach(d=>{
+     const rows=[...d.querySelectorAll('.helpGrid')].flatMap(g=>{const cells=[...g.children];return cells.reduce((a,c,i)=>i%2?a:[...a,[c,cells[i+1]]],[])});
+     if(rows.length){let any=false;rows.forEach(([k,v])=>{const hit=!q||(k.textContent+' '+v.textContent).toLowerCase().includes(q);k.hidden=v.hidden=!hit;any||=hit});d.querySelectorAll('h4').forEach(h=>{const grid=h.nextElementSibling;h.hidden=!![...grid.children].every(c=>c.hidden)});d.hidden=!any;if(q)d.open=any;return}
+     const hit=!q||d.textContent.toLowerCase().includes(q);d.hidden=!hit;if(q)d.open=hit;
+   });
+ };
  $("modalOK").textContent="Close";
  $("modalCancel").classList.add("hidden");
  $("modalbg").classList.add("open");
  $("modalOK").onclick=closeModalShell;
+ setTimeout(()=>search.focus(),0);
 }
 function copyPlainText(textValue){
  const fallback=()=>{
