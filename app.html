@@ -1700,6 +1700,13 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body :is(.row,.chip).completingOut{animation:ytnhCompleteOut .22s ease forwards;overflow:hidden;pointer-events:none}
 @media (prefers-reduced-motion:reduce){:root body .itemMarker.justCompleted svg,:root body :is(.row,.chip).completingOut{animation:none}}
 
+/* Headings (44): a muted section label with a rule after it; no marker; hidden rows of a collapsed section. */
+:root body :is(#tree,#pinnedOutline) .row.headingRow .title{font-size:calc(var(--interface-size,14px) * .86);font-weight:650;letter-spacing:.02em;color:var(--muted);text-decoration:none}
+:root body :is(#tree,#pinnedOutline) .row.headingRow .outlineTitleLine{display:flex;align-items:center;gap:8px;width:100%}
+:root body :is(#tree,#pinnedOutline) .row.headingRow .outlineTitleLine::after{content:"";flex:1;min-width:12px;border-top:1px solid var(--workspace-grid)}
+:root body :is(#tree,#pinnedOutline) .row.headingRow .outlineText{flex:1;min-width:0}
+:root body #tree .row.sectionHidden{display:none}
+
 /* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */
 :root body #layout.editor-focus #editor .editorDocument{width:100%;max-width:calc(var(--editor-size,14px) * 40 + 72px);margin-inline:auto}
 :root body #layout.editor-focus #editor #richEditor .editorTable,:root body #layout.editor-focus #editor #richEditor [data-mdblock="table"]{max-width:100%;overflow-x:auto}
@@ -3612,7 +3619,7 @@ function openSelectedInFullEditor(id){
 
 function visibleOutlineIds(){
  const seen=new Set(),ids=[];
- for(const row of $("tree").querySelectorAll(".row[data-id]")){
+ for(const row of $("tree").querySelectorAll(".row[data-id]:not(.sectionHidden)")){
    const id=row.dataset.id;if(!seen.has(id)){seen.add(id);ids.push(id)}
  }
  return ids
@@ -3773,19 +3780,20 @@ let outlineCreation=null;
 function newOutlineDraft(){
  return {owner:db,location:selectedLocation,before:snapshot(),previous:selected,undo:undoStack.slice(),redo:redoStack.slice(),editorOpen:editorIsOpen()};
 }
-function quickCreateRoot(type){
+function quickCreateRoot(type,{heading=false}={}){
   if(!db)return;
   const draft=newOutlineDraft();checkpoint();
   const sibling=itemById(db,selected),parentId=sibling?.id===branchZoomRoot?branchZoomRoot:sibling?.parentId||null;
   const graph=db.locations&&new OutlineLocations(db),spot=graph&&graph.selected(sibling);
   const localParent=spot&&(spot.item.id===branchZoomRoot?spot:graph.nodes.get(spot.parent));
   const i=createItem(db,type,graph?localParent?.item.id||null:parentId,localParent?.id);
+  if(heading)i.heading=true;
   if(spot&&spot.item.id!==branchZoomRoot){const after=new OutlineLocations(db);after.move(after.primary(i),spot.parent,graph.siblings(spot.parent).indexOf(spot)+1);after.commit(false)}
   else if(!graph&&sibling&&sibling.id!==branchZoomRoot){const siblings=childrenOf(db,parentId).filter(x=>x.id!==i.id);moveItem(db,i.id,parentId,siblings.findIndex(x=>x.id===sibling.id)+1)}
   outlineCreation={...draft,id:i.id};selected=i.id;completeSearchAction(i.id);
-  if(appearance.defaultView==='editor')edit(i.id);else showCalendar();revealOutlineItem(i.id);
+  if(heading)renderTree();else if(appearance.defaultView==='editor')edit(i.id);else showCalendar();revealOutlineItem(i.id);
   startInlineEdit(i.id);
-  toast(`${type} created`);
+  toast(heading?'Heading created':`${type} created`);
 }
 
 
@@ -4706,7 +4714,8 @@ function savePins(ids){checkpoint();db.settings.pinnedItems=ids;db.updatedAt=now
 function pinContext(e){
  const row=e.target.closest('.row[data-id]');if(!row)return;
  const id=row.dataset.id,ids=pinnedIds(),pinned=ids.includes(id);e.preventDefault();
- DailyPlanner.popup(e.clientX,e.clientY,[['Copy item code',()=>copyItemCode(itemById(db,id),row.dataset.location)],[pinned?'Unpin':'Pin to top',()=>savePins(pinned?ids.filter(key=>key!==id):[...ids,id])]]);
+ const item=itemById(db,id);
+ DailyPlanner.popup(e.clientX,e.clientY,item?.heading?[['Rename heading',()=>{selected=id;startInlineEdit(id)}],['Convert to parent',()=>convertHeadingToParent(item)],['Convert to Note',()=>convertHeadingToNote(item)]]:[['Copy item code',()=>copyItemCode(item,row.dataset.location)],[pinned?'Unpin':'Pin to top',()=>savePins(pinned?ids.filter(key=>key!==id):[...ids,id])],['Add heading below',()=>{selected=id;quickCreateRoot('Note',{heading:true})}]]);
 }
 function disclosureIcon(open){return sidebarIcon(open?'<path d="m6 9 6 6 6-6"/>':'<path d="m9 18 6-6-6-6"/>')}
 function hasDisclosureChild(children){
@@ -4816,6 +4825,29 @@ function outlineIndent(depth){
  const step=25;
  return 6+step*Math.min(depth,6)+Math.round(step/3)*Math.max(0,depth-6);
 }
+// Headings (44): a collapsed heading hides the rows after it up to the next heading at its level
+// (or the end of its parent). Headings are structural, so grouped views leave them out.
+function applyHeadingSections(t){
+ const rows=[...t.querySelectorAll('.row[data-id]')],grouped=!!currentGroupBy();let hide=null;
+ for(const r of rows){
+   const depth=Number(r.dataset.hierarchyDepth)||0,isHeading=r.classList.contains('headingRow');
+   if(hide&&(depth<hide.depth||(depth===hide.depth&&isHeading)))hide=null;
+   r.classList.toggle('sectionHidden',!!hide||(grouped&&isHeading));
+   if(isHeading&&!hide&&!grouped&&itemById(db,r.dataset.id)?.collapsed)hide={depth};
+ }
+}
+function toggleHeadingSection(h,open=null){if(!h?.heading)return;h.collapsed=open===null?!h.collapsed:!open;db.updatedAt=now();markDirty();renderTree();focusOutlineItem(h.id)}
+function headingSection(h){
+ const siblings=childrenOf(db,h.parentId||null).filter(x=>!x.archived).sort((a,b)=>a.order-b.order),start=siblings.findIndex(x=>x.id===h.id),out=[];
+ for(const x of siblings.slice(start+1)){if(x.heading)break;out.push(x)}
+ return out;
+}
+function convertHeadingToParent(h){
+ const section=headingSection(h);checkpoint();const before=codeMapBefore(activeItems(db).map(x=>x.id));
+ delete h.heading;h.collapsed=false;section.forEach((x,index)=>moveItem(db,x.id,h.id,index));touch(db,h);rememberChangedCodes(before);
+ selected=h.id;render();toast('Heading converted to a parent item');
+}
+function convertHeadingToNote(h){checkpoint();delete h.heading;touch(db,h);render();toast('Heading converted to a Note')}
 function renderOutlineTree(){const navigationSessions=upcomingItemSessions();locationIndex=null;queueMicrotask(updateOutlinePaneMarker);refreshInlineTodos();paintTargetSelection();
  updateBranchZoomBar();
  const previousScrollTop=$("tree").scrollTop;
@@ -4859,7 +4891,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
      tags.length?`<span class="tags">${tags.map(tag=>`<span class="outlineTag">#${esc(tag)}</span>`).join('')}</span>`:'',
      heading?`<span class="targetGroupCount" aria-label="${heading.count} items">${heading.count}</span>`:''
    ].filter(Boolean).join('');
-   return `<div class="row ${current?'currentItem':''} ${grouped?'grouped-row':''} ${outlineDayFilter&&!scheduledGroupingDates(i).includes(outlineDayFilter)?'day-context-row':''} ${heading?'targetGroupRow':''} ${current||(graph&&multiLocations.size?multiLocations.has(location.id):multiSelected.size>1&&multiSelected.has(i.id))?'sel':''} ${i.type==='Todo'?statusClass(i.status||'Todo'):''}" data-id="${esc(i.id)}" data-location="${esc(location?.id||i.id)}" data-item-type="${i.type}" draggable="true" tabindex="-1" role="treeitem" aria-level="${visualDepth+1}" aria-selected="${current?'true':'false'}" data-indent="${indent}" data-hierarchy-depth="${visualDepth}" ${groupArrow||showArrow?`aria-expanded="${heading?!heading.collapsed:!collapsed}"`:''}>${groupArrow?`<button type="button" class="targetGroupToggle outlineChevron" data-group-toggle="${esc(heading.key)}" aria-label="${heading.collapsed?'Expand':'Collapse'} Target group" aria-expanded="${!heading.collapsed}">${disclosureIcon(!heading.collapsed)}</button>`:!shortcut&&(!grouped||hierarchy)?(showArrow?disclosureButton(!collapsed,'treeExpand'):'<span class="chevronSpace" aria-hidden="true"></span>'):''}${itemMarker(i,{code:true,outline:true})}<div class="outlineText"><div class="outlineTitleLine"><span class="title ${cl}">${esc(i.title||'(untitled)')}</span>${icons?`<span class="outlineIcons">${icons}</span>`:''}</div>${searching?imageSearchResult(i,$("search").value):''}${metadata?`<div class="outlineMetadata">${metadata}</div>`:''}</div>${link}${outlineNavigationIndicators(i,navigationSessions)}</div>${heading||(grouped&&!hierarchy)||collapsed?'':ks.map(k=>renderChild(k,d+1)).join('')}`;
+   return `<div class="row ${i.heading?'headingRow':''} ${current?'currentItem':''} ${grouped?'grouped-row':''} ${outlineDayFilter&&!scheduledGroupingDates(i).includes(outlineDayFilter)?'day-context-row':''} ${heading?'targetGroupRow':''} ${current||(graph&&multiLocations.size?multiLocations.has(location.id):multiSelected.size>1&&multiSelected.has(i.id))?'sel':''} ${i.type==='Todo'?statusClass(i.status||'Todo'):''}" data-id="${esc(i.id)}" data-location="${esc(location?.id||i.id)}" data-item-type="${i.type}" draggable="true" tabindex="-1" role="treeitem" aria-level="${visualDepth+1}" aria-selected="${current?'true':'false'}" data-indent="${indent}" data-hierarchy-depth="${visualDepth}" ${groupArrow||showArrow?`aria-expanded="${heading?!heading.collapsed:!collapsed}"`:''}>${groupArrow?`<button type="button" class="targetGroupToggle outlineChevron" data-group-toggle="${esc(heading.key)}" aria-label="${heading.collapsed?'Expand':'Collapse'} Target group" aria-expanded="${!heading.collapsed}">${disclosureIcon(!heading.collapsed)}</button>`:!shortcut&&(!grouped||hierarchy)?(i.heading?`<button type="button" tabindex="-1" class="outlineChevron headingToggle" data-heading-toggle="${esc(i.id)}" aria-label="${i.collapsed?'Expand':'Collapse'} section" aria-expanded="${!i.collapsed}">${disclosureIcon(!i.collapsed)}</button>`:showArrow?disclosureButton(!collapsed,'treeExpand'):'<span class="chevronSpace" aria-hidden="true"></span>'):''}${i.heading?'':itemMarker(i,{code:true,outline:true})}<div class="outlineText"><div class="outlineTitleLine"><span class="title ${cl}">${esc(i.title||'(untitled)')}</span>${icons?`<span class="outlineIcons">${icons}</span>`:''}</div>${searching?imageSearchResult(i,$("search").value):''}${metadata?`<div class="outlineMetadata">${metadata}</div>`:''}</div>${link}${outlineNavigationIndicators(i,navigationSessions)}</div>${heading||(grouped&&!hierarchy)||collapsed?'':ks.map(k=>renderChild(k,d+1)).join('')}`;
  };
  paintPins(row,graph);
  if(dateErr&&!searching){t.innerHTML=`<div class="empty filterError">${esc(dateErr.message)}</div>`;return}
@@ -4900,7 +4932,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
  const roots=zoomRootItem()?[zoomRootItem()]:activeItems(db).filter(x=>!x.parentId).sort((a,b)=>a.order-b.order);
  t.innerHTML=(graph?(zoomRootItem()?[graph.nodes.get(branchZoomLocation)||graph.primary(zoomRootItem())]:graph.siblings(null)).map(location=>row(location.item,0,{location})):roots.map(r=>row(r,0))).join("")||'<div class="empty">No matching items.</div>';
  t.querySelectorAll('[data-indent]').forEach(el=>el.style.paddingLeft=Number(el.dataset.indent)+'px');
- paintHierarchy(t,hierarchyViews.outline,row,false);t.scrollTop=previousScrollTop;
+ paintHierarchy(t,hierarchyViews.outline,row,false);applyHeadingSections(t);t.scrollTop=previousScrollTop;
 }
 function mondayOf(date){
  const d=new Date(date.getFullYear(),date.getMonth(),date.getDate(),12),off=(d.getDay()+6)%7;d.setDate(d.getDate()-off);return d
@@ -5438,7 +5470,7 @@ function renderCalendarContents(){
  updateCalendarSub()
 }
 function addExplicitScheduledDate(item,date){
- if(!validDate(date))return false;item.scheduledDates=item.scheduledDates||[];if(item.scheduledDates.includes(date))return false;item.scheduledDates.push(date);item.scheduledDates.sort();return true;
+ if(!validDate(date)||item?.heading)return false;item.scheduledDates=item.scheduledDates||[];if(item.scheduledDates.includes(date))return false;item.scheduledDates.push(date);item.scheduledDates.sort();return true;
 }
 function scheduleOn(date,{stayCalendar=false}={}){
  if(!validDate(date))return toast("Choose a valid calendar date.");
@@ -5480,7 +5512,7 @@ function renderBacklinks(targetId){
  appendInlineBacklinks(targetId);
 }
 
-function edit(id,{keepSearch=false}={}){if(itemById(db,id)||db?.planner?.meetings[id])$('editor').classList.remove('editor-empty');if(db?.planner?.meetings[id])return DailyMeetingEditor.open(id);$('editor').classList.remove('meetingDocument');if(editorDisplayedId!==id)docFind.hide(false);if(editorDisplayedId&&editorDisplayedId!==id)flushAutosaveOnNavigation();inlineDraft=null;inlineDraftChip.classList.add('hidden');const i=itemById(db,id);if(!i)return;if(!editorIsOpen()){window.dailyPlanner?.suspend();sidebarState.tab=appearance.defaultView==='editor'?'headings':'properties';sidebarState.visible=true;sidebarDrawerDismissed=false;applySidebarState()}rememberEditorLocation();editorDisplayedId=id;selected=id;if(!keepSearch&&!hierarchyViews.outline)completeSearchAction(id);$("editor").classList.remove("hidden");$("editor").classList.add("selected-context");$("calendarBody").classList.add("hidden");$("calendarControls").classList.add("hidden");$("mainPaneHead").classList.add("hidden");$("mainTitle").textContent="Editor";$("mainSub").textContent="Item editor";$("editCode").innerHTML=itemMarker(i);$("editCode").classList.toggle("note-code",i.type==="Note");$("editCode").classList.toggle("todo-code",i.type==="Todo");$("editType").textContent=i.type;
+function edit(id,{keepSearch=false}={}){if(itemById(db,id)?.heading){selected=id;if(!document.querySelector('#tree .inlineEdit'))startInlineEdit(id);return}if(itemById(db,id)||db?.planner?.meetings[id])$('editor').classList.remove('editor-empty');if(db?.planner?.meetings[id])return DailyMeetingEditor.open(id);$('editor').classList.remove('meetingDocument');if(editorDisplayedId!==id)docFind.hide(false);if(editorDisplayedId&&editorDisplayedId!==id)flushAutosaveOnNavigation();inlineDraft=null;inlineDraftChip.classList.add('hidden');const i=itemById(db,id);if(!i)return;if(!editorIsOpen()){window.dailyPlanner?.suspend();sidebarState.tab=appearance.defaultView==='editor'?'headings':'properties';sidebarState.visible=true;sidebarDrawerDismissed=false;applySidebarState()}rememberEditorLocation();editorDisplayedId=id;selected=id;if(!keepSearch&&!hierarchyViews.outline)completeSearchAction(id);$("editor").classList.remove("hidden");$("editor").classList.add("selected-context");$("calendarBody").classList.add("hidden");$("calendarControls").classList.add("hidden");$("mainPaneHead").classList.add("hidden");$("mainTitle").textContent="Editor";$("mainSub").textContent="Item editor";$("editCode").innerHTML=itemMarker(i);$("editCode").classList.toggle("note-code",i.type==="Note");$("editCode").classList.toggle("todo-code",i.type==="Todo");$("editType").textContent=i.type;
 const refs=[...String(i.content||"").matchAll(/!?\[\[(@\{[^}]+\}|(?:[NT]-[A-Z0-9.]+|[0-9]{3}\.[0-9]{3}(?:\.[1-9][0-9]*)*))\]\]/gi)],brokenRefs=refs.filter(m=>!referenceKnown(m[1])).length;
 $("refHealth").textContent=brokenRefs?`${brokenRefs} broken reference${brokenRefs===1?"":"s"}`:"";$("refHealth").classList.toggle("bad",brokenRefs>0);renderBacklinks(i.id);syncSourceFromModel(i);syncRichFromModel(i);setSourceMode(false);$("created").textContent=new Date(i.createdAt).toLocaleString('en-GB',{hourCycle:'h23'});$("updated").textContent=new Date(i.updatedAt).toLocaleString('en-GB',{hourCycle:'h23'});$("todoMeta").classList.toggle("hidden",i.type!=="Todo");$("status").value=i.status||"Todo";$("status").className="field status-field "+statusClass(i.status||"Todo");renderTagField(i);$("recurrenceBox").classList.toggle("hidden",i.type!=="Todo");$("repeatFrequency").value=i.recurrence?.frequency||"";$("repeatInterval").value=i.recurrence?.interval||1;$("repeatStart").value=i.recurrence?.startDate||"";$("repeatUnit").textContent=i.recurrence?.frequency?({daily:"day(s)",weekdays:"weekday(s)",weekly:"week(s)",monthly:"month(s)"}[i.recurrence.frequency]):"interval";renderTargetControls(i);renderMilestoneControls(i);renderRecurrencePattern(i);$("doneBtn").classList.toggle("hidden",i.type!=="Todo");$("doneBtn").textContent=i.status==="Done"?"Mark Todo":"Mark done";$("promote").disabled=!!currentGroupBy()||!i.parentId;$("demote").disabled=!!currentGroupBy()||!previousSibling(i);$("dates").innerHTML=(i.scheduledDates||[]).slice().sort().map(d=>`<span class="datechip"><button type="button" class="dateJumpBtn" data-date-jump="${esc(d)}">${displayDay(d)}</button><button type="button" class="dateRemoveBtn" data-rm="${esc(d)}" aria-label="Remove scheduled date">×</button></span>`).join("");
 $("dates").querySelectorAll("[data-date-jump]").forEach(b=>b.onclick=()=>{
@@ -5593,6 +5625,8 @@ $("exportFile").onclick=async()=>{try{await storage.export(db);toast("Backup exp
 }
 $("archiveBrowser").onclick=openArchiveBrowser;
 $("tree").onclick=e=>{
+ const headingToggle=e.target.closest('.headingToggle');
+ if(headingToggle){e.preventDefault();e.stopPropagation();toggleHeadingSection(itemById(db,headingToggle.dataset.headingToggle));return}
  const hit=e.target.closest('.row[data-id]');
  const arrow=e.target.closest('.treeExpand');
  if(arrow&&hit){
@@ -5754,6 +5788,8 @@ $("tree").ondrop=e=>{
  }
  checkpoint();
  const before=codeMapBefore(activeItems(db).map(x=>x.id));
+ if(plan.mode==="inside"&&plan.targetItem?.heading)plan.mode="after";
+ const section=dragged.heading?headingSection(dragged):[];
  if(plan.mode==="root"){
    moveItem(db,dragged.id,null);
  }else if(plan.mode==="inside"){
@@ -5766,6 +5802,7 @@ $("tree").ondrop=e=>{
    if(plan.mode==="after")idx++;
    moveItem(db,dragged.id,parentId,idx);
  }
+ if(section.length){const parentId=itemById(db,dragged.id).parentId||null;const order=childrenOf(db,parentId).filter(x=>!section.includes(x)).sort((a,b)=>a.order-b.order);const at=order.findIndex(x=>x.id===dragged.id)+1;for(const x of section)if((x.parentId||null)!==parentId)moveItem(db,x.id,parentId);order.splice(at,0,...section);order.forEach((x,n)=>{x.order=n})}
  rememberChangedCodes(before);
  selected=dragged.id;
  clearOutlineDropMarks();
@@ -6513,6 +6550,8 @@ window.addEventListener("keydown",e=>{
  if(listNavigationMode()&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
    if(e.key.toLowerCase()==="n"){e.preventDefault();quickCreateRoot("Note");return}
    if(e.key.toLowerCase()==="t"){e.preventDefault();quickCreateRoot("Todo");return}
+   if(e.key.toLowerCase()==="h"){e.preventDefault();quickCreateRoot("Note",{heading:true});return}
+   const sel=itemById(db,selected);if(sel?.heading&&activePane==="outline"&&!e.shiftKey&&["ArrowLeft","ArrowRight"].includes(e.key)){e.preventDefault();toggleHeadingSection(sel,e.key==="ArrowRight");return}
  }
 
  if(activePane==='calendar'&&calendarMode==='years'&&!e.shiftKey&&['Home','PageUp','PageDown'].includes(e.key)){
