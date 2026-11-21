@@ -5,6 +5,14 @@
 This folder is a self-contained Tauri 2 project. The desktop window uses `app.html` as its frontend. GitHub Actions packages the Windows and macOS desktop installers.
 No user database is part of this project. Portable `.ytnh` masters contain a verified SQLite snapshot and required managed files. Editing uses a local SQLite working copy. JSON recovery export remains available; JSON import/conversion is no longer part of the application.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org)
+
+Windows releases are built from this repository by GitHub Actions and signed only
+after manual approval. Team roles, what is signed and the privacy policy are in the
+[code signing policy](CODE_SIGNING_POLICY.md).
+
 ## Build Windows without development tools on the work laptop
 
 1. Create a **private** GitHub repository with a README.
