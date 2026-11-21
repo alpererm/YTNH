@@ -1974,10 +1974,6 @@ function promoteInPlace(database,id,toRoot=false){
  const siblings=childrenOf(database,destination);
  moveItem(database,id,destination,siblings.findIndex(i=>i.id===anchor.id)+1);
 }
-function reorderSibling(db,id,delta){
- stabilizeReferences(db);const previous=codeMapForDatabase(db);
- const i=itemById(db,id);if(!i)return;const s=db.items.filter(x=>x.parentId===i.parentId&&!x.archived).sort((a,b)=>a.order-b.order),idx=s.findIndex(x=>x.id===id),j=idx+delta;if(j<0||j>=s.length)return;[s[idx],s[j]]=[s[j],s[idx]];s.forEach((x,k)=>x.order=k+1);recordChangedCodes(db,previous);touch(db,i)
-}
 
 function normalizeTag(tag){
  return String(tag||"").trim().replace(/^#+/,"").replace(/\s+/g,"-").replace(/^\/+|\/+$/g,"").replace(/\/{2,}/g,"/").toLowerCase();
@@ -2631,7 +2627,7 @@ function selectedBodyBlocks(range=window.getSelection()?.rangeCount?window.getSe
 }
 function handleEditorStructuralKey(e){
  if(e.isComposing||document.activeElement!==$('richEditor'))return false;
- const mac=/Mac|iPhone|iPad/.test(navigator.platform),vertical=e.shiftKey&&!e.ctrlKey&&(mac?e.metaKey&&!e.altKey:e.altKey&&!e.metaKey);
+ const mac=IS_MAC,vertical=e.shiftKey&&!e.ctrlKey&&(mac?e.metaKey&&!e.altKey:e.altKey&&!e.metaKey);
  const direction=e.key==='Tab'&&!e.ctrlKey&&!e.metaKey&&!e.altKey?(e.shiftKey?'left':'right'):vertical?(e.key==='ArrowUp'?'up':e.key==='ArrowDown'?'down':null):null;if(!direction)return false;
  const sel=window.getSelection();if(!sel?.rangeCount)return false;
  const range=sel.getRangeAt(0),blocks=selectedBodyBlocks(range);if(!blocks.length)return false;
@@ -2674,11 +2670,6 @@ function placeCaretAtStart(el){
 function placeCaretAtEnd(el){
  const r=document.createRange(),s=window.getSelection();
  r.selectNodeContents(el);r.collapse(false);s.removeAllRanges();s.addRange(r)
-}
-function rangeAtBlockStart(block,range){
- if(!block||!range||!range.collapsed)return false;
- const r=range.cloneRange();r.selectNodeContents(block);r.setEnd(range.startContainer,range.startOffset);
- return r.toString()==="";
 }
 function rangeAtBlockEnd(block,range){
  if(!block||!range||!range.collapsed)return false;
@@ -2941,7 +2932,6 @@ function updateFormatButtons(){
  document.querySelectorAll('[data-block]').forEach(button=>button.setAttribute('aria-pressed',String(blocks.length>0&&blocks.every(b=>b.dataset.mdblock===button.dataset.block))));
 }
 
-function richTitleText(){return $("editorTitle").value}
 function combinedEditorSource(item){return String(item?.content||"")}
 function syncSourceFromModel(item){$("content").value=combinedEditorSource(item)}
 function restoreManagedImageWidths(root=$('richEditor')){
@@ -3805,12 +3795,6 @@ function unscheduleExplicit(item,date=null){
  completeSearchAction(item.id);render();if(editorIsOpen())edit(item.id);focusOutlineItem(item.id);
  toast(isRecurringTodo(item)?'Explicit date removed; recurrence is unchanged.':'Unscheduled');return true;
 }
-function goScheduledDate(item){
-  resetModalShell();
-  const dates=(item.scheduledDates||[]).slice().sort();if(!dates.length)return toast("This item has no scheduled date.");
-  if(dates.length===1)return jumpToDate(dates[0]);
-  $("modalTitle").textContent="Go to scheduled date";$("modalText").textContent="Choose a date.";$("modalExtra").innerHTML=dates.map(d=>`<button class="datechoice" data-date="${d}">${d}</button>`).join("");$("modalOK").textContent="Close";$("modalCancel").classList.add("hidden");$("modalbg").classList.add("open");$("modalOK").onclick=()=>{$("modalbg").classList.remove("open");$("modalCancel").classList.remove("hidden")};$("modalExtra").querySelectorAll("[data-date]").forEach(b=>b.onclick=()=>{$("modalbg").classList.remove("open");$("modalCancel").classList.remove("hidden");jumpToDate(b.dataset.date)});
-}
 function jumpToDate(ds){
   if(calendarMode==='years'&&validDate(ds))calendarMode='weeks';
   if(!validDate(ds))return;const [y,m,d]=ds.split("-").map(Number);if(y<2026||y>2150)return toast("Calendar range is 2026–2150.");weekAnchor=new Date(y,m-1,d||1,12);calendarCursorDate=ds;$("jumpDate").value=ds;setView("calendar");
@@ -4512,12 +4496,6 @@ function updateStatusFilterLabel(){
  updateOutlineToolbarState();
 }
 
-function dateFilterState(){
- const q=parseSearchQuery($("search")?.value||"");
- const created=!!(q.createdFrom||q.createdTo||$("createdFrom")?.value||$("createdTo")?.value);
- const scheduled=!!(q.scheduledFrom||q.scheduledTo||$("scheduledFrom")?.value||$("scheduledTo")?.value);
- return {created,scheduled,count:(created?1:0)+(scheduled?1:0)};
-}
 function updateDateFilterSection(){updateStatusFilterLabel()}
 
 function dateFilterValidation(){
@@ -4540,14 +4518,6 @@ function updateDateFilterValidation(){
  return err;
 }
 
-function outlineFilterSummary(){
- const shared=[],outlineOnly=[],q=parseSearchQuery($("search")?.value||"");
- if((q.texts||[]).length||(q.tags||[]).length||(q.statuses||[]).length)shared.push("search");
- if(statusFilterActive())shared.push("filters");
- if(q.createdFrom||q.createdTo||$("createdFrom")?.value||$("createdTo")?.value)outlineOnly.push("created date");
- if(q.scheduledFrom||q.scheduledTo||$("scheduledFrom")?.value||$("scheduledTo")?.value)outlineOnly.push("scheduled date");
- return {shared,outlineOnly};
-}
 function clearAllFilters(){
  outlineDayFilter=null;outlineRevealId=null;$("showDone").checked=false;$("search").value="";
  clearFilterSection();
@@ -4977,9 +4947,6 @@ function calendarEntries(ds){return (calendarEntryCache||entriesForRange(ds,ds))
 function statusClass(status){
  return "status-"+String(status||"Todo").toLowerCase().replace(/\s+/g,"-");
 }
-function statusIcon(status){
- return status==="Done"?"✓":status==="Cancelled"?"×":status==="Waiting for"?"W":status==="On hold"?"H":"↻";
-}
 function openOccurrenceStatus(item,date){
  resetModalShell();
  const current=occurrenceStatus(item,date);
@@ -5050,7 +5017,7 @@ function paintMacCalendarDrag(){
 }
 window.addEventListener('pointerdown',event=>{
  macDragClickUntil=0;
- if(!/Mac|iPhone|iPad/.test(navigator.platform)||!event.metaKey||event.button!==0||isTextEntry(event.target))return;
+ if(!IS_MAC||!event.metaKey||event.button!==0||isTextEntry(event.target))return;
  const source=event.target.closest('#tree .row[data-id],#calendarBody .chip[draggable="true"][data-cal-drag-item]');
  if(!source||event.target.closest('button,input,textarea,select'))return;
  const id=source.dataset.id||source.dataset.calDragItem;
@@ -5429,13 +5396,6 @@ function renderCalendarContents(){
  try{renderWeekCalendar(w)}finally{calendarEntryCache=null}
  updateCalendarSub()
 }
-function scheduleManyOn(ids,date){
- if(!db||!validDate(date))return false;
- const items=[...new Set(ids)].map(id=>itemById(db,id)).filter(i=>i&&!i.archived&&!(i.scheduledDates||[]).includes(date));
- if(!items.length)return false;
- checkpoint();for(const i of items){i.scheduledDates=[...(i.scheduledDates||[]),date].sort();touch(db,i)}
- render();showCalendar();toast(`Scheduled ${items.length} item${items.length===1?"":"s"} on ${date}`);return true;
-}
 function addExplicitScheduledDate(item,date){
  if(!validDate(date))return false;item.scheduledDates=item.scheduledDates||[];if(item.scheduledDates.includes(date))return false;item.scheduledDates.push(date);item.scheduledDates.sort();return true;
 }
@@ -5495,7 +5455,6 @@ function moveVisibleOutline(direction,toRoot=false){
 }
 
 function previousSibling(i){if(!i)return null;const s=activeItems(db).filter(x=>x.parentId===i.parentId).sort((a,b)=>a.order-b.order),idx=s.findIndex(x=>x.id===i.id);return idx>0?s[idx-1]:null}
-function bindPreviewLinks(){}
 function showCalendar({refresh=true}={}){rememberEditorLocation();window.dailyPlanner?.resume();docFind.hide(false);setEditorFocus(false);$("editor").classList.add("hidden");$("calendarBody").classList.remove("hidden");$("mainPaneHead").classList.remove("hidden");$("calendarControls").classList.remove("hidden");$("mainTitle").textContent="Calendar";if(refresh)renderCalendar();updateCalendarSub();rememberFocusedItem()}
 function setView(v){$("layout").dataset.view=v;if(v==="calendar")showCalendar();if(v==="editor"&&selected)edit(selected)}
 function modal(title,text,label,fn){resetModalShell();$("modalExtra").innerHTML="";$("modalTitle").textContent=title;$("modalText").textContent=text;$("modalOK").textContent=label;$("modalbg").classList.add("open");$("modalCancel").onclick=closeModalShell;$("modalOK").onclick=()=>{closeModalShell();fn()}}
@@ -6386,12 +6345,12 @@ function createChildByShortcut(type,origin){
  revealOutlineItem(item.id);if(draft.editorOpen||appearance.defaultView==='editor')edit(item.id);startInlineEdit(item.id);
 }
 window.addEventListener('keydown',event=>{
- if(event.key==='Tab'&&!event.shiftKey&&!event.metaKey&&(/Mac/.test(navigator.platform)?event.altKey&&!event.ctrlKey:event.ctrlKey&&!event.altKey)&&db&&!event.isComposing&&!document.querySelector('dialog[open],#modalbg.open')){
+ if(event.key==='Tab'&&!event.shiftKey&&!event.metaKey&&(IS_MAC?event.altKey&&!event.ctrlKey:event.ctrlKey&&!event.altKey)&&db&&!event.isComposing&&!document.querySelector('dialog[open],#modalbg.open')){
    event.preventDefault();event.stopImmediatePropagation();
    if(!event.repeat)focusAppArea(event.target.closest('.treepanel')?(editorIsOpen()?2:calendarMode==='years'?4:3):1);
    return;
  }
- if(db&&event.altKey&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&event.code==='KeyN'&&!editorComposing&&!$('modalbg').classList.contains('open')&&(!isTextEntry(event.target)||$('editor').contains(event.target))&&(/Mac/.test(navigator.platform)||!event.getModifierState?.('AltGraph'))){
+ if(db&&event.altKey&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&event.code==='KeyN'&&!editorComposing&&!$('modalbg').classList.contains('open')&&(!isTextEntry(event.target)||$('editor').contains(event.target))&&(IS_MAC||!event.getModifierState?.('AltGraph'))){
    event.preventDefault();event.stopImmediatePropagation();
    if(!event.repeat)createChildByShortcut('Note',event.target);return;
  }
@@ -6476,7 +6435,7 @@ window.addEventListener("keydown",e=>{
  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==="z"&&appHistory){e.preventDefault();undo();return}
  if(appHistory&&(((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y")||((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==="z"))){e.preventDefault();redo();return}
 
- const macHistory=/Mac|iPhone|iPad/.test(navigator.platform);
+ const macHistory=IS_MAC;
  if(!e.shiftKey&&(macHistory?e.metaKey&&!e.ctrlKey&&!e.altKey&&['BracketLeft','BracketRight'].includes(e.code):e.altKey&&!e.ctrlKey&&!e.metaKey&&['ArrowLeft','ArrowRight'].includes(e.key))){
    e.preventDefault();navigateFocusHistory(macHistory?e.code==='BracketRight':e.key==='ArrowRight');return;
  }
@@ -6925,7 +6884,7 @@ function initInlineTodos(){
  },true);
  root.addEventListener('input',()=>{if(editorComposing)return;const seen=new Set();let changed=false;root.querySelectorAll('.inlineTodo').forEach(el=>{if(!el.textContent){el.remove();changed=true}else{if(seen.has(el.dataset.occurrence)){el.dataset.occurrence=uuid();changed=true}seen.add(el.dataset.occurrence)}});if(changed)syncModelFromRich();updateInlineDraft();chooseInlineTodo();refreshInlineTodos()});
  bindDateAutocomplete(root);
- root.addEventListener('click',e=>{const el=e.target.closest('.inlineTodo');if(!el)return;e.stopImmediatePropagation();const mac=/Mac|iPhone|iPad/.test(navigator.platform);if(mac?e.metaKey:e.ctrlKey){e.preventDefault();openInlineTarget(el)}},true);
+ root.addEventListener('click',e=>{const el=e.target.closest('.inlineTodo');if(!el)return;e.stopImmediatePropagation();const mac=IS_MAC;if(mac?e.metaKey:e.ctrlKey){e.preventDefault();openInlineTarget(el)}},true);
  root.addEventListener('contextmenu',e=>{const el=e.target.closest('.inlineTodo');if(el)openInlineMenu(el,e)},true);
  document.addEventListener('selectionchange',()=>{root.querySelectorAll('.inlineTodo.caretInside').forEach(e=>e.classList.remove('caretInside'));const sel=getSelection(),node=sel?.anchorNode,el=(node?.nodeType===3?node.parentElement:node)?.closest?.('.inlineTodo');if(el&&sel.isCollapsed)el.classList.add('caretInside')});
  for(const kind of ['copy','cut'])root.addEventListener(kind,e=>{const sel=getSelection();if(!sel?.rangeCount||sel.isCollapsed)return;const frag=sel.getRangeAt(0).cloneContents(),holder=document.createElement('div');holder.append(frag);const ancestor=(sel.getRangeAt(0).commonAncestorContainer.nodeType===3?sel.getRangeAt(0).commonAncestorContainer.parentElement:sel.getRangeAt(0).commonAncestorContainer).closest?.('.inlineTodo');if(ancestor&&!holder.querySelector('.inlineTodo')){const wrapper=makeInlineTodo(ancestor.dataset.inlineTodo,ancestor.dataset.occurrence,holder.textContent);holder.replaceChildren(wrapper)}if(!holder.querySelector('.inlineTodo')||holder.querySelector('[data-mdblock=image]'))return;e.preventDefault();const internal=holder.innerHTML;e.clipboardData.setData('application/x-yutanohe-inline',internal);e.clipboardData.setData('text/plain',sel.toString().replace(/\u200b/g,''));holder.querySelectorAll('.inlineTodo').forEach(el=>el.replaceWith(document.createTextNode(el.textContent)));e.clipboardData.setData('text/html',holder.innerHTML);if(kind==='cut'){forceRichHistoryCheckpoint();sel.deleteFromDocument();syncModelFromRich()}},true);
@@ -7015,7 +6974,7 @@ function initEditorSidebar(){
 // Header and body share the same responsive document column.
 function updateWritingWidth(){resizeDocumentTitle()}
 window.addEventListener('keydown',e=>{
- const mac=/Mac|iPhone|iPad/.test(navigator.platform),digit=/^Digit([012])$/.exec(e.code);
+ const mac=IS_MAC,digit=/^Digit([012])$/.exec(e.code);
  if(!digit||!e.altKey||e.shiftKey||e.isComposing||isTextEntry(e.target)||e.getModifierState?.('AltGraph')||!(mac?e.metaKey&&!e.ctrlKey:e.ctrlKey&&!e.metaKey)||$('modalbg').classList.contains('open')||!editorIsOpen())return;
  // Native date/select controls retain their own modifier-key handling.
  if(e.target?.matches?.('select,input[type="date"],input[type="week"],input[type="month"]'))return;

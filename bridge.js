@@ -28,7 +28,7 @@
   window.addEventListener('focus',reportCaptureStatus);
   let zoom=1;
   window.addEventListener('keydown',e=>{
-    const mac=/Mac/.test(navigator.platform);
+    const mac=/mac/i.test(navigator.userAgentData?.platform||navigator.platform);
     if(!(mac?e.metaKey:e.ctrlKey)||e.altKey)return;
     const direction=['Equal','NumpadAdd'].includes(e.code)||e.key==='+'?1:['Minus','NumpadSubtract'].includes(e.code)||e.key==='-'?-1:0;
     if(!direction&&e.code!=='Digit0')return;
@@ -36,7 +36,7 @@
     call('set_zoom',{factor:zoom}).catch(e=>toast(e.message));
   },true);
   window.addEventListener('DOMContentLoaded',()=>{
-    if(!/Win/.test(navigator.platform))return;
+    if(!/win/i.test(navigator.userAgentData?.platform||navigator.platform))return;
     document.body.classList.add('windows-desktop');const timers=new WeakMap();
     document.addEventListener('scroll',e=>{const el=e.target;if(!(el instanceof Element))return;el.classList.add('is-scrolling');clearTimeout(timers.get(el));timers.set(el,setTimeout(()=>el.classList.remove('is-scrolling'),800))},true);
   });
