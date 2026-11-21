@@ -41,7 +41,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  }
  for(const theme of ['dark']){
    await p.evaluate(t=>{appearance.theme=t;applyTheme();openSettings()},theme);await p.locator('#settingsFont').click();assert(await p.locator('.selectPopover').isVisible());
-   await p.keyboard.press('ArrowDown');await p.keyboard.press('Escape');assert.equal(await p.locator('.selectPopover').count(),0);await p.locator('#modalCancel').click();
+   await p.keyboard.press('ArrowDown');await p.keyboard.press('Escape');assert.equal(await p.locator('.selectPopover').count(),0);await p.locator('#modalOK').click();
  }
  await p.evaluate(()=>{showCalendar();filterOutlineDay('2026-11-06')});assert.equal(await p.locator('[data-remove-filter="day"]').count(),1);assert.equal(await p.locator('#dayFilterBar').count(),0);await p.keyboard.press('ArrowUp');assert.equal(await p.evaluate(()=>outlineDayFilter),'2026-10-30');await p.locator('[data-remove-filter="day"]').click();assert.equal(await p.evaluate(()=>outlineDayFilter),null);
  await p.evaluate(()=>{const n=itemById(db,noteId),t=itemById(db,todoId);t.status='Todo';n.scheduledDates=[today()];t.scheduledDates=[today()];db.settings.hideWeekends=false;appearance.theme='dark';applyTheme();weekAnchor=new Date();showCalendar();render()});

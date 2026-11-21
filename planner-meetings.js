@@ -103,7 +103,7 @@ const DailyMeetingEditor=(()=>{
       ...(m.parent?[['Remove parent',()=>P.mutate(()=>m.parent=null)]]:[]),
       ['Cancel occurrence',()=>P.mutate(()=>m.exceptions[b.origin]={removed:true})],
       ['End series here',()=>P.mutate(()=>M.revise(m,b.origin,{enabled:false}))],
-      ['Delete entire meeting and document…',()=>{if(confirm('Delete this meeting, all occurrences and its shared document?')){if(selected===m.id){showCalendar();selected=null;editorDisplayedId=null}P.mutate(()=>delete db.planner.meetings[m.id])}}]]);
+      ['Delete entire meeting and document…',async()=>{if(await appConfirm('Delete meeting?','This deletes the meeting, all of its occurrences and its shared document.','Delete')){if(selected===m.id){showCalendar();selected=null;editorDisplayedId=null}P.mutate(()=>delete db.planner.meetings[m.id])}}]]);
   }
   function search(host,query){
     for(const m of Object.values(db.planner?.meetings||{})){

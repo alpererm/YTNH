@@ -37,7 +37,7 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
   await baseline.close();
  }
  await state(p,'dark','weeks');await p.evaluate(()=>openSettings());
- assert.equal(await p.locator('#settingsTheme option').count(),2);assert.equal(await p.locator('#settingsUIStyle').count(),0);await p.locator('#modalCancel').click();
+ assert.equal(await p.locator('#settingsTheme option').count(),2);assert.equal(await p.locator('#settingsUIStyle').count(),0);await p.locator('#modalOK').click();
  assert.equal(await p.evaluate(()=>JSON.stringify(db)),await p.evaluate(()=>original));
  for(const theme of themes){
   await state(p,theme,'weeks');
@@ -98,7 +98,7 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
  assert.equal(await p.locator('.targetBar[data-selected="true"]').count(),2);
  await p.locator('#tree .row').filter({hasText:'Project communication'}).locator('.title').click();
  assert.equal(await p.locator('.targetBar[data-selected="true"]').count(),0);
- await p.evaluate(()=>openSettings());await p.selectOption('#settingsTheme','light');await p.locator('#modalCancel').click();
+ await p.evaluate(()=>openSettings());await p.selectOption('#settingsTheme','light');await p.locator('#modalOK').click();
  await p.reload();assert.equal(await p.getAttribute('body','data-theme'),'light');
  assert.deepEqual(errors,[]);await browser.close();console.log('PASS theme persistence, unchanged JSON, two themes, Outline hierarchy/selection, calendar/drop indicators, Target selection, responsive editor/Focus Mode'+(baselineFile?', pixel-identical layout at both widths across all 15 theme/view combinations':''));
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -12,9 +12,14 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('body').getAttribute('data-theme'),'dark');
  assert.equal(await page.locator('#richEditor').evaluate(e=>getComputedStyle(e).fontSize),'20px');
  assert.match(await page.locator('#richEditor').evaluate(e=>getComputedStyle(e).fontFamily),/Georgia/);
- await open();await page.locator('#settingsDefaults').click();await page.keyboard.press('Escape');
- assert.equal(await page.evaluate(()=>appearance.editorSize),20);
- await page.reload();assert.equal(await page.evaluate(()=>appearance.editorSize),20);assert.equal(await page.locator('body').getAttribute('data-theme'),'dark');
+ // Settings apply as soon as they change; Escape only closes the dialog.
+ await open();await page.selectOption('#settingsEditorSize','22');await page.keyboard.press('Escape');
+ assert.equal(await page.locator('#modalbg.open').count(),0);assert.equal(await page.evaluate(()=>appearance.editorSize),22);
+ await page.reload();assert.equal(await page.evaluate(()=>appearance.editorSize),22);assert.equal(await page.locator('body').getAttribute('data-theme'),'dark');
+ // Restore defaults applies immediately too.
+ await open();await page.locator('#settingsDefaults').click();
+ assert.equal(await page.evaluate(()=>appearance.editorSize),await page.evaluate(()=>normalizeAppearance(null).editorSize));assert.equal(await page.locator('body').getAttribute('data-theme'),'light');
+ await page.selectOption('#settingsTheme','dark');await page.keyboard.press('Escape');
  await open();await page.setViewportSize({width:360,height:640});await page.screenshot({path:require('node:path').join(require('node:os').tmpdir(),'settings-dark.png')});
  assert(await page.locator('#modalOK').isVisible());
  const fits=await page.locator('.modal').evaluate(e=>{const r=e.getBoundingClientRect();return r.x>=0&&r.right<=innerWidth&&r.bottom<=innerHeight});assert(fits);
