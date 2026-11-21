@@ -119,7 +119,7 @@ The Source layout test compares the writing width against its scroll container's
 `cargo test --locked --manifest-path crates/library/Cargo.toml` includes portable
 container, working-copy and publication recovery tests using synthetic local files.
 `portable-desktop.cjs` is part of the core runner and simulates native replies; it does
-not certify an installed app or cloud synchronization. See `PORTABLE-MASTER-STAGE3.md`
+not certify an installed app or cloud synchronization. See `docs/development/PORTABLE-MASTER-STAGE3.md`
 for scope, fault-injection checkpoints and remaining native acceptance tests.
 
 Portable recovery additions: partial recovery reports preserve valid choices and expose invalid receipts without weakening automatic activation. The complete-backup regression rebuilds a verified master from retained SQLite plus objects, then rejects a corrupted asset. JSON migration is now offline test support (`crates/library/test-support/json_migration.rs`), included by fixture tests and the CI example only; the application has no JSON import command.
@@ -130,5 +130,5 @@ Registered legacy transition: `sqlite-desktop.cjs` now tests explicit conversion
 
 `native-theme.cjs` and `settings.cjs` now honor `BROWSER_ENGINE` in both engines.
 The core CI set remains distinct from the additional historical suites.
-See POST-MIGRATION-AUDIT.md for the baseline, final results, retired-test mapping,
+See docs/development/POST-MIGRATION-AUDIT.md for the baseline, final results, retired-test mapping,
 and packaged-desktop verification limits.
