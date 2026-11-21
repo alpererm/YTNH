@@ -21,7 +21,10 @@
   async function reportCaptureStatus(){
     try{const status=await call('capture_status');window.notesCaptureStatus=status;const error=status.errors.join(' ');if(error&&error!==lastCaptureError)toast('Global shortcut unavailable: '+error);lastCaptureError=error}catch(error){console.error(error)}
   }
-  window.addEventListener('DOMContentLoaded',reportCaptureStatus);
+  // The system-wide Quick Open shortcut (Ctrl+Shift+Space) can be turned off in Settings (review 38).
+  async function applyCapturePreference(){let on=true;try{on=localStorage.getItem('ytnh-global-quick-open')!=='off'}catch{}try{window.notesCaptureStatus=await call('set_capture_enabled',{enabled:on})}catch(error){console.error(error)}}
+  window.notesGlobalQuickOpen={get enabled(){try{return localStorage.getItem('ytnh-global-quick-open')!=='off'}catch{return true}},async set(on){try{localStorage.setItem('ytnh-global-quick-open',on?'on':'off')}catch{}await applyCapturePreference();await reportCaptureStatus()}};
+  window.addEventListener('DOMContentLoaded',()=>applyCapturePreference().then(reportCaptureStatus));
   window.addEventListener('focus',reportCaptureStatus);
   let zoom=1;
   window.addEventListener('keydown',e=>{

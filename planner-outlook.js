@@ -249,6 +249,6 @@ const PlannerOutlook=(()=>{
   }
   const menu=document.getElementById('calendarMenu');
   for(const [label,reuse] of [['Import Outlook Calendar…',false],['Reimport Outlook Calendar…',true]])P.button(label,()=>{$('appMenu').open=false;choose(reuse)},menu);
-  P.button('Review duplicate Outlook meetings…',()=>{$('appMenu').open=false;reviewDuplicates()},menu);
+  P.button('Review Duplicate Meetings…',()=>{$('appMenu').open=false;reviewDuplicates()},menu);
   return {read,preview,commit,sourceCandidates,repairDuplicates};
 })();

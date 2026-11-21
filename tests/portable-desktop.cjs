@@ -101,8 +101,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await page.evaluate(()=>probe.calls.some(op=>['inspect','auto_snapshot','allow_local','prepare','receive'].includes(op))),false);
  // The retired creation command must be absent, even when viewing a legacy library.
  await page.evaluate(()=>{storage.handle.portable=false;$('appMenu').open=true});
- await page.locator('#databaseMenu').locator('..').locator(':scope > summary').click();
- await page.getByRole('button',{name:'Recover local portable library…',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Recover Local Library…',exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Connect handoff folder…',exact:true}).count(),0);
  assert.equal(await page.getByRole('button',{name:'Receive handoff…',exact:true}).count(),0);
  assert.equal(await page.getByRole('button',{name:'Convert existing SQLite library…',exact:true}).count(),0);
@@ -117,12 +116,12 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert(await page.evaluate(()=>storage.handle.portable&&storage.name==='New portable.ytnh'&&db.items.length===0));
  assert.equal(await page.evaluate(()=>probe.calls.includes('create')),false);
  // PM-02: valid choices remain usable with explicit warnings for damaged copies.
- await page.evaluate(()=>[...document.querySelectorAll('#appMenu button')].find(b=>b.textContent==='Recover local portable library…').click());
+ await page.evaluate(()=>[...document.querySelectorAll('#appMenu button')].find(b=>b.textContent==='Recover Local Library…').click());
  await page.getByRole('heading',{name:'Local recovery copies',exact:true}).waitFor();
  assert.match(await page.locator('.libraryDialog').innerText(),/damaged-copy: Invalid receipt; retained/);
  await page.getByRole('button',{name:'New portable.ytnh · new-r1',exact:true}).click();
  await page.waitForFunction(()=>!notesDesktop.sqlite.busy&&probe.calls.includes('portable_adopt'));
- await page.evaluate(()=>{probe.onlyDamaged=true;window.beforeRecovery=db;[...document.querySelectorAll('#appMenu button')].find(b=>b.textContent==='Recover local portable library…').click()});
+ await page.evaluate(()=>{probe.onlyDamaged=true;window.beforeRecovery=db;[...document.querySelectorAll('#appMenu button')].find(b=>b.textContent==='Recover Local Library…').click()});
  await page.getByRole('heading',{name:'Local recovery copies',exact:true}).waitFor();
  assert.equal(await page.locator('.libraryDialog button').count(),1);
  await page.getByRole('button',{name:'Cancel',exact:true}).click();

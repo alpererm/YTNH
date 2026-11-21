@@ -118,7 +118,7 @@ const DailyPlanner = (() => {
   function restore(){let show=false;try{show=localStorage.getItem('ytnh-planner-open')==='true'}catch{}open(Boolean(db&&show),false)}
   toggle.onclick=()=>open(pane.hidden);updateToggle(false);
   window.addEventListener('keydown',e=>{
-    if(e.code!=='KeyP'||!e.altKey||!(/Mac|iPhone|iPad/.test(navigator.platform)?e.metaKey:e.ctrlKey)||e.shiftKey||e.isComposing||document.querySelector('dialog[open],#modalbg.open'))return;
+    if(e.code!=='KeyP'||!e.altKey||!(IS_MAC?e.metaKey:e.ctrlKey)||e.shiftKey||e.isComposing||isTextEntry(e.target)||e.getModifierState?.('AltGraph')||document.querySelector('dialog[open],#modalbg.open'))return;
     e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)open(pane.hidden);
   },true);
   pane.querySelector('input').onchange=e=>selectDay(e.target.value);

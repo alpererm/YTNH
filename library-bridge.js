@@ -191,9 +191,11 @@ function createDesktopLibraries(call) {
     flushPendingInputs();if(savePromise)await savePromise;
     if(dirty&&(!await requestDatabaseSave({manual:true})||dirty))throw new Error('Local save did not finish. Your pending edits are still here.');
   }
-  function addMenu(label,run){
-    const b=document.createElement('button');b.type='button';b.textContent=label;
-    document.getElementById('databaseMenu').append(b);
+  // Desktop items go into fixed slots of the flat application menu (review 16).
+  function addMenu(label,run,id,slot='libraryToolsMenu'){
+    const b=document.createElement('button');b.type='button';b.textContent=label;if(id)b.id=id;
+    const anchor=slot==='afterSave'?document.getElementById('saveFile'):null;
+    if(anchor)anchor.after(b);else document.getElementById(slot).append(b);
     b.onclick=()=>{$('appMenu').open=false;exclusive(run).catch(report);};
     return b;
   }
@@ -226,7 +228,7 @@ function createDesktopLibraries(call) {
     }
   }
   function setup(){
-    if(window.notesDesktop.sqlite.imageEditing)addMenu('Export document as Markdown…',exportDocument);
+    if(window.notesDesktop.sqlite.imageEditing)addMenu('Export Note as Markdown…',exportDocument,'exportMarkdown');
 
     const restore=addMenu('Restore Backup…',async()=>{
       const handle=storage.handle;if(!handle?.sqlite)return;await flush();
@@ -236,15 +238,15 @@ function createDesktopLibraries(call) {
       if(answer.choice==='cancel')return;
       const r=await action('restore_backup',{id:handle.id,revision:handle.revision,backup:answer.choice});
       if(r)await activate(new LibraryHandle(handle));
-    });
-    const archive=addMenu('Restore managed cold archive…',async()=>{
+    },'restoreBackup');
+    const archive=addMenu('Restore Cold Archive…',async()=>{
       const handle=storage.handle;if(!handle?.sqlite)return;await flush();
       const files=new Map(db.archiveIndex.map(e=>[e.archiveId||e.archiveFile,e.archiveFile]));
       const result=await question('Cold archives','Choose an archive to restore.',[...files.entries(),['cancel','Cancel']]);
       if(result.choice==='cancel')return;
       const text=await action('read_archive',{id:handle.id,archive:result.choice});
       if(await restoreColdArchiveFile(new File([text],files.get(result.choice)))){render();await flush();}
-    });
+    },'restoreColdArchive');
     $('appMenu').addEventListener('toggle',()=>{
       restore.hidden=!storage.handle?.sqlite;saveAs.hidden=!storage.handle?.portable;
       archive.hidden=!storage.handle?.sqlite||!db?.archiveIndex?.length;
@@ -252,8 +254,8 @@ function createDesktopLibraries(call) {
     $('openFile').onclick=()=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_open'))}).catch(report);
     $('newFile').onclick=()=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_new',{model:createEmptyDatabase()}))}).catch(report);
     $('saveFile').onclick=()=>storage.handle?.portable?exclusive(()=>savePortable(storage.handle)).catch(report):requestDatabaseSave({manual:true});
-    const saveAs=addMenu('Save As…',()=>savePortable(storage.handle,{saveAs:true}));
-    addMenu('Recover local portable library…',async()=>{
+    const saveAs=addMenu('Save As…',()=>savePortable(storage.handle,{saveAs:true}),'saveAsFile','afterSave');
+    addMenu('Recover Local Library…',async()=>{
       if(!await beforeSwitch())return;
       const report=await action('portable_recovery_list'),copies=report.copies;
       const warnings=report.issues.map(i=>i.copy+': '+i.error).join('\n');
@@ -262,7 +264,7 @@ function createDesktopLibraries(call) {
       const reply=await question('Local recovery copies',message,[...copies.map(c=>[c.copy,c.name+' · '+String(c.revision||'').slice(0,8)+(c.unpublished?' · local edits':'')]),['cancel','Cancel']]);
       if(reply.choice==='cancel')return;
       await activateRecord(await action('portable_adopt',{copy:reply.choice}));
-    });
+    },'recoverLibrary');
   }
   return {
     setup,get busy(){return busy},
