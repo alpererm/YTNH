@@ -73,7 +73,7 @@ impl WorkingStore {
             || checked.manifest.state["library"] != library
             || checked.manifest.state["revision"] != publication.revision
         {
-            return Err("Published master could not be verified; local work retained".into());
+            return Err("The saved library file couldn't be verified; your local work was kept".into());
         }
         let mut saved = session;
         saved.master = publication.destination;
@@ -175,12 +175,12 @@ impl WorkingStore {
             )
         };
         if destination.starts_with(&self.root) {
-            return Err("Master must be outside local working storage".into());
+            return Err("The library file must be outside YTNH's own data folder".into());
         }
         let check_destination = || -> Result<()> {
             match &expected {
                 Some(expected) if fingerprint(&destination, self.limits.bytes)? != *expected => {
-                    Err("Conflict: master changed outside YuTaNoHe; use Save As or cancel".into())
+                    Err("Conflict: the library file was changed outside YTNH; use Save As or cancel".into())
                 }
                 None if fs::symlink_metadata(&destination).is_ok() => {
                     Err("Conflict: destination already exists".into())
@@ -193,7 +193,7 @@ impl WorkingStore {
             return Ok(working);
         }
         if expected.is_some() && fs::metadata(&destination)?.permissions().readonly() {
-            return Err("The master is read-only; use Save As or cancel".into());
+            return Err("The library file is read-only; use Save As or cancel".into());
         }
         let publications = self.root.join("publications");
         fs::create_dir_all(&publications)?;
@@ -234,7 +234,7 @@ impl WorkingStore {
             .map_err(|e| e.error)?;
         sync_dir(&self.root.join("sessions"))?;
         checkpoint("pending")?;
-        let parent = destination.parent().ok_or("Missing master directory")?;
+        let parent = destination.parent().ok_or("The library file's folder is missing")?;
         let mut staged = NamedTempFile::new_in(parent)?;
         if copy_hash(
             &mut regular(&package)?,
@@ -255,7 +255,7 @@ impl WorkingStore {
                 self.limits.bytes,
             )?) != expected
             {
-                return Err("Conflict: master changed while preserving recovery copy".into());
+                return Err("Conflict: the library file changed while keeping a recovery copy".into());
             }
             previous.sync_all()?;
             sync_dir(&folder)?;
@@ -285,7 +285,7 @@ impl WorkingStore {
         checkpoint("replaced")?;
         let checked = verify(&destination, &self.root.join("staging"), self.limits)?;
         if checked.fingerprint != publication.fingerprint {
-            return Err("Master changed after replacement; local recovery retained".into());
+            return Err("The library file changed after saving; your local recovery copy was kept".into());
         }
         let mut session = working.session;
         session.master = destination;

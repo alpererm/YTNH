@@ -1582,6 +1582,14 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body .modal.settingsModal>.modalactions{flex:none;display:flex;align-items:center;gap:8px;margin:0 -18px -18px;padding:12px 18px;border-top:1px solid var(--workspace-grid)}
 :root body .modal.settingsModal>.modalactions .settingsDefaults{margin:0 auto 0 0}
 :root body .settingsError{grid-column:1 / -1;color:var(--danger)}
+
+/* About (15): standard layout; technical details stay small and last. */
+:root body .aboutContent .aboutLead{margin:0 0 10px;color:var(--ink);font-size:1.05em}
+:root body .aboutContent .aboutVersion{margin:0 0 12px;color:var(--muted)}
+:root body .aboutContent .aboutLinks{margin:0 0 12px}
+:root body .aboutContent .aboutLinks a{color:var(--accent)}
+:root body .aboutContent .aboutFootnote{margin:4px 0 0;color:var(--muted);font-size:12px}
+:root body .aboutContent .aboutTechnical{font-size:11px}
 </style><link rel="stylesheet" href="planner.css"></head><body><div id="app"></div><script src="planner-model.js"></script>
 <script>"use strict";
 const APP_VERSION="11.4.1";
@@ -1611,7 +1619,7 @@ function numericCodeRoot(code){return String(code||'').match(/^(\d{3}\.\d{3})(?:
 // Load the shared numeric RootID format without rewriting IDs or references.
 function migrateDatabase(input){
  if(!input||input.format!=='local-notes-todos')throw new Error('Not a YTNH data file.');
- if(![9,10,11].includes(input.schemaVersion))throw new Error('Unsupported library format. Open a YuTaNoHe library using schema 9, 10 or 11.');
+ if(![9,10,11].includes(input.schemaVersion))throw new Error('Unsupported library format. Open a YTNH library that uses data format 9, 10 or 11.');
  const next=JSON.parse(JSON.stringify(input));
  validateDatabase(next);reconcileAllocator(next);
  // Schema 9 already uses current RootIDs; only the optional Targets field differs.
@@ -1747,7 +1755,7 @@ function validateItem(i){
 }
 function validateDatabase(db){
  if(db?.planner!==undefined)PlannerModel.validate(db);
- if(!db||![9,10,11].includes(db.schemaVersion)||!Array.isArray(db.items)||!Array.isArray(db.archiveIndex))throw new Error("Invalid database structure.");
+ if(!db||![9,10,11].includes(db.schemaVersion)||!Array.isArray(db.items)||!Array.isArray(db.archiveIndex))throw new Error("This file is damaged or isn’t a YTNH library.");
  validateHierarchy(db.items);
  if(db.schemaVersion===11){if(!db.locations||typeof db.locations!=='object'||Array.isArray(db.locations))throw Error('Missing Outline locations.');new OutlineLocations(db).validate(true)}
  else if(db.locations||db.items.some(i=>i.locationId||i.locationParent))throw Error('Linked locations require schema 11.');
@@ -1939,7 +1947,7 @@ class FileStorage{
  constructor(){this.handle=null;this.name=null;this.lastLoadedText=null}
  get directWrite(){return !!this.handle?.sqlite}
  async save(db){
-   if(!this.handle?.sqlite)throw new Error('Open or create a SQLite library before saving.');
+   if(!this.handle?.sqlite)throw new Error('Open or create a library before saving.');
    return this.handle.saveModel(db);
  }
  export(db,name=`productivity-backup-${new Date().toISOString().slice(0,10)}.json`){return this.handle?.sqlite?window.notesDesktop.sqlite.exportModel(this.handle,db):downloadText(name,JSON.stringify(db,null,2))}
@@ -1966,7 +1974,7 @@ function levenshtein(a,b,max=3){
 
 let archiveOperationBusy=false;
 async function writeColdArchiveFile(payload,suggestedName){
- if(!storage.handle?.sqlite)throw new Error('Open a SQLite library before archiving; original items retained.');
+ if(!storage.handle?.sqlite)throw new Error('Open a library before archiving. Your items weren’t changed.');
  await window.notesDesktop.sqlite.archive(storage.handle,JSON.stringify(payload,null,2));
  return suggestedName;
 }
@@ -1998,7 +2006,7 @@ async function coldArchiveRoots(rootIds){
  let archiveFile;
  archiveOperationBusy=true;
  try{archiveFile=await writeColdArchiveFile(payload,suggestedName)}catch(e){if(e.name!=="AbortError")toast(e.message);return false}finally{archiveOperationBusy=false}
- if(db!==owner||JSON.stringify(db)!==revision){toast("Database changed while exporting. Archive exported; original items retained. Try again.");return false}
+ if(db!==owner||JSON.stringify(db)!==revision){toast("The library changed while exporting. The archive was exported and your items weren’t changed. Try again.");return false}
  checkpoint();stabilizeReferences(db);const previous=codeMapForDatabase(db);db.archiveIndex=db.archiveIndex||[];
  for(const i of items){
    const code=codes[i.id];
@@ -2019,7 +2027,7 @@ async function restoreColdArchiveFile(file){
  if(archiveOperationBusy||fileOperationBusy)throw new Error("Finish the current file operation first.");
  const owner=db,revision=JSON.stringify(db);archiveOperationBusy=true;let payload;
  try{payload=validateColdArchivePayload(JSON.parse(await file.text()))}finally{archiveOperationBusy=false}
- if(db!==owner||JSON.stringify(db)!==revision)throw new Error("Database changed while reading archive. Try again.");
+ if(db!==owner||JSON.stringify(db)!==revision)throw new Error("The library changed while reading the archive. Try again.");
  const staged=JSON.parse(revision),existing=new Map(staged.items.map(i=>[i.id,i]));
  const incomingIdsForCodes=new Map();
  for(const i of payload.items){
@@ -2033,7 +2041,7 @@ async function restoreColdArchiveFile(file){
      const ids=incomingIdsForCodes.get(code.toUpperCase());return ids?.size===1?`${bang}[[${refToken([...ids][0])}]]`:whole;
    }));
  }
- for(const i of payload.items)if(existing.has(i.id)&&archiveItemSignature({...existing.get(i.id),content:canonicalizeForDatabase(staged,existing.get(i.id).content)})!==archiveItemSignature(i))throw new Error("Archive contains an existing UUID with different content. Restore into a separate database to compare.");
+ for(const i of payload.items)if(existing.has(i.id)&&archiveItemSignature({...existing.get(i.id),content:canonicalizeForDatabase(staged,existing.get(i.id).content)})!==archiveItemSignature(i))throw new Error("Archive contains an existing UUID with different content. Restore it into a separate library to compare.");
  const incoming=payload.items.filter(i=>!existing.has(i.id)).map(i=>JSON.parse(JSON.stringify(i)));
  if(!incoming.length){toast("Those archive items are already present.");return false}
  const allIds=new Set([...existing.keys(),...incoming.map(i=>i.id)]),previous=codeMapForDatabase(staged);
@@ -5370,7 +5378,7 @@ $("exportFile").onclick=async()=>{try{await storage.export(db);toast("Backup exp
    list.querySelectorAll("[data-cold]").forEach(b=>b.onclick=async()=>{
      const i=itemById(db,b.dataset.cold);if(!i)return;
      const count=1+descendants(db,i.id,true).length;
-     if(!window.confirm(`Move ${count} archived item${count===1?"":"s"} into a separate cold archive file?\n\nThe active database will keep UUID, last code, title, and archive-file location. RootIDs are not released.`))return;
+     if(!window.confirm(`Move ${count} archived item${count===1?"":"s"} into a separate cold archive file?\n\nThe active library will keep UUID, last code, title, and archive-file location. RootIDs are not released.`))return;
      if(await coldArchiveRoots([i.id]))renderArchiveList()
    });
    const cold=$("coldArchiveIndex");if(cold){
@@ -5930,13 +5938,13 @@ const linkContext=document.createElement('div');linkContext.className='linkConte
 $('richEditor').addEventListener('contextmenu',e=>{const link=e.target.closest('a[href]');if(!link)return;e.preventDefault();const range=document.createRange();range.selectNodeContents(link);savedRichRange=range;linkContext.classList.remove('hidden');linkContext.style.left=Math.min(e.clientX,innerWidth-140)+'px';linkContext.style.top=Math.min(e.clientY,innerHeight-50)+'px';editLinkButton.onclick=()=>{linkContext.classList.add('hidden');restoreRichSelection();openLinkDialog(link)};editLinkButton.focus()});
 document.addEventListener('pointerdown',e=>{if(!linkContext.contains(e.target))linkContext.classList.add('hidden')});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')linkContext.classList.add('hidden')});
-$('aboutBtn').onclick=()=>{resetModalShell();$('appMenu').open=false;$('modalTitle').textContent='About YuTaNoHe';$('modalText').textContent='A personal workspace for notes, tasks and planning.';$('modalExtra').innerHTML='<div class="aboutContent"><p class="aboutVersion">Version '+esc(APP_VERSION)+' · Desktop</p><dl><dt>Storage</dt><dd>Portable .ytnh library with local SQLite autosave</dd><dt>Data format</dt><dd>'+createEmptyDatabase().schemaVersion+'</dd><dt>Installation</dt><dd>Manual downloads from GitHub</dd></dl><p class="aboutFootnote">Keep recovery backups and allow cloud transfers to finish before switching computers.</p></div>';if(window.notesCaptureStatus){const info=document.createElement('p');info.className='aboutFootnote';info.textContent='Global capture: '+(window.notesCaptureStatus.errors.length?window.notesCaptureStatus.errors.join(' '):window.notesCaptureStatus.registered.join(', ')+' registered');$('modalExtra').append(info)}$('modalOK').textContent='Close';$('modalOK').onclick=closeModalShell;$('modalCancel').classList.add('hidden');$('modalbg').classList.add('open')};
+$('aboutBtn').onclick=()=>{resetModalShell();$('appMenu').open=false;$('modalTitle').textContent='About YTNH';$('modalText').textContent='';const repo='https://github.com/alpererm/YTNH';$('modalExtra').innerHTML='<div class="aboutContent"><p class="aboutLead">Notes, todos and long-term planning, together in your own files.</p><p class="aboutVersion">Version '+esc(APP_VERSION)+'</p><p class="aboutLinks"><a href="'+repo+'/releases">Releases</a> · <a href="'+repo+'">Source code</a> · <a href="'+repo+'/blob/main/LICENSE">MIT License</a></p><p class="aboutFootnote">© 2026 alpererm</p><p class="aboutFootnote aboutTechnical">Desktop · data format '+createEmptyDatabase().schemaVersion+'</p></div>';$('modalExtra').querySelectorAll('.aboutLinks a').forEach(a=>a.onclick=e=>{e.preventDefault();openEditorLink(a.href)});if(window.notesCaptureStatus){const info=document.createElement('p');info.className='aboutFootnote aboutTechnical';info.textContent='Global capture: '+(window.notesCaptureStatus.errors.length?window.notesCaptureStatus.errors.join(' '):window.notesCaptureStatus.registered.join(', ')+' registered');$('modalExtra').querySelector('.aboutContent').append(info)}$('modalOK').textContent='Close';$('modalOK').onclick=closeModalShell;$('modalCancel').classList.add('hidden');$('modalbg').classList.add('open')};
 async function recentFileRecords(){return window.notesDesktop?window.notesDesktop.recentFiles():[]}
 async function openRecentFile(record){
  if((storage.handle?.portable||record.handle?.portable)&&window.notesDesktop?.sqlite?.openRecent)return window.notesDesktop.sqlite.openRecent(record);
  if(!allowDatabaseSwitch())return;if(!record.handle){$('openFile').click();return}
  fileOperationBusy=true;const owner=db,revision=JSON.stringify(db);
- try{const handle=record.handle;if(await handle.requestPermission({mode:'readwrite'})!=='granted')throw new Error('File permission was not granted.');const file=await handle.getFile(),text=await file.text(),next=migrateDatabase(JSON.parse(text));if(db!==owner||JSON.stringify(db)!==revision)throw new Error('The current database changed. Try again.');storage.handle=handle;storage.name=file.name;storage.lastLoadedText=text;installDatabase(next,!!next.__migratedFromSchema);await rememberLastFile();$('appMenu').open=false;toast('Opened '+file.name)}catch(e){toast('Could not open recent file: '+e.message)}finally{fileOperationBusy=false}
+ try{const handle=record.handle;if(await handle.requestPermission({mode:'readwrite'})!=='granted')throw new Error('File permission was not granted.');const file=await handle.getFile(),text=await file.text(),next=migrateDatabase(JSON.parse(text));if(db!==owner||JSON.stringify(db)!==revision)throw new Error('The library changed. Try again.');storage.handle=handle;storage.name=file.name;storage.lastLoadedText=text;installDatabase(next,!!next.__migratedFromSchema);await rememberLastFile();$('appMenu').open=false;toast('Opened '+file.name)}catch(e){toast('Could not open recent file: '+e.message)}finally{fileOperationBusy=false}
 }
 $('recentFilesMenu').ontoggle=async()=>{if(!$('recentFilesMenu').open)return;const list=$('recentFilesList');list.textContent='Loading…';try{const records=await recentFileRecords();list.replaceChildren();if(!records.length)list.textContent='No recent files';for(const record of records){const button=document.createElement('button');button.textContent=record.name;button.title=record.name;button.onclick=()=>openRecentFile(record);list.append(button)}}catch(e){list.textContent='Recent files unavailable: '+e.message}};
 
@@ -6740,7 +6748,7 @@ function initInlineTodos(){
 // One queue owns manual and automatic database writes; view changes never reload the editor.
 let saveState='Unsaved',saveBlocked=false,savePromise=null,saveAgain=false,saveTimer=null,saveDeadline=null,changeSerial=0;
 let autosaveEnabled=(()=>{try{return localStorage.getItem('yutanohe-autosave')!=='false'}catch{return true}})();
-function paintSaveState(){const el=$('storageStatus');if(el&&db){el.textContent=(storage.handle?.sqlite&&['Saved','Loaded'].includes(saveState)?storage.handle.syncLabel||'Saved locally':saveState)+' · '+(storage.name||'Open a SQLite library');el.title=storage.handle?.sqlite?(storage.handle.syncDetail||'Local SQLite autosave; Save and normal Close update the portable master. Cloud synchronization is not confirmed.'):'Open a SQLite library. Click for recovery options.';el.onclick=openSaveRecovery;el.tabIndex=0;el.setAttribute('role','button');el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSaveRecovery()}}}}
+function paintSaveState(){const el=$('storageStatus');if(el&&db){el.textContent=(storage.handle?.sqlite&&['Saved','Loaded'].includes(saveState)?storage.handle.syncLabel||'Saved locally':saveState)+' · '+(storage.name||'No library open');el.title=storage.handle?.sqlite?(storage.handle.syncDetail||'Changes autosave locally. Saving, and closing the app, update your library file. Cloud sync isn’t confirmed.'):'No library open. Click for recovery options.';el.onclick=openSaveRecovery;el.tabIndex=0;el.setAttribute('role','button');el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSaveRecovery()}}}}
 function scheduleAutosave(){changeSerial++;if(!savePromise&&saveState!=='Conflict detected'&&saveState!=='Save failed')saveState='Unsaved';paintSaveState();if(!autosaveEnabled||saveBlocked)return;clearTimeout(saveTimer);saveTimer=setTimeout(()=>{saveTimer=null;requestDatabaseSave()},2000);if(!saveDeadline)saveDeadline=setTimeout(()=>{saveDeadline=null;requestDatabaseSave()},15000)}
 function resetAutosave(){clearTimeout(saveTimer);clearTimeout(saveDeadline);saveTimer=saveDeadline=null;saveBlocked=false;saveAgain=false;saveState=dirty?'Unsaved':'Loaded';changeSerial++;if(dirty)scheduleAutosave()}
 async function requestDatabaseSave({manual=false}={}){
@@ -6775,9 +6783,9 @@ function flushAutosaveOnNavigation(){if(dirty&&autosaveEnabled)void requestDatab
 function readRecoverySnapshots(){return new Promise((resolve,reject)=>{const req=indexedDB.open('yutanohe-recovery',1);req.onupgradeneeded=()=>req.result.createObjectStore('snapshots');req.onerror=()=>reject(req.error);req.onsuccess=()=>{const connection=req.result,tx=connection.transaction('snapshots','readonly'),op=tx.objectStore('snapshots').get('rolling');tx.oncomplete=()=>{connection.close();resolve(op.result||[])};tx.onerror=()=>{connection.close();reject(tx.error)}}})}
 function openSaveRecovery(){
  if(savePromise){toast('Saving is in progress.');return}
- resetModalShell();$('modalTitle').textContent='Saving and recovery';$('modalText').textContent=saveState==='Conflict detected'?'External changes detected. Saving is stopped. Preserve your unsaved copy before reloading.':'Open a SQLite library to save. Existing recovery snapshots remain available below.';
+ resetModalShell();$('modalTitle').textContent='Saving and recovery';$('modalText').textContent=saveState==='Conflict detected'?'External changes detected. Saving is stopped. Preserve your unsaved copy before reloading.':'Open a library to save. Recovery snapshots are still available below.';
  $('modalExtra').innerHTML='<label><input id="autosaveToggle" type="checkbox"> Autosave (2 seconds idle / 15 seconds while editing)</label><div class="group"><button id="recoverExport">Export unsaved copy</button><button id="recoverRetry">Retry manual Save</button><button id="recoverReload">Reload connected file</button></div><div id="recoverySnapshots"></div>';
- if(storage.handle?.sqlite)$('modalText').textContent=storage.handle.portable?'Autosave saves locally. Save and normal Close update the portable master. Failed master saves preserve local work.':'A registered legacy library must be explicitly converted before editing. Original files and recovery exports are retained.';
+ if(storage.handle?.sqlite)$('modalText').textContent=storage.handle.portable?'Changes autosave locally. Saving, and closing the app, update your library file. If that fails, your local work is kept.':'A registered legacy library must be explicitly converted before editing. Original files and recovery exports are retained.';
  $('autosaveToggle').checked=autosaveEnabled;$('autosaveToggle').onchange=()=>{autosaveEnabled=$('autosaveToggle').checked;try{localStorage.setItem('yutanohe-autosave',String(autosaveEnabled))}catch{toast('Autosave preference applies to this session only.')};if(autosaveEnabled&&dirty)scheduleAutosave();else{clearTimeout(saveTimer);clearTimeout(saveDeadline);saveTimer=saveDeadline=null}};
  $('recoverExport').onclick=async()=>{try{flushPendingInputs();await storage.export(db,'unsaved-recovery-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json')}catch(error){if(error.name!=='AbortError')toast('Recovery export failed: '+error.message)}};
  $('recoverRetry').onclick=()=>{if(storage.handle?.portable){closeModalShell();void window.notesDesktop.sqlite.manualSave();return}if(saveState==='Conflict detected'){toast('Reload or export your unsaved copy first. External changes will not be overwritten.');return}saveBlocked=false;closeModalShell();requestDatabaseSave({manual:true})};

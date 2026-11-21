@@ -81,7 +81,7 @@ impl Repository {
                 1..=3
             )
         {
-            return Err("Unsupported SQLite library".into());
+            return Err("Unsupported library format".into());
         }
         Ok(Self { conn })
     }
@@ -119,7 +119,7 @@ impl Repository {
             .query_map([], |r| r.get::<_, String>(0))?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         if messages != ["ok"] || self.conn.prepare("PRAGMA foreign_key_check")?.exists([])? {
-            return Err("SQLite library integrity check failed".into());
+            return Err("Library integrity check failed".into());
         }
         if let Some(head) = self.identity()?.1 {
             let malformed=self.conn.prepare("SELECT 1 FROM commits c LEFT JOIN commits p ON p.id=c.parent WHERE c.generation<1 OR c.device='' OR (c.generation=1)!=(c.parent IS NULL) OR (c.parent IS NOT NULL AND p.generation!=c.generation-1) LIMIT 1")?.exists([])?;
@@ -129,7 +129,7 @@ impl Repository {
                 |r| r.get(0),
             )?;
             if malformed || tip != head {
-                return Err("Invalid SQLite revision lineage".into());
+                return Err("Invalid library revision history".into());
             }
             let model = self.load()?;
             validate(&model)?;

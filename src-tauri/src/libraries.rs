@@ -62,7 +62,7 @@ impl Store {
             .truncate(false)
             .open(root.join("writer.lock"))?;
         lock.try_lock_exclusive().map_err(|_| {
-            "Another YuTaNoHe process owns the local libraries. Close it and retry."
+            "Another copy of YTNH is already running. Close it and try again."
         })?;
         let path = root.join("catalog.json");
         let (cat, catalog_issue) = match fs::read(&path) {
@@ -163,7 +163,7 @@ impl Store {
         self.attach_portable(copy)
     }
     fn review_legacy(&self, id: &str) -> Result<Value> {
-        if self.entry(id)?.portable { return Err("This library already uses a portable master".into()) }
+        if self.entry(id)?.portable { return Err("This library already has a library file".into()) }
         let stage = tempfile::tempdir_in(&self.root)?;
         let repo = self.repo(id)?;
         // A disposable, fully verified package proves required local assets are present.
@@ -171,7 +171,7 @@ impl Store {
         self.status(id)
     }
     fn transition_legacy(&mut self, id: &str, revision: &str, destination: &Path) -> Result<Value> {
-        if self.entry(id)?.portable { return Err("This library already uses a portable master".into()) }
+        if self.entry(id)?.portable { return Err("This library already has a library file".into()) }
         if self.repo(id)?.identity()?.1.as_deref() != Some(revision) {
             return Err("The local library changed after review. Review it again before converting.".into());
         }
@@ -250,7 +250,7 @@ impl Store {
                     .join(id)
                     .join(digest(archive.as_bytes()));
                 let h = fs::read_to_string(index).map_err(|_| {
-                    "Missing verified archive file. The local database was not overwritten."
+                    "Missing verified archive file. The local library was not overwritten."
                 })?;
                 if h.len() != 64 || !h.bytes().all(|c| c.is_ascii_hexdigit()) {
                     return Err("Invalid archive digest".into());
@@ -409,10 +409,10 @@ pub async fn library_action(
 
 fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
     let portable_pick = if op == "portable_open" {
-        let Some(file) = app.dialog().file().set_title("Open YuTaNoHe master").add_filter("YuTaNoHe master", &["ytnh"]).blocking_pick_file() else { return Ok(Value::Null) };
+        let Some(file) = app.dialog().file().set_title("Open Library").add_filter("YTNH library", &["ytnh"]).blocking_pick_file() else { return Ok(Value::Null) };
         Some(file.into_path().map_err(|e| e.to_string())?)
     } else if matches!(op.as_str(), "portable_new" | "portable_transition" | "portable_save_as") {
-        let Some(file) = app.dialog().file().set_title("Choose a new portable master filename").add_filter("YuTaNoHe master", &["ytnh"]).set_file_name("Library.ytnh").blocking_save_file() else { return Ok(Value::Null) };
+        let Some(file) = app.dialog().file().set_title("Save Library As").add_filter("YTNH library", &["ytnh"]).set_file_name("Library.ytnh").blocking_save_file() else { return Ok(Value::Null) };
         Some(file.into_path().map_err(|e| e.to_string())?)
     } else { None };
     let picked = if matches!(
@@ -444,8 +444,8 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
     let store = &mut runtime.store;
     store.check_catalog_action(&op)?;
     if let Some(path) = &portable_pick {
-        let parent=path.parent().ok_or("Missing master directory")?.canonicalize()?;
-        if parent.starts_with(store.root.canonicalize()?) { return Err("Choose a master location outside the local application working directory".into()) }
+        let parent=path.parent().ok_or("The library file's folder is missing")?.canonicalize()?;
+        if parent.starts_with(store.root.canonicalize()?) { return Err("Choose a location outside YTNH's own data folder".into()) }
     }
     let id = args["id"].as_str().unwrap_or("");
     if matches!(
@@ -797,7 +797,7 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
             let name = arg(&args, "backup")?;
             transfer::safe_leaf(name)?;
             if !name.ends_with(".sqlite") {
-                return Err("Choose a local SQLite backup".into());
+                return Err("Choose a local backup".into());
             }
             let (backup_folder, filename)=if e.portable && name.starts_with("legacy-") {
                 (store.root.join("backups").join(id),name.strip_prefix("legacy-").unwrap())
@@ -851,7 +851,7 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
             }
             let folder = picked
                 .unwrap()
-                .join(format!("YuTaNoHe-recovery-{}", Uuid::new_v4()));
+                .join(format!("YTNH-recovery-{}", Uuid::new_v4()));
             let out = lifecycle::export_recovery(&r, &store.vault(id), &folder)?;
             Ok(json!(out))
         }
