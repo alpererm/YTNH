@@ -1664,6 +1664,7 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body #editorSidebar :is(.label,.dateJumpBtn,.muted.small){font-size:calc(var(--interface-size,14px) * .86)}
 :root body #editorSidebar .label{color:var(--muted);margin-bottom:5px}
 :root body #editorSidebar .sidebarPanel{padding:14px}
+:root body #editorSidebar .sidebarTabs{margin-inline:14px}
 :root body #editorSidebar .editorOptions{gap:18px}
 :root body #editorSidebar .editorPropertyRow{gap:18px}
 :root body #editorSidebar .scheduledDateBox .dayFirstField:not(:focus-within) .dayFirstText{border-color:transparent;background:transparent;padding-left:2px}
@@ -3451,6 +3452,8 @@ function chooseReference(embed=false,onChoose=null,options={}){
  };
  $("refSearch").oninput=renderResults;
  $('modalExtra').onkeydown=e=>{if(!['ArrowDown','ArrowUp','Enter','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();const buttons=[...$('refResults').querySelectorAll('button')];if(e.key==='Escape')closeModalShell();else if(e.key==='Enter'){const direct=e.target.closest?.('button');if(direct&&!$('refResults').contains(direct))direct.click();else buttons[choice]?.click()}else if(buttons.length){choice=(choice+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;paint()}};
+  // Right after the picker opens, focus can briefly sit on Close; forward picker keys so a quick Enter still chooses the highlighted result.
+  $('modalOK').onkeydown=e=>{if(!$('refResults'))return;if(e.key==='Enter'){const pick=$('refResults').querySelector('.active')||$('refResults').querySelector('button');if(pick){e.preventDefault();e.stopPropagation();pick.click()}}else if(['ArrowDown','ArrowUp'].includes(e.key)){$('modalExtra').onkeydown(e);$('refSearch')?.focus()}};
 
  options.setup?.(renderResults);renderResults();setTimeout(()=>{if($("modalbg").classList.contains("open"))$("refSearch")?.focus()},0);
 }
@@ -3967,7 +3970,8 @@ document.querySelector("#app").innerHTML=`<div id="notice" class="notice">Open o
 
 
 // True on macOS (and iPadOS); used to pick Command vs Control for shortcuts.
-const IS_MAC=/mac|iphone|ipad/i.test(navigator.userAgentData?.platform||navigator.platform||navigator.userAgent);
+// Read live (not cached) so the platform can be switched in tests; matching is case-insensitive.
+Object.defineProperty(window,'IS_MAC',{configurable:true,get:()=>/mac|iphone|ipad/i.test(navigator.platform||navigator.userAgentData?.platform||navigator.userAgent)});
 // App-styled confirmation that resolves to true or false. Replaces the browser's native confirm().
 function appConfirm(title,message,okLabel='OK',cancelLabel='Cancel'){
  return new Promise(resolve=>{
@@ -3990,9 +3994,13 @@ function isTextEntry(target){
 let modalReturnFocus=null,modalAfterClose=null;
 new MutationObserver(()=>{
  if($("modalbg").classList.contains('open')){
-   if(!$("modalbg").contains(document.activeElement))modalReturnFocus=document.activeElement;
-   const primary=$("modalOK").textContent==="Cancel"?$("deleteTree"):$("modalOK");
-   (primary||$("modalCancel")).focus({preventScroll:true});
+   // Focus the primary button only if the dialog hasn't already focused one of its own fields
+   // (for example a picker's search box); otherwise a quick Enter would hit the wrong control.
+   if(!$("modalbg").contains(document.activeElement)){
+     modalReturnFocus=document.activeElement;
+     const primary=$("modalOK").textContent==="Cancel"?$("deleteTree"):$("modalOK");
+     (primary||$("modalCancel")).focus({preventScroll:true});
+   }
  }else{
    if(modalReturnFocus?.isConnected&&modalReturnFocus.getClientRects().length&&!$("modalbg").contains(modalReturnFocus))modalReturnFocus.focus({preventScroll:true});
    else if(db)focusOutlineItem(selected);
@@ -4002,7 +4010,7 @@ new MutationObserver(()=>{
 function resetModalShell(){
  delete $("modalTitle").dataset.quickOpen;delete $('modalTitle').dataset.jumpToDate;
  document.querySelector('.modal')?.classList.remove('jumpDateModal');$('modalOK').disabled=false;
- $("modalExtra").onkeydown=null;
+ $("modalExtra").onkeydown=null;$("modalOK").onkeydown=null;
  $("modalCancel").onclick=closeModalShell;
  $("modalCancel").classList.remove("hidden");
  document.querySelector(".modal")?.classList.remove("wideModal","settingsModal");

@@ -13,14 +13,13 @@ const {webkit,chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  for(const status of ['Done','Cancelled','On hold','Waiting for','Todo']){
    await p.evaluate(status=>{c.status=status;$('showDone').checked=false;renderTree()},status);
    const expected=['Waiting for','Todo'].includes(status)?1:0;
-   assert.equal(await pins.locator('.pinExpand').count(),expected);
+   // Pinned entries are flat shortcuts without disclosure controls (since the editor usability update).
+   assert.equal(await pins.locator('.pinExpand').count(),0);
    assert.equal(await p.locator('#tree .row').first().locator('.treeExpand').count(),expected);
  }
  await p.evaluate(()=>{c.status='Done';$('showDone').checked=true;renderTree()});
- await pins.getByLabel('Expand children').click();assert.equal(await pins.locator('.row').count(),2);
- await pins.locator('.title').last().click({button:'right'});await p.getByRole('menuitem',{name:'Pin to top'}).click();assert.equal(await pins.locator('.row').count(),3);
- await pins.locator('.pinExpand').nth(1).click();assert.equal(await pins.locator('.row').count(),4);
- await p.evaluate(()=>{$('search').value='no match here';db.settings.groupBy='tag';renderTree()});assert.equal(await pins.locator('.row').count(),4);
+ await p.locator('#tree .title',{hasText:/^Child$/}).first().click({button:'right'});await p.getByRole('menuitem',{name:'Pin to top'}).click();assert.equal(await pins.locator('.row').count(),2);
+ await p.evaluate(()=>{$('search').value='no match here';db.settings.groupBy='tag';renderTree()});assert.equal(await pins.locator('.row').count(),2);
  await pins.locator('.title').first().click();assert(await p.locator('#editor').isVisible());assert.equal(await p.locator('#search').inputValue(),'no match here');
  await pins.locator('.row').last().dragTo(pins.locator('.row').first());assert(await p.evaluate(()=>pinnedIds()[0]===c.id));
  await p.evaluate(()=>{undo();renderTree()});assert(await p.evaluate(()=>pinnedIds()[0]===a.id));
@@ -29,7 +28,8 @@ const {webkit,chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  await p.evaluate(()=>{const child=itemById(db,c.id);child.archived=false;child.status='Done';$('search').value='Grandchild';db.settings.groupBy='status';selected=g.id;renderTree();focusOutlineItem(g.id);window.prior=JSON.stringify(db)});
  const tree=p.locator('#tree');await p.keyboard.press('Control+Shift+ArrowRight');assert.deepEqual(await tree.locator('.title').allTextContents(),['Parent','Child','Grandchild']);assert.equal(await tree.locator('.hierarchyContext').count(),2);
  await p.keyboard.press('Control+Shift+ArrowLeft');assert.deepEqual(await tree.locator('.title').allTextContents(),['Grandchild']);assert(await p.evaluate(()=>JSON.stringify(db)===prior));
- await pins.locator('.row').last().click();await p.keyboard.press('Control+Shift+ArrowRight');assert(await pins.locator('[data-hierarchy-context]').count()>=2);
+ // Pinned stays a flat list of shortcuts: revealing the path never adds hierarchy rows to it.
+ await pins.locator('.row').last().click();await p.keyboard.press('Control+Shift+ArrowRight');assert.equal(await pins.locator('[data-hierarchy-context]').count(),0);
  await p.keyboard.press('Control+Shift+ArrowLeft');assert.equal(await pins.locator('[data-hierarchy-context]').count(),0);
  console.log('PASS pinned hierarchy, search, grouping, editor, reorder, undo, archive and delete');
  }finally{await browser.close()}
