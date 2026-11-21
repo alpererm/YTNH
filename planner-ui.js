@@ -88,7 +88,12 @@ const DailyPlanner = (() => {
     selectedKey=identity(exists);paint();
     requestAnimationFrame(()=>{const target=[...grid.querySelectorAll('.planBlock')].find(n=>n.dataset.identity===selectedKey);if(target){scroll.scrollTop=Math.max(0,target.offsetTop-scroll.clientHeight/3);target.focus({preventScroll:true});flashNavigationElement(target)}});
   }
-  function initialScroll(){return Math.max(0,(date===today()?minutes()-45-first:(db?.planner?.settings?.start??420)-first)*px)}
+  function initialScroll(){
+    let y=Math.max(0,(date===today()?minutes()-45-first:(db?.planner?.settings?.start??420)-first)*px);
+    y=Math.min(y,Math.max(0,scroll.scrollHeight-scroll.clientHeight));
+    // Never open half-way into a block: show the whole block that the start position would cut (29).
+    for(let moved=true;moved;){moved=false;for(const n of grid.querySelectorAll('.planBlock'))if(n.offsetTop<y&&n.offsetTop+n.offsetHeight>y+2){y=Math.max(0,n.offsetTop-8);moved=true}}
+    return y}
   function open(show=true,persist=true){
     if(show&&!db)return toast('Open a library first.');
     if(persist)suspended=false;
@@ -204,6 +209,8 @@ const DailyPlanner = (() => {
     node.style.left='calc('+gutter+'px + (100% - '+gutter+'px) * '+lane/count+')';node.style.width='calc((100% - '+gutter+'px) * '+1/count+' - 2px)';
 
     const label=blockLabel(node,b,i);
+    // Blocks tall enough for two lines show their time range under the title (42).
+    if(bottom-top>=38){const time=document.createElement('span');time.className='planTime';time.textContent=clock(b.start)+' – '+clock(b.start+b.duration);node.append(time)}
     node.title=(i&&!i.archiveFile?itemCode(db,i)+' · ':'')+label+' · '+clock(b.start)+'–'+clock(b.start+b.duration)+' · '+b.duration+' min';
     if(end===b.start+b.duration){const handle=document.createElement('span');handle.className='planHandle';node.append(handle)}attach(node,b);grid.append(node);
   }

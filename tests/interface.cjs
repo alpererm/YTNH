@@ -49,10 +49,11 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
   const ordinary=p.locator('#calendarBody .day:not(.calendar-anchor)').first();assert.equal(await ordinary.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   const today=p.locator('.day.today');assert.equal(await today.evaluate(e=>getComputedStyle(e).outlineStyle),'none');
   assert.equal(await today.locator('.daynum').evaluate(e=>getComputedStyle(e,'::before').content),'none');
-  assert.match(await today.locator('.daynum').innerText(),/\d+ \w+ - Today/);
+  assert.match(await today.locator('.daynum').innerText(),/\d+ \w+\s*Today/);assert.equal(await today.locator('.daynum .todayBadge').count(),1);
   assert.equal(await today.locator('.daynum').evaluate(e=>getComputedStyle(e).fontWeight),'700');
   assert.equal(await p.locator('.day:not(.today) .daynum').first().evaluate(e=>getComputedStyle(e).fontWeight),'400');
-  assert.equal(await today.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
+  // Today's column is tinted so it stands out (review 42).
+  assert.notEqual(await today.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   assert.equal(await p.locator('.current-week>.weeknum').evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   assert.equal(await p.locator('.milestoneChip').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   const bg=await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor);
