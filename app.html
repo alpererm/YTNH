@@ -1681,6 +1681,18 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body .helpContent .helpKeys{font-family:var(--app-font,system-ui);font-size:12px;color:var(--ink);white-space:nowrap;font-weight:600}
 :root body .helpContent [hidden]{display:none!important}
 
+/* Outline arrows (45): the arrow button and the empty slot share one size and offset, so rows with
+   and without an arrow have the same height and the arrow is centred on the title's first line. */
+:root body :is(#tree,#pinnedOutline) .row>:is(.outlineChevron,.chevronSpace){height:24px;margin-top:calc((var(--title-line-height) - 24px)/2)}
+
+/* Quieter arrows (46): on expanded parents the arrow appears on hover or keyboard focus; collapsed
+   parents always show theirs because it signals hidden content. Every arrow gets a hover background. */
+:root body :is(#tree,#pinnedOutline) .row>.outlineChevron[aria-expanded="true"]{opacity:0;transition:opacity .12s ease}
+:root body :is(#tree,#pinnedOutline) .row:is(:hover,:focus,:focus-within,.currentItem)>.outlineChevron[aria-expanded="true"],
+:root body :is(#tree,#pinnedOutline):focus-within .row.currentItem>.outlineChevron{opacity:1}
+:root body :is(#tree,#pinnedOutline) .row>.outlineChevron:hover{background:var(--workspace-hover);border-radius:5px;color:var(--ink)}
+@media (prefers-reduced-motion:reduce){:root body :is(#tree,#pinnedOutline) .row>.outlineChevron{transition:none}}
+
 /* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */
 :root body #layout.editor-focus #editor .editorDocument{width:100%;max-width:calc(var(--editor-size,14px) * 40 + 72px);margin-inline:auto}
 :root body #layout.editor-focus #editor #richEditor .editorTable,:root body #layout.editor-focus #editor #richEditor [data-mdblock="table"]{max-width:100%;overflow-x:auto}
@@ -4714,7 +4726,7 @@ function paintHierarchy(host,view,row,pinned){
      if(last)last.after(wrapper);else (pinned?anchor.closest('.pinEntry'):anchor).before(wrapper);
    }
    line.classList.toggle('hierarchyContext',!visible.has(n.item.id));line.dataset.hierarchyContext='true';
-   const indent=6+depth*8;line.dataset.indent=indent;line.style.paddingLeft=indent+'px';line.dataset.hierarchyDepth=depth;line.style.setProperty('--hierarchy-depth',depth);
+   const indent=outlineIndent(depth);line.dataset.indent=indent;line.style.paddingLeft=indent+'px';line.dataset.hierarchyDepth=depth;line.style.setProperty('--hierarchy-depth',depth);
    if(pinned){wrapper.dataset.pinDepth=0;wrapper.style.setProperty('--pin-depth',0)}
    last=wrapper;view.places.add(n.id);
  }
@@ -4743,6 +4755,12 @@ function renderTree(){
    container.querySelectorAll('[data-hierarchy-depth]').forEach(row=>row.style.setProperty('--hierarchy-depth',Number(row.dataset.hierarchyDepth)||0));
    container.querySelectorAll('[data-pin-depth]').forEach(row=>row.style.setProperty('--pin-depth',Number(row.dataset.pinDepth)||0));
  }
+}
+// Outline indentation (45, 47): one level equals the 20 px arrow slot plus the 5 px gap, so a child's
+// arrow sits exactly under its parent's marker at every interface size. Levels past 6 indent a third as much.
+function outlineIndent(depth){
+ const step=25;
+ return 6+step*Math.min(depth,6)+Math.round(step/3)*Math.max(0,depth-6);
 }
 function renderOutlineTree(){const navigationSessions=upcomingItemSessions();locationIndex=null;queueMicrotask(updateOutlinePaneMarker);refreshInlineTodos();paintTargetSelection();
  updateBranchZoomBar();
@@ -4775,7 +4793,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
        else{let parent=itemById(db,i.parentId);const seen=new Set();while(parent&&!seen.has(parent.id)){seen.add(parent.id);if(allowed.has(parent.id))visualDepth++;parent=itemById(db,parent.parentId)}}
      }
    }
-   const indent=6+visualDepth*8;
+   const indent=outlineIndent(visualDepth);
    const count=graph?.byItem.get(i.id)?.length||1;
    const link=count>1?`<button type="button" class="locationButton" aria-label="Linked item — ${count} locations" title="Linked item — ${count} locations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 15H7a4 4 0 0 1 0-8h4m2 0h4a4 4 0 0 1 0 8h-2M8 11h8"/></svg></button>`:'';
    const collapsed=graph?(branchZoomRoot===i.id?branchZoomCollapsed:outlineFiltering()?(filterDisclosure.get(location.id)??false):location.collapsed):outlineCollapsed(i);
