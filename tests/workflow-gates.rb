@@ -62,7 +62,8 @@ def verify(workflow)
     {'os'=>'macos-latest', 'bundles'=>'app,dmg', 'name'=>'macOS-Apple-Silicon'}
   ], 'Installer matrix must remain unchanged')
   package = build.fetch('steps').find { |step| step['name'] == 'Package application' }
-  expected = "cargo tauri build ${{ github.ref_name == 'sqlite-handoff-preview' && '--config src-tauri/tauri.preview.conf.json' || '' }} --bundles ${{ matrix.bundles }}"
+  # The sqlite-handoff-preview branch no longer exists, so packaging always uses the main configuration.
+  expected = "cargo tauri build --bundles ${{ matrix.bundles }}"
   check(package && package['run'] == expected, 'Packaging command must remain unchanged')
   upload = build.fetch('steps').find { |step| step['uses'] == 'actions/upload-artifact@v6' }
   check(upload && upload['with'] == {

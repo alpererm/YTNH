@@ -1,17 +1,11 @@
 // Shared local/CI entry point. Native behavior is covered separately by Rust tests.
 const {spawnSync}=require('node:child_process');
 const path=require('node:path');
-const browserTests=[
-  'editor-identity-row','editor-first-deletion',
-  'editor-surface','pinned-shortcuts','quick-open-ranking','text-sizing','editor-width','inline-creation','local-fonts','mouse-history',
-  'desktop-csp','item-markers','jump-to-date','outline-navigation','native-theme','settings',
-  'keyboard-search','desktop-shortcuts','milestones','workspace-navigation',
-  'autosave','bridge','cancelled-reopen','sqlite-desktop','portable-desktop','capture-focus',
-  'editor-structure','image-editing','daily-planner','planner-outlook',
-  'meeting-moves','outlook-cancellations','planner-validation',
-  'editor-toprow','format-palette','interface','outline-layout',
-  'palette-layout','source-menu','workspace-density','writing-border'
-];
+// Every tests/*.cjs file is a browser test except this runner, the Node-only planner model test
+// (run once below) and the timing benchmark, which is informational.
+const fs=require('node:fs');
+const browserTests=fs.readdirSync(__dirname).filter(f=>f.endsWith('.cjs')).map(f=>f.slice(0,-4))
+  .filter(name=>!['core-regressions','planner-model','outline-benchmark'].includes(name)).sort();
 const requested=process.argv.slice(2);
 if(requested.some(name=>!browserTests.includes(name)))throw Error('Unknown core test');
 const engines=process.env.BROWSER_ENGINE?[process.env.BROWSER_ENGINE]:['chromium','webkit'];

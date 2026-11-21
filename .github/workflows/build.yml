@@ -2,7 +2,7 @@ name: Build desktop apps
 on:
   workflow_dispatch:
   push:
-    branches: [main, sqlite-handoff-preview]
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: mkdir -p web
       - name: Package application
-        run: cargo tauri build ${{ github.ref_name == 'sqlite-handoff-preview' && '--config src-tauri/tauri.preview.conf.json' || '' }} --bundles ${{ matrix.bundles }}
+        run: cargo tauri build --bundles ${{ matrix.bundles }}
       - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.name }}
