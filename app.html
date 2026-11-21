@@ -4442,8 +4442,11 @@ function laterDate(a,b){return !a?b:!b?a:(a>b?a:b)}
 function earlierDate(a,b){return !a?b:!b?a:(a<b?a:b)}
 
 
+// Scoped to the Filters panel: a whole-document search ran once per Outline row and made redraws
+// grow with the square of the library size (review 5).
 function selectedStatusFilters(){
- return [...document.querySelectorAll("[data-status-filter]:checked")].map(x=>x.dataset.statusFilter);
+ const box=$("statusFilterBox")||document;
+ return [...box.querySelectorAll("[data-status-filter]:checked")].map(x=>x.dataset.statusFilter);
 }
 function statusRecurringOnly(){return $("filterRecurrence").value==="recurring"}
 function selectedItemTypes(){return [...$('filterType').selectedOptions].map(o=>o.value).filter(Boolean)}
