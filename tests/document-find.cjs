@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict');
+const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{
+ const browser=await (process.env.BROWSER_ENGINE==='webkit'?webkit:chromium).launch(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{});
+ const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../app.html')).href);
+ await page.evaluate(()=>{installDatabase(createEmptyDatabase());const a=createItem(db,'Note');a.content='**al**pha [Alpha](https://alpha.test)\nalpha alphabet';edit(a.id);focusBodyStart()});
+ await page.keyboard.press('Control+h');const bar=page.locator('#documentFindBar');await bar.getByLabel('Find text').fill('alpha');
+ assert.equal(await bar.locator('output').textContent(),'1/4');await bar.getByLabel('Whole word').click();
+ assert.equal(await bar.locator('output').textContent(),'1/3');await bar.getByLabel('Replace with').fill('Beta');await bar.getByText('Replace All',{exact:true}).click();
+ assert.equal(await page.evaluate(()=>itemById(db,selected).content),'**Beta** [Beta](https://alpha.test)\nBeta alphabet');
+ await page.keyboard.press('Control+h');assert.equal(await bar.isVisible(),false);await page.evaluate(()=>undo());assert.match(await page.evaluate(()=>itemById(db,selected).content),/\*\*al\*\*pha/);
+ await page.evaluate(()=>{setSourceMode(true);$('content').focus()});await page.keyboard.press('Control+f');await bar.getByLabel('Find text').fill('https://alpha.test');assert.equal(await bar.locator('output').textContent(),'1/1');
+ await page.keyboard.press('Control+f');assert.equal(await bar.isVisible(),false);
+ await page.evaluate(()=>{const item=itemById(db,selected);const target=createItem(db,'Todo',item.id);item.content=inlineTodoMarkup(target.id,'occ-find','wording');window.originalInline=item.content;edit(item.id);focusBodyStart()});
+ await page.keyboard.press('Control+h');await bar.getByLabel('Find text').fill('wording');await bar.getByLabel('Replace with').fill('revised');await bar.getByText('Replace All',{exact:true}).click();
+ assert(await page.evaluate(()=>itemById(db,selected).content===originalInline.replace('wording','revised')));
+ await page.evaluate(()=>edit(createItem(db,'Todo').id));assert.equal(await bar.isVisible(),false);assert.deepEqual(errors,[]);
+ await browser.close();console.log('PASS find, formatted replacements, links, source, undo and switching');
+})().catch(e=>{console.error(e);process.exit(1)});

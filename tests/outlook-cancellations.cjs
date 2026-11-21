@@ -1,0 +1,30 @@
+const assert=require('node:assert/strict');
+const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{const browser=await(process.env.BROWSER_ENGINE==='webkit'?webkit:chromium).launch(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{});try{
+ const p=await browser.newPage();await p.goto(require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../app.html')).href);
+ const result=await p.evaluate(()=>{
+  autosaveEnabled=false;installDatabase(createEmptyDatabase());
+  const cal=lines=>['BEGIN:VCALENDAR','VERSION:2.0',...lines,'END:VCALENDAR'].join('\r\n');
+  const event=lines=>['BEGIN:VEVENT',...lines,'END:VEVENT'];
+  const initial=cal(event(['UID:a','DTSTART:20261109T090000Z','DTEND:20261109T100000Z','RRULE:FREQ=WEEKLY;COUNT=4','SUMMARY:Retain title','DESCRIPTION:Imported']));
+  const source=uuid(),read=t=>PlannerOutlook.read(t),apply=t=>{const rows=PlannerOutlook.preview(db,source,read(t),'2026-11-16');checkpoint();PlannerOutlook.commit(db,source,{name:'Calendar'},rows);return rows};
+  apply(initial);const key=Object.keys(db.planner.meetings)[0],m=db.planner.meetings[key];m.content='User edited document';m.exceptions['2026-11-23']={date:'2026-11-24',start:660,end:720};const before=JSON.stringify(db);
+  const cancellation=cal(event(['UID:a','SEQUENCE:2','STATUS:CANCELLED']));
+  const method=cal(event(['UID:a','SEQUENCE:2'])).replace('VERSION:2.0','VERSION:2.0\r\nMETHOD:CANCEL');
+  if(!read(method).series[0].cancelled)throw Error('METHOD:CANCEL was ignored');
+  const rows=apply(cancellation),after=db.planner.meetings[key];
+  const future=PlannerMeetings.blocks(after,key,'2026-11-16','UTC').length,exception=PlannerMeetings.blocks(after,key,'2026-11-24','UTC').length,past=PlannerMeetings.blocks(after,key,'2026-11-09','UTC').length;
+  const unchanged=PlannerOutlook.preview(db,source,read(cancellation),'2026-11-16')[0].kind;
+  const other=PlannerOutlook.preview(db,uuid(),read(cancellation),'2026-11-16').length;
+  undo();const restored=JSON.stringify(db)===before;
+  const single=cal(event(['UID:a','RECURRENCE-ID:20261116T090000Z','STATUS:CANCELLED','SEQUENCE:3']));
+  apply(single);const singleCount=PlannerMeetings.blocks(db.planner.meetings[key],key,'2026-11-16','UTC').length;
+  const unaffected=PlannerMeetings.blocks(db.planner.meetings[key],key,'2026-11-30','UTC').length;
+  const ex=initial.replace('RRULE:FREQ=WEEKLY;COUNT=4','RRULE:FREQ=WEEKLY;COUNT=4\r\nEXDATE:20261130T090000Z');
+  apply(ex);const exCount=PlannerMeetings.blocks(db.planner.meetings[key],key,'2026-11-30','UTC').length;
+  apply(initial.replace('COUNT=4','COUNT=1'));const partialKeeps=Object.hasOwn(db.planner.meetings[key].coverage,'2026-11-23');
+  return {changes:rows[0].changes.length,future,exception,past,unchanged,other,restored,singleCount,unaffected,exCount,partialKeeps,title:after.title,content:after.content,exceptionRetained:!!after.exceptions['2026-11-23']};
+ });
+ assert.deepEqual(result,{changes:3,future:0,exception:0,past:1,unchanged:'Unchanged',other:0,restored:true,singleCount:0,unaffected:1,exCount:0,partialKeeps:true,title:'Retain title',content:'User edited document',exceptionRetained:true});
+ console.log('PASS master/single/EXDATE cancellations, idempotence, source isolation, past/history/document retention, partial exports and undo');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});

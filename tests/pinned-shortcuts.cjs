@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),path=require('node:path'),{pathToFileURL}=require('node:url');
+const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{const browser=await(process.env.BROWSER_ENGINE==='webkit'?webkit:chromium).launch(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{});try{const p=await browser.newPage();await p.goto(pathToFileURL(path.resolve(__dirname,'../app.html')).href);
+await p.evaluate(()=>{autosaveEnabled=false;installDatabase(createEmptyDatabase());const a=createItem(db,'Note'),b=createItem(db,'Todo',a.id);a.title='Parent';b.title='Child';window.ids=[a.id,b.id];savePins([a.id]);window.before=JSON.stringify(db.items)});
+assert.equal(await p.locator('#pinnedOutline .row').count(),1);assert.equal(await p.locator('#pinnedOutline .outlineChevron').count(),0);
+await p.evaluate(()=>savePins(ids));assert.equal(await p.locator('#pinnedOutline .row').count(),2);
+await p.locator('.pinHeading').click();assert.equal(await p.locator('#pinnedOutline .row').count(),0);
+assert.equal(await p.evaluate(()=>localStorage.getItem('ytnh-pinned-closed')),'true');await p.evaluate(()=>{renderTree();installDatabase(db)});assert.equal(await p.locator('#pinnedOutline .row').count(),0);
+await p.locator('.pinHeading').click();await p.locator('#pinnedOutline .title').first().click();assert.equal(await p.evaluate(()=>selected),await p.evaluate(()=>ids[0]));
+assert.equal(await p.evaluate(()=>JSON.stringify(db.items)),await p.evaluate(()=>before));console.log('PASS flat pinned shortcuts, no descendant chevrons, persistent section collapse and original item identity');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

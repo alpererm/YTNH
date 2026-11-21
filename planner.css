@@ -1,0 +1,75 @@
+.mainpanel.plannerOpen{--plan-size:min(var(--planner-width,360px),55%);padding-inline-end:var(--plan-size)}
+#dailyPlanner{position:absolute;inset:0 0 0 auto;width:var(--plan-size);background:var(--bg);color:var(--ink);border-inline-start:1px solid var(--workspace-grid);display:flex;flex-direction:column;z-index:15;min-width:0}
+#dailyPlanner[hidden]{display:none}
+#dailyPlanner header{display:flex;align-items:center;justify-content:flex-end;gap:2px;padding:4px;min-height:var(--toolbar-height)}
+#dailyPlanner button{border:0;background:transparent;color:inherit;padding:3px 5px}
+#dailyPlanner header input{min-width:0;flex:0 1 auto;width:8em;background:transparent;color:var(--ink);border:0}
+.planGrip{position:absolute;inset-block:0;left:-4px;width:8px;z-index:4;cursor:col-resize;touch-action:none}
+.planScroll{overflow:auto;min-height:0;flex:1;overscroll-behavior:contain}
+.planGrid{position:relative;isolation:isolate;min-width:0}
+.planHour,.planNow{position:absolute;left:8px;right:0;font-size:.75em;color:var(--muted);pointer-events:none}
+.planNow{z-index:2;color:var(--accent)}
+.planBlock{position:absolute;display:flex;align-items:flex-start;gap:2px;overflow:hidden;border-radius:3px;padding:1px 3px;touch-action:none;user-select:none;background:var(--soft);font-size:.88em;line-height:1.25}
+#dailyPlanner{--meeting-color:#4067b3;--plan-note:#23765d}body[data-theme=dark] #dailyPlanner{--meeting-color:#91aeff;--plan-note:#69c6a0}
+.planBlock.Todo{--block-color:var(--todo-code)}.planBlock.Note{--block-color:var(--plan-note);--tint:28%}
+#dailyPlanner .meeting{--block-color:var(--meeting-color);--tint:30%}
+.planBlock,.planAll>.meeting{container-type:inline-size;background:color-mix(in srgb,var(--block-color) var(--tint,19%),var(--bg));border-inline-start:3px solid var(--block-color)}
+.planTitle{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.planBlock svg,.planAll svg{width:1em;height:1em;flex:none;color:var(--block-color)}
+.planRepeat{opacity:.8}@container(max-width:72px){.planRepeat{display:none}}
+.planBlock.complete span{text-decoration:line-through;color:var(--muted)}
+.planBlock input{flex:none;margin:1px 2px 0 0;accent-color:var(--accent)}
+.planSelected{outline:1px solid var(--accent);outline-offset:-1px}
+.planHandle{position:absolute;bottom:0;left:0;right:0;height:5px;cursor:ns-resize}
+.planSelected .planHandle{border-bottom:2px solid var(--accent)}
+#dailyPlanner .planMore{position:absolute;right:0;z-index:1;background:var(--panel)}
+.planAll>div{display:flex;align-items:center;gap:3px;padding:3px 6px;border-radius:3px;cursor:pointer}
+.planDialog form,.planDialog label{display:grid;gap:5px}.planDialog form{gap:10px}
+.planDialog input,.planDialog select{background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:4px}
+#meetingParent:empty,#editor:not(.meetingDocument) #meetingParent{display:none}
+#editor.meetingDocument .editmeta #meetingParent:not(:empty){grid-row:3;grid-column:2;justify-self:start}
+#editor.meetingDocument #editorSidebar .editorOptions,#editor.meetingDocument #sidebar-details{display:none}
+.planDialog label[hidden]{display:none}
+.planMeetingResult{display:block;text-align:left;width:100%;border:0;background:transparent;color:var(--ink);padding:5px}
+.outlookPreview{width:min(38rem,90vw);max-height:80vh;overflow:auto}
+.outlookPreview details{margin:6px 0}.outlookPreview summary input{margin-right:5px}
+
+.planExpanded{position:absolute;left:64px;right:0;overflow:visible}
+
+#dailyPlanner .planMore{right:auto;left:45px;width:18px;height:20px;padding:0;line-height:1}
+
+.planGrid,.planAll{-webkit-user-select:none;user-select:none}.planBlock{cursor:grab}.planDragOutline{position:absolute;box-sizing:border-box;border:1px dashed var(--accent);pointer-events:none;z-index:3}.planDialog{max-height:90vh;overflow:auto}
+
+#plannerToggle{flex:none;display:inline-grid;place-items:center}#plannerToggle svg{height:16px;width:16px}#plannerToggle[aria-pressed=true]{background:var(--soft)}
+
+.libraryDialog.meetingDialog{width:min(40rem,94vw);max-width:94vw;box-sizing:border-box}
+.meetingDialog form{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}
+.meetingDialog form>h3,.meetingDialog .modalactions,.meetingDialog .meetingPattern,.meetingDialog label:has(>[name=title]),.meetingDialog label:has(>[name=custom]){grid-column:1/-1}
+.meetingDialog label{min-width:0}.meetingDialog input:not([type=checkbox]),.meetingDialog select{width:100%;min-width:0;box-sizing:border-box}
+@media(max-width:440px){.meetingDialog form{grid-template-columns:minmax(0,1fr)}}
+
+.planSlotMarker{position:absolute;inset-inline:0;z-index:3;box-sizing:border-box;border:1px dashed var(--accent);pointer-events:none}
+
+#dailyPlanner header .dayFirstField{width:9.3em}#dailyPlanner header .dayFirstText{width:100%}.meetingDialog .dayFirstField{width:100%}
+
+#dailyPlanner header .dayFirstField,.dayFirstField:has(>#jumpDate){width:calc(10ch + 26px);flex:none;font-variant-numeric:tabular-nums}.dayFirstField:has(>#jumpDate) .dayFirstText,#dailyPlanner header .dayFirstText{font:inherit;padding-inline:2px 22px!important;text-align:right}.dayPickerGlyph{right:2px}
+
+#dailyPlanner [data-act=pin][aria-pressed=true]{background:var(--soft)}
+.planNow{left:64px;right:0;height:1px;border:0;background:var(--accent)}
+.planNow span{position:absolute;right:calc(100% + 17px);background:var(--bg);line-height:1.25;white-space:nowrap}
+.planNow::before{content:"";position:absolute;right:100%;top:0;width:16px;height:1px;background:var(--accent)}
+.planNow::after{content:"";position:absolute;right:calc(100% + 16px);top:var(--stem-top);width:1px;height:var(--stem-height);background:var(--accent)}
+
+.planExpanded{background:color-mix(in srgb,var(--ink) 4%,transparent);pointer-events:none}
+.planTick{pointer-events:none;position:absolute;left:59px;width:4px;height:1px;background:var(--workspace-grid)}
+.planTick.fullHour{left:56px;width:7px;background:color-mix(in srgb,var(--muted) 60%,transparent)}
+#dailyPlanner .planMore{left:39px;width:17px}
+.planBlock{box-sizing:border-box}
+
+.planBlock .itemMarker svg{width:15px;height:15px;color:inherit}
+.planBlock.complete .itemMarker{color:var(--outline-todo-ink,var(--todo-code));text-decoration:none}
+
+#dailyPlanner .planReturnPin{align-self:flex-end;color:var(--accent);font-size:.85em;margin:0 5px 4px}
+#dailyPlanner .planReturnPin[hidden]{display:none}
+
+#dailyPlanner .planMore,#dailyPlanner .planMore:is(:hover,:focus,:active){background:transparent;box-shadow:none}

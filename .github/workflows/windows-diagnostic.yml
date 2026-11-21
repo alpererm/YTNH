@@ -1,0 +1,63 @@
+name: Windows diagnostic comparison (11.3.6 and 11.3.7)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: 5172353405e4baae3b197cb98997a3fc015ea34e
+          path: baseline
+      - uses: actions/checkout@v6
+        with:
+          ref: 10050d97bd72359c12ed1b5acd28e0332289465b
+          path: candidate
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.100.0'
+          targets: x86_64-pc-windows-msvc
+      - name: Install identical packaging tool
+        run: cargo install tauri-cli --version 2.12.4 --locked
+      - name: Test and build both historical sources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force diagnostic-output | Out-Null
+          @("Runner image: $env:ImageOS $env:ImageVersion", "OS: $([Environment]::OSVersion.VersionString)") | Set-Content diagnostic-output/environment.txt
+          rustc -Vv | Add-Content diagnostic-output/environment.txt
+          cargo tauri --version | Add-Content diagnostic-output/environment.txt
+          foreach ($source in @('baseline', 'candidate')) {
+            Push-Location $source
+            try {
+              $sha = git rev-parse HEAD
+              $config = Get-Content src-tauri/tauri.preview.conf.json -Raw | ConvertFrom-Json
+              if ($config.productName -ne 'YuTaNoHe SQLite Preview' -or $config.identifier -ne 'com.localnotestodos.desktop.sqlite-preview') { throw 'Unexpected Preview identity' }
+              cargo test --locked --manifest-path crates/library/Cargo.toml
+              if ($LASTEXITCODE -ne 0) { throw "Library tests failed: $source" }
+              cargo test --locked --manifest-path src-tauri/Cargo.toml --features inline-images-preview
+              if ($LASTEXITCODE -ne 0) { throw "Native tests failed: $source" }
+              # Same fresh-checkout prerequisite for both; build.rs generates the frontend.
+              New-Item -ItemType Directory -Force web | Out-Null
+              cargo tauri build --config src-tauri/tauri.preview.conf.json --target x86_64-pc-windows-msvc --bundles nsis
+              if ($LASTEXITCODE -ne 0) { throw "Packaging failed: $source" }
+              $dest = New-Item -ItemType Directory -Force "../diagnostic-output/$source"
+              $installers = @(Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe)
+              if ($installers.Count -ne 1) { throw 'Expected exactly one installer' }
+              Copy-Item $installers[0].FullName $dest.FullName
+              $signature = Get-AuthenticodeSignature $installers[0].FullName
+              $hash = Get-FileHash $installers[0].FullName -Algorithm SHA256
+              [ordered]@{sourceCommit=$sha;version=$config.version;product=$config.productName;identifier=$config.identifier;installer=$installers[0].Name;bytes=$installers[0].Length;sha256=$hash.Hash;signatureStatus=[string]$signature.Status;purpose='Diagnostic only; not a release or security approval'} | ConvertTo-Json | Set-Content "$($dest.FullName)/evidence.json"
+              git diff --exit-code
+              if ($LASTEXITCODE -ne 0) { throw "Tracked source changed during build: $source" }
+            } finally { Pop-Location }
+          }
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Windows-diagnostic-comparison-NOT-A-RELEASE
+          if-no-files-found: error
+          retention-days: 7
+          path: diagnostic-output

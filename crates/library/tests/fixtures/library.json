@@ -1,0 +1,106 @@
+{
+  "format": "local-notes-todos",
+  "schemaVersion": 10,
+  "createdAt": "2026-11-06T11:02:00.000Z",
+  "updatedAt": "2026-11-06T11:02:00.000Z",
+  "nextRootOrdinal": 4,
+  "reusableRootOrdinals": [
+    2
+  ],
+  "items": [
+    {
+      "id": "f30c60f8-64dc-4b89-a21a-dd5c11b99e23",
+      "type": "Todo",
+      "title": "Kontrol",
+      "content": "![[ @ref ]]\n<span data-inline-todo=\"9a1c83b5-b6c8-4384-8f8e-69ba59a613b0\" data-occurrence=\"sample-occurrence\">Plan</span>",
+      "parentId": "9a1c83b5-b6c8-4384-8f8e-69ba59a613b0",
+      "rootId": null,
+      "order": 7,
+      "status": "Waiting for",
+      "collapsed": false,
+      "archived": false,
+      "createdAt": "2026-11-06T11:02:00.000Z",
+      "updatedAt": "2026-11-06T11:02:00.000Z",
+      "explicitTags": [
+        "proje/teknik"
+      ],
+      "scheduledDates": [
+        "2026-11-06"
+      ],
+      "codeAliases": [],
+      "recurrenceId": null,
+      "recurrence": {
+        "frequency": "weekly",
+        "weekDays": [
+          1,
+          4
+        ],
+        "interval": 2,
+        "startDate": "2026-11-06"
+      },
+      "occurrenceStates": {
+        "2026-11-09": "Done"
+      },
+      "target": null,
+      "milestone": {
+        "targetWeek": "2026-W48"
+      }
+    },
+    {
+      "id": "9a1c83b5-b6c8-4384-8f8e-69ba59a613b0",
+      "type": "Todo",
+      "title": "Teknik plan",
+      "content": "## Teknik değerlendirme\n\n| Part | Supplier |\n|---|---|\n| A | B |",
+      "parentId": null,
+      "rootId": "001.003",
+      "order": 3,
+      "status": "Waiting for",
+      "collapsed": false,
+      "archived": false,
+      "createdAt": "2026-11-06T11:02:00.000Z",
+      "updatedAt": "2026-11-06T11:02:00.000Z",
+      "explicitTags": [
+        "proje/teknik"
+      ],
+      "scheduledDates": [
+        "2026-11-06"
+      ],
+      "codeAliases": [],
+      "recurrenceId": null,
+      "recurrence": null,
+      "occurrenceStates": {},
+      "target": {
+        "startMonth": "2026-11",
+        "endMonth": "2027-04"
+      },
+      "milestone": null
+    }
+  ],
+  "settings": {
+    "theme": "amber",
+    "groupBy": "target",
+    "hideWeekends": true
+  },
+  "recurrenceSeries": [],
+  "archiveIndex": [
+    {
+      "id": "811cf27c-a985-4345-9602-8c8bce814fc1",
+      "archiveId": "archive-id-1",
+      "archiveFile": "cold-archive.json",
+      "coldArchivedAt": "2026-11-06T11:02:00.000Z",
+      "type": "Todo",
+      "title": "Eski çizim",
+      "code": "001.001",
+      "parentId": null,
+      "createdAt": "2026-11-06T11:02:00.000Z",
+      "updatedAt": "2026-11-06T11:02:00.000Z",
+      "tags": [
+        "proje/teknik"
+      ],
+      "codeAliases": []
+    }
+  ],
+  "linkAliases": {
+    "001.001": "811cf27c-a985-4345-9602-8c8bce814fc1"
+  }
+}

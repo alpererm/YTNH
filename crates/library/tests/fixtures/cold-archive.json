@@ -1,0 +1,40 @@
+{
+  "format": "local-notes-todos-cold-archive",
+  "schemaVersion": 1,
+  "archiveId": "archive-id-1",
+  "createdAt": "2026-11-06T11:02:00.000Z",
+  "sourceDatabaseCreatedAt": "2026-11-06T11:02:00.000Z",
+  "sourceSchemaVersion": 10,
+  "itemCount": 1,
+  "codes": {
+    "811cf27c-a985-4345-9602-8c8bce814fc1": "001.001"
+  },
+  "items": [
+    {
+      "id": "811cf27c-a985-4345-9602-8c8bce814fc1",
+      "type": "Todo",
+      "title": "Eski çizim",
+      "content": "## Teknik değerlendirme\n\n| Part | Supplier |\n|---|---|\n| A | B |",
+      "parentId": null,
+      "rootId": "001.001",
+      "order": 1,
+      "status": "Waiting for",
+      "collapsed": false,
+      "archived": true,
+      "createdAt": "2026-11-06T11:02:00.000Z",
+      "updatedAt": "2026-11-06T11:02:00.000Z",
+      "explicitTags": [
+        "proje/teknik"
+      ],
+      "scheduledDates": [
+        "2026-11-06"
+      ],
+      "codeAliases": [],
+      "recurrenceId": null,
+      "recurrence": null,
+      "occurrenceStates": {},
+      "target": null,
+      "milestone": null
+    }
+  ]
+}

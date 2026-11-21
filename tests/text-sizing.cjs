@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),path=require('node:path'),{pathToFileURL}=require('node:url');const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{const browser=await(process.env.BROWSER_ENGINE==='webkit'?webkit:chromium).launch(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{});try{const p=await browser.newPage(),errors=[];p.setDefaultTimeout(5000);p.on('pageerror',e=>errors.push(e.message));await p.goto(pathToFileURL(path.resolve(__dirname,'../app.html')).href);
+await p.evaluate(()=>{autosaveEnabled=false;installDatabase(createEmptyDatabase());const i=createItem(db,'Note');i.title='Sizing';i.content='## **Heading**\nParagraph';edit(i.id);const n=$('richEditor').querySelector('strong').firstChild;const r=document.createRange();r.selectNodeContents(n);getSelection().removeAllRanges();getSelection().addRange(r);rememberRichSelection();window.originalSize=parseFloat(getComputedStyle(n.parentElement).fontSize)});
+await p.locator('#formatMenu summary').click();for(let n=0;n<3;n++)await p.locator('[data-text-size-action="1"]').click();
+assert.equal(await p.evaluate(()=>parseFloat(getComputedStyle(getSelection().anchorNode.parentElement).fontSize)),Math.round(await p.evaluate(()=>originalSize))+3);
+const source=await p.evaluate(()=>editorDocument().content);assert(source.startsWith('## **<span data-text-size='));
+await p.evaluate(()=>{setSourceMode(true);setSourceMode(false)});assert.equal(await p.evaluate(()=>editorHTMLToMarkdown()),source);
+await p.evaluate(()=>{$('formatMenu').open=false;$('richEditor').focus();const block=$('richEditor').firstElementChild;placeCaretAtBodyStart(block);rememberRichSelection()});await p.keyboard.press('Enter');
+assert.equal(await p.evaluate(()=>editorDocument().content),'\n'+source);
+await p.evaluate(()=>undo());assert.equal(await p.evaluate(()=>editorDocument().content),source);await p.evaluate(()=>redo());assert.equal(await p.evaluate(()=>editorDocument().content),'\n'+source);
+await p.evaluate(()=>{editorDocument().content='<span data-text-size="12">Small</span> <span data-text-size="24">Large</span>';syncRichFromModel(editorDocument());$('richEditor').focus();const r=document.createRange();r.selectNodeContents($('richEditor').firstElementChild);getSelection().removeAllRanges();getSelection().addRange(r);rememberRichSelection();adjustTextSize(1)});
+assert.deepEqual(await p.evaluate(()=>[...$('richEditor').querySelectorAll('[data-text-size]')].filter(el=>el.textContent==='Small'||el.textContent==='Large').filter(el=>!el.querySelector('[data-text-size]')).map(el=>parseFloat(getComputedStyle(el).fontSize))),[13,25]);
+await p.evaluate(()=>{editorDocument().content='Word tail';syncRichFromModel(editorDocument());$('richEditor').focus();getSelection().collapse($('richEditor').firstElementChild.firstChild,2);rememberRichSelection();adjustTextSize(1)});
+assert.equal(await p.locator('#richEditor [data-text-size]').textContent(),'Word');
+assert.deepEqual(errors,[]);console.log('PASS accumulated sizing, selection retention, Source round trip, heading split and undo/redo');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

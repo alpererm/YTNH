@@ -1,0 +1,129 @@
+name: Build desktop apps
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, sqlite-handoff-preview]
+permissions:
+  contents: read
+jobs:
+  editor-csp-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Verify installer safety gates
+        run: ruby tests/workflow-gates.rb
+      - name: Install browser test tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ytnh-browser-tests" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/ytnh-browser-tests/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Core browser regressions (Chromium and WebKit)
+        run: |
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/ytnh-browser-tests/node_modules/playwright"
+          node tests/core-regressions.cjs
+  native-validation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: desktop-tauri-cli-2.12.4
+          cache-bin: true
+          cache-on-failure: true
+      - name: SQLite and portable-master tests
+        run: cargo test --locked --manifest-path crates/library/Cargo.toml
+      - name: Check shared library for iPhone simulator
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add aarch64-apple-ios-sim
+          cargo check --locked --manifest-path crates/library/Cargo.toml --target aarch64-apple-ios-sim
+      - name: Native storage tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --features inline-images-preview
+  build:
+    # Both installers require every validation stage to succeed.
+    needs: [editor-csp-regressions, native-validation, verify-return]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            bundles: nsis
+            name: Windows-current-user
+          - os: macos-latest
+            bundles: app,dmg
+            name: macOS-Apple-Silicon
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: desktop-tauri-cli-2.12.4
+          cache-bin: true
+          cache-on-failure: true
+      # The frontend is self-contained HTML: no npm/pnpm dependencies or install step.
+      - name: Install packaging tool
+        shell: bash
+        run: |
+          if ! cargo tauri --version 2>/dev/null | grep -Fxq 'tauri-cli 2.12.4'; then
+            cargo install tauri-cli --version 2.12.4 --locked --force
+          fi
+      - name: Prepare frontend directory
+        shell: bash
+        run: mkdir -p web
+      - name: Package application
+        run: cargo tauri build ${{ github.ref_name == 'sqlite-handoff-preview' && '--config src-tauri/tauri.preview.conf.json' || '' }} --bundles ${{ matrix.bundles }}
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/dmg/*.dmg
+  portable-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo run --locked --manifest-path crates/library/Cargo.toml --example platform_portable -- send test-parcel
+      - uses: actions/upload-artifact@v6
+        with:
+          name: synthetic-mac-portable
+          path: test-parcel
+          retention-days: 1
+  portable-windows:
+    needs: portable-mac
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v6
+        with:
+          name: synthetic-mac-portable
+          path: test-parcel
+      - run: cargo run --locked --manifest-path crates/library/Cargo.toml --example platform_portable -- reply test-parcel
+      - uses: actions/upload-artifact@v6
+        with:
+          name: synthetic-windows-return
+          path: test-parcel
+          retention-days: 1
+  verify-return:
+    needs: portable-windows
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v6
+        with:
+          name: synthetic-windows-return
+          path: test-parcel
+      - run: cargo run --locked --manifest-path crates/library/Cargo.toml --example platform_portable -- verify test-parcel

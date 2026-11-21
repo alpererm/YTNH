@@ -1,0 +1,24 @@
+name: Inline image integration
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/managed-inline-images]
+permissions:
+  contents: read
+jobs:
+  image-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/library -> target
+            src-tauri -> target
+      - run: cargo test --locked --manifest-path crates/library/Cargo.toml
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml --features inline-images-preview

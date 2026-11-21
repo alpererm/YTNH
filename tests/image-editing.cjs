@@ -1,0 +1,103 @@
+const assert=require('node:assert/strict');
+const {webkit,chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{
+ const browser=await(process.env.BROWSER_ENGINE==='webkit'?webkit:chromium).launch(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{});
+ try{
+  const page=await browser.newPage();
+  await page.goto(require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../app.html')).href);
+  await page.evaluate(()=>{
+   window.notesDesktop={sqlite:{imageEditing:true,async readImage(){return {extension:'svg',data:btoa('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="80"><rect width="160" height="80" fill="red"/></svg>')}}}};
+   initManagedImageImports();installDatabase(createEmptyDatabase());
+   const item=createItem(db,'Note'),hash='a'.repeat(64);db.imageAssets={[hash]:{extension:'gif',bytes:10}};
+   storage.handle={sqlite:true,id:'library'};window.originalRef=managedImageMarkdown('Map',hash,'gif');
+   item.content='Top\n'+originalRef+'\nMiddle\n'+originalRef+'\nEnd';edit(item.id);focusBodyStart();
+  });
+  const block=page.locator('#richEditor [data-mdblock=image]').first();
+  async function command(label){
+   await block.locator('.imagePixels').click({button:'right',position:{x:16,y:8}});
+   await page.getByRole('menuitem',{name:label,exact:true}).click();
+  }
+  await command('Align center');
+  await command('Add caption');
+  await block.locator('figcaption').fill('Map legend');
+  await command('Edit Alt text');
+  await page.locator('#modalExtra input').fill('Site plan');
+  await page.locator('#modalOK').click();
+  const current=()=>page.evaluate(()=>itemById(db,selected).content);
+  const reference=await page.evaluate(()=>originalRef);
+  let text=await current();
+  assert.ok(text.includes('align="center"')&&text.includes('alt="Site plan"')&&text.includes('<figcaption>Map legend</figcaption>')&&text.includes('Middle\n'+reference));
+  await page.evaluate(()=>{$('sourceToggle').click();$('sourceToggle').click()});
+  assert.equal(await block.locator('figcaption').textContent(),'Map legend');
+  await command('Remove from note');assert.equal(await page.locator('#richEditor [data-mdblock=image]').count(),1);
+  await page.evaluate(()=>undo());assert.equal(await current(),text);
+  await block.locator('.imagePixels').click({position:{x:16,y:8}});
+  assert(await page.evaluate(()=>getSelection().isCollapsed));
+  await page.waitForFunction(()=>document.querySelector('#richEditor .imagePixels img')?.naturalWidth===160);
+  const pixels=block.locator('.imagePixels img');
+  const initialWidth=(await pixels.boundingBox()).width;
+  const corner=await block.locator('[data-corner=se]').boundingBox();
+  await page.mouse.move(corner.x+3,corner.y+3);await page.mouse.down();await page.mouse.move(corner.x+40,corner.y+10);await page.mouse.up();
+  assert((await pixels.boundingBox()).width>initialWidth);
+  assert.match(await current(), /width="\d+"/);
+  const savedWidth=Number((await current()).match(/width="(\d+)"/)[1]);
+  await page.evaluate(()=>{$('sourceToggle').click();$('sourceToggle').click()});
+  assert.equal(await block.locator('figure').evaluate(f=>parseInt(f.style.width)),savedWidth);
+  await page.waitForFunction(()=>document.querySelector('#richEditor .imagePixels img')?.naturalWidth===160);
+  assert.equal(Math.round((await pixels.boundingBox()).width),savedWidth);
+  const snapshot=await page.evaluate(()=>({data:JSON.stringify(db),id:selected}));
+  await page.evaluate(({data,id})=>{installDatabase(JSON.parse(data));edit(id)},snapshot);
+  await page.waitForFunction(()=>document.querySelector('#richEditor .imagePixels img')?.naturalWidth===160);
+  assert.equal(Math.round((await pixels.boundingBox()).width),savedWidth);
+  // WebView-native handles mutate the image, not the managed figure.
+  await pixels.evaluate(img=>{img.style.width='96px';img.style.height='48px'});
+  await page.waitForFunction(()=>itemById(db,selected).content.includes('width="96"'));
+  await page.evaluate(()=>{const original=selected;const other=createItem(db,'Note');edit(other.id);edit(original)});
+  await page.waitForFunction(()=>document.querySelector('#richEditor .imagePixels img')?.naturalWidth===160);
+  assert.equal(Math.round((await pixels.boundingBox()).width),96);
+  await pixels.click();
+  await block.locator('[data-corner=se]').evaluate(c=>c.addEventListener('pointerdown',e=>window.resizePointer=e.pointerId,{once:true}));
+  const handle=await block.locator('[data-corner=se]').boundingBox();
+  const beforeGesture=await current();
+  await page.mouse.move(handle.x+3,handle.y+3);await page.mouse.down();
+  await page.mouse.move(handle.x+35,handle.y+15,{steps:8});
+  const duringGesture=await current();assert.notEqual(duringGesture,beforeGesture);
+  await page.evaluate(()=>window.dispatchEvent(new PointerEvent('pointercancel',{pointerId:resizePointer})));
+  await page.mouse.up();assert.equal(await current(),duringGesture);
+  const durableWidth=await block.locator('figure').evaluate(f=>parseFloat(f.style.width));
+  await page.evaluate(()=>{window.returnImageNote=selected;const next=createItem(db,'Note');edit(next.id);edit(returnImageNote)});
+  await page.waitForFunction(()=>document.querySelector('#richEditor .imagePixels img')?.naturalWidth===160);
+  assert.equal(Math.round((await pixels.boundingBox()).width),durableWidth);
+  await page.evaluate(()=>undo());assert.equal(await current(),beforeGesture);
+  await page.evaluate(()=>redo());assert.equal(await current(),duringGesture);
+  const beforeDelete=await current();
+  await block.evaluate(b=>{$('richEditor').focus();placeCaretAtBodyStart(b.nextElementSibling)});
+  await page.keyboard.press('Backspace');assert.equal(await page.locator('#richEditor [data-mdblock=image]').count(),1);
+  await page.evaluate(()=>undo());assert.equal(await current(),beforeDelete);
+  await block.evaluate(b=>{const empty=document.createElement('div');empty.dataset.mdblock='p';empty.innerHTML='<br>';b.after(empty);$('richEditor').focus();placeCaretAtBodyStart(empty)});
+  await page.keyboard.press('Backspace');assert.equal(await current(),beforeDelete);
+  const copied=await page.evaluate(()=>{
+    const b=$('richEditor').querySelector('[data-mdblock=image]'),r=document.createRange();r.selectNode(b);const sel=getSelection();sel.removeAllRanges();sel.addRange(r);
+    const transfer=new DataTransfer();const event=new Event('copy',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:transfer});$('richEditor').dispatchEvent(event);
+    window.lastCopy=transfer;return JSON.parse(transfer.getData('application/x-yutanohe-images')).markdown;
+  });
+  assert.ok(copied.includes('Site plan')&&copied.includes('Map legend'));
+  await page.evaluate(()=>{
+    placeCaretAtBodyStart($('richEditor').lastElementChild);
+    const event=new Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:lastCopy});$('richEditor').dispatchEvent(event);
+  });
+  assert.equal(await page.locator('#richEditor [data-mdblock=image]').count(),3);
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await page.locator('#outlineSearchButton').click();await page.locator('#search').fill('legend');
+  const hit=page.locator('.imageSearchHit').first();
+  assert.equal(await hit.textContent(),'Caption: Map legend');
+  await hit.click();await page.locator('.imageSearchCurrent').waitFor();
+  await page.evaluate(()=>focusBodyStart());await page.keyboard.press('Control+h');
+  const bar=page.locator('#documentFindBar');await bar.getByLabel('Find text').fill('legend');
+  assert.match(await bar.locator('output').textContent(),/\/2$/);
+  await bar.getByLabel('Replace with').fill('key');await bar.getByText('Replace All',{exact:true}).click();
+  assert.ok((await current()).includes('<figcaption>Map key</figcaption>'));
+  await bar.getByLabel('Find text').fill('Site plan');assert.equal(await bar.locator('output').textContent(),'0/0');
+  console.log('PASS occurrence-local caption, Alt text, alignment, source round trip, deletion and undo');
+ }finally{await browser.close()}
+})().catch(e=>{console.error(e);process.exitCode=1});

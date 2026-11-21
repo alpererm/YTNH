@@ -1,0 +1,8 @@
+/.build-tools/
+/src-tauri/target/
+/web/index.html
+/dist/
+.DS_Store
+/src-tauri/gen/
+
+/crates/library/target/
