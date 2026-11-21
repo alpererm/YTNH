@@ -1544,6 +1544,35 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 /* Graphite Dark editor headings: presentation only, never document formatting. */
 :root body[data-theme="dark"] #editor #editorTitle,
 :root body[data-theme="dark"] #editor #richEditor :is(h1,h2,h3,h4,h5,h6,[data-mdblock="h1"],[data-mdblock="h2"],[data-mdblock="h3"],[data-mdblock="h4"],[data-mdblock="h5"],[data-mdblock="h6"]){color:#CCDBE5}
+/* ===== Review polish (2026-11) =====
+   Later layers win; each block names the review finding it implements. */
+
+/* Editor type scale (34, 41): the note title stays largest; no heading is smaller than body text. */
+:root body #layout #editor .editorDocument .editmeta{--title-first-line:calc(var(--editor-size,14px) * 1.64 * 1.3 + 6px)}
+:root body #layout #editor .editorDocument .editmeta #editorTitle{font-size:calc(var(--editor-size,14px) * 1.64);line-height:1.3;font-weight:650}
+:root body #editor #richEditor{line-height:1.6}
+:root body #editor #richEditor>:is([data-mdblock="h1"],[data-check-heading="h1"]){font-size:1.43em;font-weight:680;line-height:1.3;margin:1.1em 0 .45em}
+:root body #editor #richEditor>:is([data-mdblock="h2"],[data-check-heading="h2"]){font-size:1.21em;font-weight:660;line-height:1.35;margin:1em 0 .4em}
+:root body #editor #richEditor>:is([data-mdblock="h3"],[data-check-heading="h3"]){font-size:1.07em;font-weight:650;line-height:1.4;margin:.9em 0 .35em}
+:root body #editor #richEditor>:is([data-mdblock="h4"],[data-check-heading="h4"],[data-mdblock="h5"],[data-check-heading="h5"],[data-mdblock="h6"],[data-check-heading="h6"]){font-size:1em;font-weight:650;line-height:1.5;margin:.8em 0 .3em}
+:root body #editor #richEditor>:is([data-mdblock="h5"],[data-check-heading="h5"],[data-mdblock="h6"],[data-check-heading="h6"]){color:var(--muted)}
+:root body #editor #richEditor>:first-child{margin-top:0}
+
+/* Paragraph spacing (35): about half a line between paragraphs; list and checklist items stay tight. */
+:root body #editor #richEditor>[data-mdblock="p"]{margin:0 0 .55em}
+
+/* Consecutive quote lines read as one quote (36). */
+:root body #editor #richEditor>[data-mdblock="quote"]:has(+[data-mdblock="quote"]){margin-bottom:0;padding-bottom:0}
+:root body #editor #richEditor>[data-mdblock="quote"]+[data-mdblock="quote"]{margin-top:0;padding-top:0}
+
+/* Checklist boxes (2, 4): about 80% of the text, 12-18 px, centred on the first line; done items get a tick and muted text. */
+:root body #editor #richEditor{--check-size:clamp(12px,.8em,18px)}
+:root body #editor #richEditor>[data-mdblock="check"]{padding-left:calc(var(--check-size) + .65em)}
+:root body #editor .richEditor input.md-check{width:var(--check-size);height:var(--check-size);top:calc((1.6em - var(--check-size)) / 2);border-radius:3px}
+:root body #editor .richEditor input.md-check:checked{background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/80% no-repeat;border-color:var(--accent)}
+:root body[data-theme="dark"] #editor .richEditor input.md-check:checked{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23202123' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+:root body[data-theme="dark"] #editor .richEditor input.md-check:not(:checked){border-color:#7d8187}
+:root body #editor #richEditor>[data-mdblock="check"]:has(>input.md-check:checked){color:var(--muted)}
 </style><link rel="stylesheet" href="planner.css"></head><body><div id="app"></div><script src="planner-model.js"></script>
 <script>"use strict";
 const APP_VERSION="11.4.1";
