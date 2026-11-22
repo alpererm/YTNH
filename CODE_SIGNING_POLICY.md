@@ -15,7 +15,7 @@ Each release is signed only after a manual approval by an approver listed below.
 
 ## Team roles
 
-YuTaNoHe is maintained by a single developer.
+YTNH is maintained by a single developer.
 
 - Committers and reviewers: [alpererm](https://github.com/alpererm)
 - Approvers: [alpererm](https://github.com/alpererm) (repository owner)
