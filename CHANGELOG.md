@@ -2,7 +2,7 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
-## Unreleased
+## 11.5.0 — 2026-11-22
 
 - Renamed to YTNH, with "library" wording throughout and a standard About window.
 - Flat application menu with keyboard shortcuts shown; Settings open with Cmd+, (macOS) or Ctrl+, (Windows) and apply instantly.
