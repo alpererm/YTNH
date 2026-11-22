@@ -59,6 +59,16 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
  assert.equal(await p.evaluate(()=>!!itemById(db,ids.h2).heading),false);
  assert.equal(await row(ids.h2).locator('.itemMarker').count(),1,'a converted Note gets its marker back');
 
+ // Filters keep a heading while something under it is visible; search shows "Project › Heading".
+ await setup();ids=await p.evaluate(()=>ids);
+ await p.evaluate(()=>{const e=createItem(db,'Note',ids.proj);e.title='Empty';e.heading=true;render()});
+ assert.ok((await visible()).includes('Empty'),'without filters an empty heading stays');
+ await p.evaluate(()=>{for(const o of $('filterType').options)o.selected=o.value==='todos';$('filterType').dispatchEvent(new Event('change'))});
+ assert.deepEqual(await visible(),['Supplier programme','Preparation','Collect requirements','Shortlist vendors','Negotiation','Request quotation','Standalone'],'Todos filter keeps headings with Todos under them and hides the empty one');
+ await p.evaluate(()=>{for(const o of $('filterType').options)o.selected=false;$('filterType').dispatchEvent(new Event('change'));$('search').value='quotation';$('search').dispatchEvent(new Event('input'));render()});
+ assert.equal(await p.locator(`#tree .row[data-id="${ids.c}"] .searchContext`).textContent(),'Supplier programme › Negotiation');
+ await p.evaluate(()=>{$('search').value='';$('search').dispatchEvent(new Event('input'));render()});
+
  assert.deepEqual(errors,[]);
  await browser.close();console.log('PASS headings: collapse, keyboard, drag with section, no scheduling, H key, conversions');
 })().catch(e=>{console.error(e);process.exit(1)});

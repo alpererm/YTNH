@@ -1706,6 +1706,7 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body :is(#tree,#pinnedOutline) .row.headingRow .outlineTitleLine::after{content:"";flex:1;min-width:12px;border-top:1px solid var(--workspace-grid)}
 :root body :is(#tree,#pinnedOutline) .row.headingRow .outlineText{flex:1;min-width:0}
 :root body #tree .row.sectionHidden{display:none}
+:root body #tree .row .searchContext{font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */
 :root body #layout.editor-focus #editor .editorDocument{width:100%;max-width:calc(var(--editor-size,14px) * 40 + 72px);margin-inline:auto}
@@ -4619,7 +4620,22 @@ function matchedSet(){
  if(arr.length)for(const i of arr){let p=i.id===branchZoomRoot?null:i.parentId;while(p){s.add(p);if(p===branchZoomRoot)break;p=itemById(db,p)?.parentId}}
  if(db.locations){const g=new OutlineLocations(db);s.locations=new Set();for(const i of arr)for(const p of g.byItem.get(i.id)||[])for(const a of g.chain(p)){s.add(a.item.id);s.locations.add(a.id)}}
  if(zoomRootItem())s.add(branchZoomRoot);
+ if(headingFilterActive())for(const i of db.items)if(i.heading&&s.has(i.id)&&!headingSection(i).some(x=>s.has(x.id)))s.delete(i.id);
+ for(const id of [...s]){const h=headingAbove(itemById(db,id));if(h)s.add(h.id)}
  return s
+}
+// A real filter (not just "hide finished items" or the weekend setting) hides headings with nothing visible under them.
+function headingFilterActive(){return !!(selectedStatusFilters().length||statusRecurringOnly()||statusNotRecurring()||selectedItemTypes().length||outlineDayFilter||$('createdFrom').value||$('createdTo').value||$('scheduledFrom').value||$('scheduledTo').value)}
+function headingAbove(item){
+ if(!item||item.heading)return null;
+ const siblings=childrenOf(db,item.parentId||null).filter(x=>!x.archived).sort((a,b)=>a.order-b.order);
+ for(let n=siblings.findIndex(x=>x.id===item.id)-1;n>=0;n--)if(siblings[n].heading)return siblings[n];
+ return null;
+}
+function headingContextPath(item){
+ const parts=[];let cur=item;const seen=new Set();
+ while(cur&&!seen.has(cur.id)){seen.add(cur.id);const h=headingAbove(cur);if(h)parts.unshift(h.title||'(untitled)');const parent=itemById(db,cur.parentId);if(parent)parts.unshift(parent.title||'(untitled)');cur=parent}
+ return parts.join(' › ');
 }
 const GROUP_BY_VALUES=["","created","scheduled","type","tag","status","target"];
 const collapsedOutlineGroups=new Set();
@@ -4897,6 +4913,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
  if(dateErr&&!searching){t.innerHTML=`<div class="empty filterError">${esc(dateErr.message)}</div>`;return}
  if(searching){
    t.innerHTML=directMatchedItems().filter(inZoomBranch).flatMap(item=>graph?graph.byItem.get(item.id).filter(location=>!branchZoomRoot||graph.chain(location).some(p=>p.id===branchZoomLocation)).map(location=>row(item,0,{grouped:true,location})):row(item,0,{grouped:true})).join('')||'<div class="empty">No matching items.</div>';
+   if(!graph)t.querySelectorAll('.row[data-id]').forEach(r=>{const item=itemById(db,r.dataset.id),path=item?headingContextPath(item):'';const line=r.querySelector('.outlineTitleLine');if(path&&line){const c=document.createElement('div');c.className='searchContext';c.textContent=path;line.after(c)}});
    if(db.planner&&!zoomRootItem())DailyMeetingEditor.search(t,$('search').value.trim());
    paintHierarchy(t,hierarchyViews.outline,row,false);t.scrollTop=previousScrollTop;
    return;
