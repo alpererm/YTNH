@@ -412,7 +412,7 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
         let Some(file) = app.dialog().file().set_title("Open Library").add_filter("YTNH library", &["ytnh"]).blocking_pick_file() else { return Ok(Value::Null) };
         Some(file.into_path().map_err(|e| e.to_string())?)
     } else if matches!(op.as_str(), "portable_new" | "portable_transition" | "portable_save_as") {
-        let Some(file) = app.dialog().file().set_title("Save Library As").add_filter("YTNH library", &["ytnh"]).set_file_name("Library.ytnh").blocking_save_file() else { return Ok(Value::Null) };
+        let Some(file) = app.dialog().file().set_title("Save Library As").add_filter("YTNH library", &["ytnh"]).set_file_name(args["name"].as_str().filter(|n| n.ends_with(".ytnh") && !n.contains(['/', '\\'])).unwrap_or("Library.ytnh")).blocking_save_file() else { return Ok(Value::Null) };
         Some(file.into_path().map_err(|e| e.to_string())?)
     } else { None };
     let picked = if matches!(

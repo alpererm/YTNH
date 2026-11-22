@@ -3,6 +3,7 @@ mod files;
 mod fonts;
 mod close_probe;
 mod planner_calendar;
+mod markdown_import;
 #[cfg(feature="inline-images-preview")]
 mod image_import;
 #[cfg(feature="inline-images-preview")]
@@ -180,6 +181,7 @@ fn main() {
         .manage(Mutex::new(Files::default()))
         .manage(CloseProbe::default())
         .manage(libraries::LibraryRuntime::default())
+        .manage(markdown_import::ImportRoot::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -193,6 +195,9 @@ fn main() {
             fonts::installed_font_families,
             pick_json,
             planner_calendar::read_planner_calendar,
+            markdown_import::pick_markdown_folder,
+            markdown_import::read_markdown_import_image,
+            markdown_import::end_markdown_import,
             write_json,
             open_link,
             confirm_close,

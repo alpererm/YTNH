@@ -273,6 +273,7 @@ function createDesktopLibraries(call) {
     async last(){const id=await action('last');return id?new LibraryHandle(await action('status',{id})):null},
     async recent(){return (await action('list')).map(r=>({name:r.name,handle:new LibraryHandle(r)}))},
     remember:id=>action('remember',{id}),
+    newLibrary:(model,name)=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_new',{model,name}))}).catch(report),
     exportModel,cleanImages:()=>exclusive(cleanImages).catch(report),
     imageEditing: /* image-preview-build */ false,
     importReference:(id,reference)=>action('import_reference',{id,reference}),

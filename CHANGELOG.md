@@ -14,6 +14,11 @@ User-visible changes to YTNH. Older entries keep their original wording; names s
 - Outlook imports skip and report meetings in unknown time zones instead of failing.
 - Accessibility: the Outline is a single Tab stop announced as a tree; dialogs are announced as dialogs.
 - Rewritten Help with search and grouped shortcuts.
+- The YTNH Tour: a practice library with hands-on exercises, offered on the welcome screen and under ☰ → Open the Tour….
+- Import Markdown Folder…: a folder of Markdown files becomes Notes named after the files, with subfolders as parent Notes, front matter tags and dates, copied images and working links between the files.
+- Headings inside projects, Things-style completion with a short undo window, and quieter Outline arrows with deeper indentation.
+- Outline icons for scheduled, recurring and planned items, with date tooltips; the clock steps through planned sessions and never moves a pinned Planner date.
+- Consistent toolbars with SVG icons, softer pane separators, a growing search field and an optional "Scroll past end".
 
 ## Earlier releases
 

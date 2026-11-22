@@ -12,6 +12,8 @@ YTNH is a local-first desktop app for Windows and macOS. It combines a hierarchi
 - **Think long-term:** month-based Targets and week-based Milestones in a five-year view.
 - **Connect ideas:** link or embed other items, follow backlinks, and turn wording inside a sentence into a real Todo.
 - **Work from the keyboard:** shortcuts for nearly everything; see ☰ → Help → Keyboard shortcuts in the app.
+- **Bring your notes:** import a folder of Markdown files, subfolders, tags, images and links included.
+- **Learn by doing:** ☰ → Open the Tour… creates a practice library that walks you through the app.
 
 ## Download
 

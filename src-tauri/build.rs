@@ -24,6 +24,8 @@ fn main() {
         "planner-meetings.js",
         "vendor/icaljs/ical.js",
         "planner-outlook.js",
+        "markdown-import.js",
+        "tour-library.js",
     ] {
         println!("cargo:rerun-if-changed=../{name}");
         let script = fs::read_to_string(root.join(name)).expect("Missing planner component");
