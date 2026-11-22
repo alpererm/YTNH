@@ -61,7 +61,7 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
   for(const header of ['.treepanel>.head','#mainPaneHead'])assert.equal(await p.locator(header).evaluate(e=>getComputedStyle(e).backgroundColor),bg);
   for(const panel of ['.treepanel','.mainpanel'])assert.deepEqual(await p.locator(panel).evaluate(e=>[getComputedStyle(e).backgroundColor,getComputedStyle(e).borderTopColor]),[bg,'rgba(0, 0, 0, 0)']);
   for(const button of await p.locator('#calendarControls button').all())assert.equal(await button.evaluate(e=>getComputedStyle(e).borderTopColor),'rgba(0, 0, 0, 0)');
-  const anchor=p.locator('.day.calendar-anchor');assert.notEqual(await anchor.evaluate(e=>getComputedStyle(e).borderTopColor),'rgba(0, 0, 0, 0)');
+  const anchor=p.locator('.day.calendar-anchor');/* the selected day is outlined (inset border) instead of a top line */assert.match(await anchor.evaluate(e=>getComputedStyle(e).boxShadow),/inset/);
   await today.evaluate(e=>e.classList.add('drop-target'));assert.equal(await today.evaluate(e=>getComputedStyle(e).outlineStyle),'dashed');await today.evaluate(e=>e.classList.remove('drop-target'));
   assert(await p.locator('.milestoneChip').count()>0);
   for(const width of [1000,1500]){

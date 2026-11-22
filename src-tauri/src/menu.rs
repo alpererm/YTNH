@@ -75,6 +75,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item(app, "key:Mod+Shift+F", "Search the Outline", Some("CmdOrCtrl+Shift+F"))?)
         .item(&item(app, "key:Mod+Alt+D", "Jump to Date…", Some("CmdOrCtrl+Alt+D"))?)
         .item(&item(app, "key:Alt+Shift+T", "Today", None)?)
+        .item(&item(app, "key:Alt+Shift+C", "Clear All Filters", Some("Alt+Shift+C"))?)
         .separator()
         .item(&item(app, "key:Mod+BracketLeft", "Back", Some("CmdOrCtrl+["))?)
         .item(&item(app, "key:Mod+BracketRight", "Forward", Some("CmdOrCtrl+]"))?)

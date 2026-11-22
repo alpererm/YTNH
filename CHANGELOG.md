@@ -22,6 +22,7 @@ User-visible changes to YTNH. Older entries keep their original wording; names s
 - Slash menu ("/" at the start of a line), [[ suggestions at the caret, and a formatting toolbar for selected text.
 - Native macOS menu bar with every command; Windows keeps the ☰ menu.
 - Settings in four tabs (General, Appearance, Editor, Calendar).
+- Alt+Shift+C (⌥⇧C) clears all filters, like the Clear all button; the selected Calendar day has a thin outline.
 - One status colour palette everywhere: graphite open, accent Done, amber Waiting for, violet On hold, grey Cancelled, teal meetings; red only for overdue dates. Accent-coloured list markers.
 - Numbered lists keep the number you start them with; the Tour explains inline Todos and shows Mac and Windows shortcuts.
 - Consistent toolbars with SVG icons, softer pane separators, a growing search field and an optional "Scroll past end".

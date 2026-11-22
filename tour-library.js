@@ -159,7 +159,7 @@ Angle brackets that look like code, web addresses or comparisons (such as \`a < 
    // 6 · Find things
    const ch6=todo('6 · Find things','');
    todo('Press / and search for “plants”','Search is forgiving about typos and lists title matches first. Try `#home` for the tag you added, or `status:Done` for finished Todos. Esc clears it.',ch6);
-   todo('Open Filters ('+key('Alt+Shift+F')+') and show only Notes','Chips beside the filter button show what’s active; Clear all resets them.',ch6);
+   todo('Open Filters ('+key('Alt+Shift+F')+') and show only Notes','Chips beside the filter button show what’s active; Clear all ('+key('Alt+Shift+C')+') resets them.',ch6);
    todo('Group the Outline by type ('+key('Alt+Shift+G')+')','Group by shows items by date, type, tag or status. Choose None to go back.',ch6);
    todo('Press '+key('Ctrl+Shift+Space')+' to open any item quickly','Quick Open works even when YTNH is in the background. You can turn it off in Settings.',ch6);
 
