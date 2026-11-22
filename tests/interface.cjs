@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 const screenshotDir=require('node:os').tmpdir();
 const assert=require('node:assert/strict');
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
@@ -36,8 +37,8 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
   }
   await baseline.close();
  }
- await state(p,'dark','weeks');await p.evaluate(()=>openSettings());
- assert.equal(await p.locator('#settingsTheme option').count(),2);assert.equal(await p.locator('#settingsUIStyle').count(),0);await p.locator('#modalCancel').click();
+ await state(p,'dark','weeks');await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));
+ assert.equal(await p.locator('#settingsTheme option').count(),2);assert.equal(await p.locator('#settingsUIStyle').count(),0);await p.locator('#modalOK').click();
  assert.equal(await p.evaluate(()=>JSON.stringify(db)),await p.evaluate(()=>original));
  for(const theme of themes){
   await state(p,theme,'weeks');
@@ -49,17 +50,18 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
   const ordinary=p.locator('#calendarBody .day:not(.calendar-anchor)').first();assert.equal(await ordinary.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   const today=p.locator('.day.today');assert.equal(await today.evaluate(e=>getComputedStyle(e).outlineStyle),'none');
   assert.equal(await today.locator('.daynum').evaluate(e=>getComputedStyle(e,'::before').content),'none');
-  assert.match(await today.locator('.daynum').innerText(),/\d+ \w+ - Today/);
+  assert.match(await today.locator('.daynum').innerText(),/\d+ \w+\s*Today/);assert.equal(await today.locator('.daynum .todayBadge').count(),1);
   assert.equal(await today.locator('.daynum').evaluate(e=>getComputedStyle(e).fontWeight),'700');
   assert.equal(await p.locator('.day:not(.today) .daynum').first().evaluate(e=>getComputedStyle(e).fontWeight),'400');
-  assert.equal(await today.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
+  // Today's column is tinted so it stands out (review 42).
+  assert.notEqual(await today.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   assert.equal(await p.locator('.current-week>.weeknum').evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   assert.equal(await p.locator('.milestoneChip').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   const bg=await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor);
   for(const header of ['.treepanel>.head','#mainPaneHead'])assert.equal(await p.locator(header).evaluate(e=>getComputedStyle(e).backgroundColor),bg);
   for(const panel of ['.treepanel','.mainpanel'])assert.deepEqual(await p.locator(panel).evaluate(e=>[getComputedStyle(e).backgroundColor,getComputedStyle(e).borderTopColor]),[bg,'rgba(0, 0, 0, 0)']);
   for(const button of await p.locator('#calendarControls button').all())assert.equal(await button.evaluate(e=>getComputedStyle(e).borderTopColor),'rgba(0, 0, 0, 0)');
-  const anchor=p.locator('.day.calendar-anchor');assert.notEqual(await anchor.evaluate(e=>getComputedStyle(e).borderTopColor),'rgba(0, 0, 0, 0)');
+  const anchor=p.locator('.day.calendar-anchor');/* the selected day is outlined (inset border) instead of a top line */assert.match(await anchor.evaluate(e=>getComputedStyle(e).boxShadow),/inset/);
   await today.evaluate(e=>e.classList.add('drop-target'));assert.equal(await today.evaluate(e=>getComputedStyle(e).outlineStyle),'dashed');await today.evaluate(e=>e.classList.remove('drop-target'));
   assert(await p.locator('.milestoneChip').count()>0);
   for(const width of [1000,1500]){
@@ -82,7 +84,7 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
   }
  }
  await p.locator('#editorFocusToggle').click();assert.equal(await p.locator('.treepanel').isVisible(),false);await p.screenshot({path:screenshotDir+'/workspace-focus.png'});await p.locator('#editorFocusToggle').click();
- await p.evaluate(()=>openSettings());await p.selectOption('#settingsTheme','light');assert.equal(await p.getAttribute('body','data-theme'),'light');await p.locator('#modalOK').click();
+ await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));await p.selectOption('#settingsTheme','light');assert.equal(await p.getAttribute('body','data-theme'),'light');await p.locator('#modalOK').click();
  assert.equal(await p.evaluate(()=>JSON.stringify(db)),await p.evaluate(()=>original));
  // Exercise actual pointer/keyboard handlers in the workspace, not just CSS state.
  await state(p,'dark','weeks');
@@ -98,7 +100,7 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
  assert.equal(await p.locator('.targetBar[data-selected="true"]').count(),2);
  await p.locator('#tree .row').filter({hasText:'Project communication'}).locator('.title').click();
  assert.equal(await p.locator('.targetBar[data-selected="true"]').count(),0);
- await p.evaluate(()=>openSettings());await p.selectOption('#settingsTheme','light');await p.locator('#modalCancel').click();
+ await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));await p.selectOption('#settingsTheme','light');await p.locator('#modalOK').click();
  await p.reload();assert.equal(await p.getAttribute('body','data-theme'),'light');
  assert.deepEqual(errors,[]);await browser.close();console.log('PASS theme persistence, unchanged JSON, two themes, Outline hierarchy/selection, calendar/drop indicators, Target selection, responsive editor/Focus Mode'+(baselineFile?', pixel-identical layout at both widths across all 15 theme/view combinations':''));
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -1,0 +1,43 @@
+name: Tests
+# Runs the same checks as the build workflow on every pull request, without packaging installers.
+on:
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  browser-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Verify installer safety gates
+        run: ruby tests/workflow-gates.rb
+      - name: Install browser test tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ytnh-browser-tests" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/ytnh-browser-tests/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Browser tests (Chromium and WebKit)
+        run: |
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/ytnh-browser-tests/node_modules/playwright"
+          node tests/core-regressions.cjs
+  native-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: desktop-tauri-cli-2.12.4
+          cache-on-failure: true
+      - name: SQLite and portable-master tests
+        run: cargo test --locked --manifest-path crates/library/Cargo.toml
+      - name: Native storage tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --features inline-images-preview

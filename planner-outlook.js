@@ -44,6 +44,8 @@ const PlannerOutlook=(()=>{
       if(!groups.has(uid))groups.set(uid,[]);groups.get(uid).push(c);
     }
     for(const [uid,events] of groups){
+      // A meeting in a time zone we can't recognise is skipped and reported, not allowed to stop the import (review 6).
+      try{
       const master=events.filter(c=>!prop(c,'recurrence-id')).sort((a,b)=>(prop(b,'sequence')||0)-(prop(a,'sequence')||0))[0];
       if(!master){
         const cancellations=events.filter(c=>cancelled(c)&&prop(c,'recurrence-id'))
@@ -97,6 +99,11 @@ const PlannerOutlook=(()=>{
       for(const [origin,c] of exceptions)if(!imported.has(origin)&&!excluded.has(origin))include(prop(c,'recurrence-id'),master,origin);
       if([...times.values()].includes(null)){warnings.push('Skipped a series with distinct occurrences on the same date.');continue}
       if(Object.keys(dates).length||excluded.size)series.push({uid,title:String(prop(master,'summary')||'Untitled meeting'),content:content(master),dates,pattern,excluded:[...excluded]});
+      }catch(error){
+        if(!/^Unrecognized time zone/.test(error?.message||''))throw error;
+        const named=events.find(c=>!prop(c,'recurrence-id'))||events[0];
+        warnings.push('Skipped “'+String(prop(named,'summary')||'Untitled meeting')+'”: '+error.message+'.');
+      }
     }
     return {series,warnings,calendarId:String(prop(cal,'uid')||prop(cal,'x-wr-relcalid')||'').trim(),calendarName:String(prop(cal,'x-wr-calname')||'')};
   }
@@ -249,6 +256,6 @@ const PlannerOutlook=(()=>{
   }
   const menu=document.getElementById('calendarMenu');
   for(const [label,reuse] of [['Import Outlook Calendar…',false],['Reimport Outlook Calendar…',true]])P.button(label,()=>{$('appMenu').open=false;choose(reuse)},menu);
-  P.button('Review duplicate Outlook meetings…',()=>{$('appMenu').open=false;reviewDuplicates()},menu);
+  P.button('Review Duplicate Meetings…',()=>{$('appMenu').open=false;reviewDuplicates()},menu);
   return {read,preview,commit,sourceCandidates,repairDuplicates};
 })();

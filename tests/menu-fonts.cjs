@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');const {pathToFileURL}=require('node:url');const path=require('node:path');
 (async()=>{
@@ -22,16 +23,16 @@ const assert=require('node:assert/strict');const {pathToFileURL}=require('node:u
   for(const theme of ['light', 'dark']){
    await p.evaluate(t=>{appearance.theme=t;applyTheme();$('appMenu').open=true},theme);
    for(const button of await p.locator('.appMenuBody button').all())assert.equal(await button.evaluate(e=>getComputedStyle(e).borderTopWidth),'0px');
-   assert.equal(await p.locator('.appMenuSection+.appMenuSection').evaluate(e=>getComputedStyle(e).borderTopWidth),'1px');
+   for(const divider of await p.locator('.appMenuSection+.appMenuSection').all())assert.equal(await divider.evaluate(e=>getComputedStyle(e).borderTopWidth),'1px');
    if(installed.length===0)await p.screenshot({path:`/private/tmp/compact-menu-${theme}.png`});
    await p.evaluate(()=>$('appMenu').open=false);
   }
   await p.evaluate(()=>{window.before=JSON.stringify(db);openQuickOpen()});
   assert.equal(await p.locator('.refResult small').count(),0);assert.equal(await p.locator('[data-ref-pick]').count(),2);
-  await p.locator('#refSearch').press('Escape');await p.evaluate(()=>openSettings());
+  await p.locator('#refSearch').press('Escape');await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));
   assert.deepEqual(await p.locator('#settingsFont option').evaluateAll(options=>options.map(o=>o.value).filter(v=>['bearSans','avenir','avenirNext'].includes(v))),installed);
-  if(installed.length){await p.selectOption('#settingsFont','avenirNext');await p.locator('#modalOK').click();assert.match(await p.locator('#richEditor').evaluate(e=>getComputedStyle(e).fontFamily),/Avenir Next/);await p.reload();assert.equal(await p.evaluate(()=>appearance.font),'avenirNext');await p.evaluate(()=>openSettings());assert.equal(await p.locator('#settingsFont').inputValue(),'avenirNext')}
-  else {assert.equal(await p.evaluate(()=>JSON.stringify(db)),await p.evaluate(()=>before));await p.locator('#modalCancel').click()}
+  if(installed.length){await p.selectOption('#settingsFont','avenirNext');await p.locator('#modalOK').click();assert.match(await p.locator('#richEditor').evaluate(e=>getComputedStyle(e).fontFamily),/Avenir Next/);await p.reload();assert.equal(await p.evaluate(()=>appearance.font),'avenirNext');await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));assert.equal(await p.locator('#settingsFont').inputValue(),'avenirNext')}
+  else {assert.equal(await p.evaluate(()=>JSON.stringify(db)),await p.evaluate(()=>before));await p.locator('#modalOK').click()}
   assert.deepEqual(remote,[]);assert.deepEqual(errors,[]);await p.close();
  }
  const real=await b.newPage();await real.goto(pathToFileURL(path.resolve(__dirname,'../app.html')).href);console.log('Installed font probes:',await real.evaluate(async()=>{await localFontsReady;return [...availableLocalFonts]}));

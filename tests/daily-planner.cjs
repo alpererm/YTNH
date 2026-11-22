@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 const assert=require('node:assert/strict');
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 (async()=>{
@@ -52,7 +53,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  });
  assert.deepEqual(result,{deleted:[null,0],restored:true,sessions:9});
  await page.evaluate(()=>showCalendar());const toggle=page.locator('#yearsMode + #plannerToggle');await toggle.click();assert.equal(await toggle.getAttribute('aria-label'),'Show Daily Planner');await toggle.click();assert.equal(await page.getByLabel('Planner date (DD/MM/YYYY)',{exact:true}).inputValue(),'16/11/2026');await page.reload();await page.evaluate(()=>installDatabase(createEmptyDatabase()));assert.equal(await toggle.getAttribute('aria-pressed'),'true');
- await page.evaluate(()=>{openSettings()});
+ await page.evaluate(()=>{(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false))});
  await page.locator('#plannerStart').fill('08:00');await page.locator('#plannerEnd').fill('17:30');await page.locator('#modalOK').click();
  assert.deepEqual(await page.evaluate(()=>db.planner.settings),{start:480,end:1050});
  await grid.focus();await page.keyboard.press('Enter');await page.getByRole('menuitem',{name:'Create Todo',exact:true}).click();await page.getByLabel('Title',{exact:true}).fill('Planner-created item');await page.getByRole('button',{name:'Apply',exact:true}).click();

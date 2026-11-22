@@ -101,12 +101,12 @@ function createDesktopLibraries(call) {
       }
     }
   }
-  const portableDetail='Changes autosave to local SQLite. Save and normal Close update the portable master. Cloud synchronization is handled by your storage provider.';
+  const portableDetail='Changes autosave locally. Saving, and closing the app, update your library file. Cloud sync is handled by your storage provider.';
   async function openPortable(handle){
     for(;;){
       try{return await action('portable_reopen',{id:handle.id})}
       catch(error){
-        const reply=await question('Portable master unavailable',error.message+' Your local working copy is retained.',[['retry','Retry'],['recover','Recover local work'],['cancel','Cancel']]);
+        const reply=await question('Library file unavailable',error.message+' Your local working copy is retained.',[['retry','Retry'],['recover','Recover local work'],['cancel','Cancel']]);
         if(reply.choice==='retry')continue;
         if(reply.choice!=='recover')throw cancel();
         const record=await action('portable_recover',{id:handle.id});
@@ -121,17 +121,17 @@ function createDesktopLibraries(call) {
         // Retry must also retry a failed local write. Never discard the in-memory model.
         if(saveBlocked)saveBlocked=false;
         await flush();
-        syncState(handle,'Saving master…',portableDetail);
+        syncState(handle,'Saving library…',portableDetail);
         const record=await action(asNew?'portable_save_as':'portable_publish',{id:handle.id,revision:handle.revision});
-        if(!record){syncState(handle,'Saved locally — master pending',portableDetail);return false}
+        if(!record){syncState(handle,'Saved locally — library file pending',portableDetail);return false}
         handle.name=record.name;handle.unpublished=record.unpublished;handle.masterIssue=null;
         if(storage.handle===handle){storage.name=record.name;await rememberLastFile()}
-        syncState(handle,record.unpublished?'Saved locally — master pending':'Master saved',portableDetail);
+        syncState(handle,record.unpublished?'Saved locally — library file pending':'Saved',portableDetail);
         return true;
       }catch(error){
         handle.masterIssue=error.message;
         syncState(handle,/conflict|changed|divergent/i.test(error.message)?'Conflict detected':'Save failed',error.message+' '+portableDetail);
-        const reply=await question('Master was not saved',error.message+(dirty?' Pending edits remain in the application. Retry the local save or cancel.':' Your local work is retained.'),[['retry','Retry'],...(!dirty?[['saveas','Save As…']]:[]),['cancel',closing?'Cancel Close':'Cancel']]);
+        const reply=await question('Library file was not saved',error.message+(dirty?' Pending edits remain in the application. Retry the local save or cancel.':' Your local work is retained.'),[['retry','Retry'],...(!dirty?[['saveas','Save As…']]:[]),['cancel',closing?'Cancel Close':'Cancel']]);
         if(reply.choice==='cancel')return false;
         asNew=reply.choice==='saveas';
       }
@@ -144,7 +144,7 @@ function createDesktopLibraries(call) {
   async function activateRecord(record){
     if(!record)throw cancel();
     const handle=new LibraryHandle(record);handle.checked=true;
-    if(handle.portable)syncState(handle,record.unpublished?'Saved locally — master pending':'Master saved',portableDetail);
+    if(handle.portable)syncState(handle,record.unpublished?'Saved locally — library file pending':'Saved',portableDetail);
     await activate(handle);
   }
   class LibraryHandle {
@@ -159,7 +159,7 @@ function createDesktopLibraries(call) {
         const info=this.portable?await openPortable(this):await transitionLegacy(this);
         this.name=info.name||this.name;this.unpublished=!!info.unpublished;
         if(this.portable)this.syncDetail=portableDetail;
-        this.syncLabel=this.portable?(this.masterIssue?'Saved locally — master unavailable':this.unpublished?'Saved locally — master pending':'Master saved'):info.syncLabel;
+        this.syncLabel=this.portable?(this.masterIssue?'Saved locally — library file unavailable':this.unpublished?'Saved locally — library file pending':'Saved'):info.syncLabel;
         this.checked=true;
       }
       const r=await action('read',{id:this.id});
@@ -175,7 +175,7 @@ function createDesktopLibraries(call) {
       if(!this.checked)await this.reverify();
       const r=await action('save',{id:this.id,revision:this.revision,model});
       const changed=this.revision!==r.revision;this.revision=r.revision;
-      if(changed&&this.portable){this.unpublished=true;syncState(this,'Saved locally — master pending',this.masterIssue?this.masterIssue+' '+portableDetail:portableDetail)}
+      if(changed&&this.portable){this.unpublished=true;syncState(this,'Saved locally — library file pending',this.masterIssue?this.masterIssue+' '+portableDetail:portableDetail)}
       return {mode:'direct',name:this.name};
     }
   }
@@ -191,9 +191,11 @@ function createDesktopLibraries(call) {
     flushPendingInputs();if(savePromise)await savePromise;
     if(dirty&&(!await requestDatabaseSave({manual:true})||dirty))throw new Error('Local save did not finish. Your pending edits are still here.');
   }
-  function addMenu(label,run){
-    const b=document.createElement('button');b.type='button';b.textContent=label;
-    document.getElementById('databaseMenu').append(b);
+  // Desktop items go into fixed slots of the flat application menu (review 16).
+  function addMenu(label,run,id,slot='libraryToolsMenu'){
+    const b=document.createElement('button');b.type='button';b.textContent=label;if(id)b.id=id;
+    const anchor=slot==='afterSave'?document.getElementById('saveFile'):null;
+    if(anchor)anchor.after(b);else document.getElementById(slot).append(b);
     b.onclick=()=>{$('appMenu').open=false;exclusive(run).catch(report);};
     return b;
   }
@@ -211,7 +213,7 @@ function createDesktopLibraries(call) {
     if(answer.choice==='clean'){await action('clean_images',{...args,confirm:summary.token});toast('Unused images cleaned')}
   }
   async function exportDocument(){
-    const handle=storage.handle,id=selected;if(!handle?.sqlite||!id)throw Error('Select a Note or Todo in a SQLite library.');
+    const handle=storage.handle,id=selected;if(!handle?.sqlite||!id)throw Error('Select a Note or Todo first.');
     await flush();
     for(;;){
       try{
@@ -226,9 +228,9 @@ function createDesktopLibraries(call) {
     }
   }
   function setup(){
-    if(window.notesDesktop.sqlite.imageEditing)addMenu('Export document as Markdown…',exportDocument);
+    if(window.notesDesktop.sqlite.imageEditing)addMenu('Export Note as Markdown…',exportDocument,'exportMarkdown');
 
-    const restore=addMenu('Restore SQLite backup…',async()=>{
+    const restore=addMenu('Restore Backup…',async()=>{
       const handle=storage.handle;if(!handle?.sqlite)return;await flush();
       const backups=await action('backups',{id:handle.id});
       if(!backups.length){toast('No local backups are available yet.');return;}
@@ -236,15 +238,15 @@ function createDesktopLibraries(call) {
       if(answer.choice==='cancel')return;
       const r=await action('restore_backup',{id:handle.id,revision:handle.revision,backup:answer.choice});
       if(r)await activate(new LibraryHandle(handle));
-    });
-    const archive=addMenu('Restore managed cold archive…',async()=>{
+    },'restoreBackup');
+    const archive=addMenu('Restore Cold Archive…',async()=>{
       const handle=storage.handle;if(!handle?.sqlite)return;await flush();
       const files=new Map(db.archiveIndex.map(e=>[e.archiveId||e.archiveFile,e.archiveFile]));
       const result=await question('Cold archives','Choose an archive to restore.',[...files.entries(),['cancel','Cancel']]);
       if(result.choice==='cancel')return;
       const text=await action('read_archive',{id:handle.id,archive:result.choice});
       if(await restoreColdArchiveFile(new File([text],files.get(result.choice)))){render();await flush();}
-    });
+    },'restoreColdArchive');
     $('appMenu').addEventListener('toggle',()=>{
       restore.hidden=!storage.handle?.sqlite;saveAs.hidden=!storage.handle?.portable;
       archive.hidden=!storage.handle?.sqlite||!db?.archiveIndex?.length;
@@ -252,17 +254,17 @@ function createDesktopLibraries(call) {
     $('openFile').onclick=()=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_open'))}).catch(report);
     $('newFile').onclick=()=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_new',{model:createEmptyDatabase()}))}).catch(report);
     $('saveFile').onclick=()=>storage.handle?.portable?exclusive(()=>savePortable(storage.handle)).catch(report):requestDatabaseSave({manual:true});
-    const saveAs=addMenu('Save master as…',()=>savePortable(storage.handle,{saveAs:true}));
-    addMenu('Recover local portable library…',async()=>{
+    const saveAs=addMenu('Save As…',()=>savePortable(storage.handle,{saveAs:true}),'saveAsFile','afterSave');
+    addMenu('Recover Local Library…',async()=>{
       if(!await beforeSwitch())return;
       const report=await action('portable_recovery_list'),copies=report.copies;
       const warnings=report.issues.map(i=>i.copy+': '+i.error).join('\n');
       if(!copies.length&&!warnings){toast('No local portable recovery copies are available.');return}
-      const message='Choose a verified retained copy explicitly. No copy is selected automatically. Saving still checks the connected master for conflicts.'+(warnings?'\n\nSome recovery records could not be verified. Their original bytes are retained when you explicitly recover a verified copy:\n'+warnings:'');
+      const message='Choose a verified retained copy explicitly. No copy is selected automatically. Saving still checks the library file for conflicts.'+(warnings?'\n\nSome recovery records could not be verified. Their original bytes are retained when you explicitly recover a verified copy:\n'+warnings:'');
       const reply=await question('Local recovery copies',message,[...copies.map(c=>[c.copy,c.name+' · '+String(c.revision||'').slice(0,8)+(c.unpublished?' · local edits':'')]),['cancel','Cancel']]);
       if(reply.choice==='cancel')return;
       await activateRecord(await action('portable_adopt',{copy:reply.choice}));
-    });
+    },'recoverLibrary');
   }
   return {
     setup,get busy(){return busy},
@@ -271,6 +273,7 @@ function createDesktopLibraries(call) {
     async last(){const id=await action('last');return id?new LibraryHandle(await action('status',{id})):null},
     async recent(){return (await action('list')).map(r=>({name:r.name,handle:new LibraryHandle(r)}))},
     remember:id=>action('remember',{id}),
+    newLibrary:(model,name)=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_new',{model,name}))}).catch(report),
     exportModel,cleanImages:()=>exclusive(cleanImages).catch(report),
     imageEditing: /* image-preview-build */ false,
     importReference:(id,reference)=>action('import_reference',{id,reference}),

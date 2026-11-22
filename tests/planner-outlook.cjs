@@ -63,8 +63,6 @@ function fixture(count,title){
  await p.evaluate(()=>installDatabase(createEmptyDatabase()));
  async function normalImport(text,name){
    await p.locator('#appMenu > summary').click();
-   const group=p.locator('#calendarMenu').locator('..');
-   if(!await group.evaluate(e=>e.open))await group.locator(':scope > summary').click();
    const chosen=p.waitForEvent('filechooser');await p.getByRole('button',{name:'Import Outlook Calendar…',exact:true}).click();
    await (await chosen).setFiles({name,mimeType:'text/calendar',buffer:Buffer.from(text)});
    const dialog=p.locator('dialog.outlookPreview');await dialog.waitFor();

@@ -9,7 +9,8 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  const opacity=locator=>locator.evaluate(e=>getComputedStyle(e,'::before').opacity);
  assert.equal(await opacity(marker),'1');assert.equal(await marker.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
  await p.keyboard.press('Alt+n');await p.locator('.inlineEdit').fill('Cancel child');await p.keyboard.press('Escape');assert.equal(await p.evaluate(()=>db.items.length),2);
- await p.keyboard.press('Alt+2');const head=p.locator('#layout .mainpanel');assert.equal(await opacity(head),'1');assert.equal(await opacity(marker),'0');
+ // The editor shows its active-pane bar on the title row; Calendar and Targets on the panel itself.
+ await p.keyboard.press('Alt+2');const head=p.locator('#layout .mainpanel'),editorBar=p.locator('#editor .editmeta');const after=locator=>locator.evaluate(e=>getComputedStyle(e,'::after').opacity);assert.equal(await after(editorBar),'1');assert.equal(await opacity(marker),'0');
  await p.keyboard.press('Control+Shift+9');assert.equal(await p.evaluate(()=>itemById(db,selected).content),'- [ ] ## **Heading**');
  await p.evaluate(()=>{edit(selected);focusBodyStart()});assert.equal(await p.evaluate(()=>documentHeadings()[0].level),2);
  await p.keyboard.press('Control+Shift+9');assert.equal(await p.evaluate(()=>itemById(db,selected).content),'## **Heading**');
@@ -19,7 +20,8 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    const probe=document.createElement('span');probe.style.position='absolute';el.append(probe);
    const anchored=probe.offsetParent===el;probe.remove();return anchored;
  }));
- const editorPosition=await position();
- for(const key of ['Alt+3','Alt+4']){await p.keyboard.press(key);assert.equal(await opacity(head),'1');assert.equal(await opacity(marker),'0');assert.deepEqual(await position(),editorPosition)}
+ // From the editor, Command/Control+3 and +4 switch panes (Alt+3/4 are left for typing inside text fields).
+ const mod=process.platform==='darwin'?'Meta':'Control';let calendarPosition=null;
+ for(const key of [mod+'+Digit3',mod+'+Digit4']){await p.keyboard.press(key);assert.equal(await opacity(head),'1');assert.equal(await opacity(marker),'0');const here=await position();if(calendarPosition)assert.deepEqual(here,calendarPosition);else calendarPosition=here}
  await b.close();console.log('PASS focused root, pane markers, child draft cancellation and heading checklist round trip');
 })().catch(e=>{console.error(e);process.exit(1)});

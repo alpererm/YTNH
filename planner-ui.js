@@ -1,7 +1,7 @@
 const DailyPlanner = (() => {
   const M=PlannerModel, zone=Intl.DateTimeFormat().resolvedOptions().timeZone;
   const pane=document.createElement('aside');pane.id='dailyPlanner';pane.hidden=true;pane.setAttribute('aria-label','Daily Planner');
-  pane.innerHTML='<div class="planGrip" role="separator" tabindex="0" aria-label="Resize Daily Planner" aria-orientation="vertical"></div><header><button data-act="prev" aria-label="Previous day">‹</button><input class="datejump" aria-label="Planner date" type="date"><button data-act="next" aria-label="Next day">›</button><button data-act="pin" class="editorIconButton"></button></header><div class="planAll"></div><div class="planScroll"><div class="planGrid" tabindex="0" aria-label="Daily timeline"></div></div>';
+  pane.innerHTML='<div class="planGrip" role="separator" tabindex="0" aria-label="Resize Daily Planner" aria-orientation="vertical"></div><header><button data-act="prev" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg></button><input class="datejump" aria-label="Planner date" type="date"><button data-act="next" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg></button><button data-act="pin" class="editorIconButton"></button></header><div class="planAll"></div><div class="planScroll"><div class="planGrid" tabindex="0" aria-label="Daily timeline"></div></div>';
   document.querySelector('.mainpanel').append(pane);dayFirstField(pane.querySelector('input[type=date]'));
   const grid=pane.querySelector('.planGrid'),scroll=pane.querySelector('.planScroll'),all=pane.querySelector('.planAll');
   let date=today(),first=420,last=1140,selectedKey=null,expanded=new Set(),owner=null,queued=false,menu=null;
@@ -88,7 +88,12 @@ const DailyPlanner = (() => {
     selectedKey=identity(exists);paint();
     requestAnimationFrame(()=>{const target=[...grid.querySelectorAll('.planBlock')].find(n=>n.dataset.identity===selectedKey);if(target){scroll.scrollTop=Math.max(0,target.offsetTop-scroll.clientHeight/3);target.focus({preventScroll:true});flashNavigationElement(target)}});
   }
-  function initialScroll(){return Math.max(0,(date===today()?minutes()-45-first:(db?.planner?.settings?.start??420)-first)*px)}
+  function initialScroll(){
+    let y=Math.max(0,(date===today()?minutes()-45-first:(db?.planner?.settings?.start??420)-first)*px);
+    y=Math.min(y,Math.max(0,scroll.scrollHeight-scroll.clientHeight));
+    // Never open half-way into a block: show the whole block that the start position would cut (29).
+    for(let moved=true;moved;){moved=false;for(const n of grid.querySelectorAll('.planBlock'))if(n.offsetTop<y&&n.offsetTop+n.offsetHeight>y+2){y=Math.max(0,n.offsetTop-8);moved=true}}
+    return y}
   function open(show=true,persist=true){
     if(show&&!db)return toast('Open a library first.');
     if(persist)suspended=false;
@@ -113,7 +118,7 @@ const DailyPlanner = (() => {
   function restore(){let show=false;try{show=localStorage.getItem('ytnh-planner-open')==='true'}catch{}open(Boolean(db&&show),false)}
   toggle.onclick=()=>open(pane.hidden);updateToggle(false);
   window.addEventListener('keydown',e=>{
-    if(e.code!=='KeyP'||!e.altKey||!(/Mac|iPhone|iPad/.test(navigator.platform)?e.metaKey:e.ctrlKey)||e.shiftKey||e.isComposing||document.querySelector('dialog[open],#modalbg.open'))return;
+    if(e.code!=='KeyP'||!e.altKey||!(IS_MAC?e.metaKey:e.ctrlKey)||e.shiftKey||e.isComposing||isTextEntry(e.target)||e.getModifierState?.('AltGraph')||document.querySelector('dialog[open],#modalbg.open'))return;
     e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)open(pane.hidden);
   },true);
   pane.querySelector('input').onchange=e=>selectDay(e.target.value);
@@ -200,10 +205,13 @@ const DailyPlanner = (() => {
     const gutter=64;
     const node=document.createElement('div'),i=b.item&&(itemById(db,b.item)||db.archiveIndex.find(a=>a.id===b.item));
     node.className='planBlock '+(b.meeting?'meeting':i?.type||'Note')+(b.done?' complete':'')+(identity(b)===selectedKey?' planSelected':'');
+    if(!b.meeting&&i?.type==='Todo')node.dataset.status=b.done?'Done':i.status||'Todo';
     node.style.top=top+'px';node.style.height=(bottom-top)+'px';node.dataset.part=start;
     node.style.left='calc('+gutter+'px + (100% - '+gutter+'px) * '+lane/count+')';node.style.width='calc((100% - '+gutter+'px) * '+1/count+' - 2px)';
 
     const label=blockLabel(node,b,i);
+    // Blocks tall enough for two lines show their time range under the title (42).
+    if(bottom-top>=38){const time=document.createElement('span');time.className='planTime';time.textContent=clock(b.start)+' – '+clock(b.start+b.duration);node.append(time)}
     node.title=(i&&!i.archiveFile?itemCode(db,i)+' · ':'')+label+' · '+clock(b.start)+'–'+clock(b.start+b.duration)+' · '+b.duration+' min';
     if(end===b.start+b.duration){const handle=document.createElement('span');handle.className='planHandle';node.append(handle)}attach(node,b);grid.append(node);
   }
@@ -319,7 +327,7 @@ const DailyPlanner = (() => {
     dropItem(data?.id||e.dataTransfer.getData('text/plain'),quarterStart(minuteAt(e)),data?.from,calendarDropAddsDate(e))};
   scroll.addEventListener('scroll',()=>{if(!pane.hidden&&!timeQueued){timeQueued=true;requestAnimationFrame(()=>{timeQueued=false;timeLine()})}},{passive:true});let timeQueued=false;
   new ResizeObserver(refresh).observe(pane);setInterval(()=>{if(!pane.hidden)timeLine()},30000);
-  return {captureLayout:()=>({hidden:pane.hidden,suspended,date,previewing,scroll:scroll.scrollTop}),restoreLayout:s=>{if(!s)return;pane.hidden=s.hidden;suspended=s.suspended;date=s.date;previewing=s.previewing;pane.parentElement.classList.toggle("plannerOpen",!s.hidden);updateToggle(!s.hidden);paintPin();paint();scroll.scrollTop=s.scroll;syncSidebarVisibility()},showSession,follow,suspend,resume,previewDrop,clearSlot,dropItem,open,restore,paint,refresh,selectDay,form,mutate,popup,clock,parse,button,zone,get date(){return date},get visible(){return !pane.hidden}};
+  return {pinnedDate:()=>pinnedDate,captureLayout:()=>({hidden:pane.hidden,suspended,date,previewing,scroll:scroll.scrollTop}),restoreLayout:s=>{if(!s)return;pane.hidden=s.hidden;suspended=s.suspended;date=s.date;previewing=s.previewing;pane.parentElement.classList.toggle("plannerOpen",!s.hidden);updateToggle(!s.hidden);paintPin();paint();scroll.scrollTop=s.scroll;syncSidebarVisibility()},showSession,follow,suspend,resume,previewDrop,clearSlot,dropItem,open,restore,paint,refresh,selectDay,form,mutate,popup,clock,parse,button,zone,get date(){return date},get visible(){return !pane.hidden}};
 })();
 
 window.dailyPlanner=DailyPlanner;

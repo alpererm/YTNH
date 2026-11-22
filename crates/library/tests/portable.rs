@@ -321,7 +321,7 @@ fn changed_master_cannot_overwrite_unpublished_local_work() {
         .load(&newer)
         .unwrap_err()
         .to_string()
-        .contains("unpublished"));
+        .contains("aren't saved to it yet"));
     assert_eq!(
         store
             .recover(&copy.session.library)
@@ -345,7 +345,7 @@ fn clean_local_copy_accepts_verified_descendant_but_rejects_stale_master() {
         .load(&f.master)
         .unwrap_err()
         .to_string()
-        .contains("Stale"));
+        .contains("older than or different"));
     assert_eq!(
         store
             .recover(&new.session.library)
@@ -530,7 +530,7 @@ fn divergent_clean_master_is_rejected_even_with_matching_library_id() {
         .load(&diverged)
         .unwrap_err()
         .to_string()
-        .contains("divergent"));
+        .contains("older than or different"));
     assert_eq!(
         store
             .recover(&current.session.library)

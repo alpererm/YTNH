@@ -3,6 +3,9 @@ mod files;
 mod fonts;
 mod close_probe;
 mod planner_calendar;
+mod markdown_import;
+#[cfg(target_os = "macos")]
+mod menu;
 #[cfg(feature="inline-images-preview")]
 mod image_import;
 #[cfg(feature="inline-images-preview")]
@@ -124,48 +127,69 @@ fn set_zoom(window: tauri::WebviewWindow, factor: f64) -> Result<(), String> {
     window.set_zoom(factor).map_err(|e| e.to_string())
 }
 #[derive(Default, Clone, serde::Serialize)]
-struct CaptureStatus { registered: Vec<String>, errors: Vec<String> }
+struct CaptureStatus { registered: Vec<String>, errors: Vec<String>, #[serde(skip)] disabled: bool }
 #[tauri::command]
 fn capture_status(state: State<'_, Mutex<CaptureStatus>>) -> CaptureStatus {
     state.lock().unwrap().clone()
 }
+/// Turns the system-wide Quick Open shortcut on or off (Settings). Off unregisters it immediately.
+#[tauri::command]
+fn set_capture_enabled(app: tauri::AppHandle, enabled: bool) -> CaptureStatus {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    {
+        let state = app.state::<Mutex<CaptureStatus>>();
+        let mut status = state.lock().unwrap();
+        status.disabled = !enabled;
+        status.registered.clear();
+        status.errors.clear();
+        let _ = app.global_shortcut().unregister_all();
+    }
+    register_capture_shortcuts(&app);
+    app.state::<Mutex<CaptureStatus>>().lock().unwrap().clone()
+}
+/// One system-wide shortcut, Control+Shift+Space, opens Quick Open from any app.
+/// It avoids Control+Alt combinations, which act as AltGr and type characters on many keyboards.
 fn register_capture_shortcuts(app: &tauri::AppHandle) {
     use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
     let state = app.state::<Mutex<CaptureStatus>>();
     let mut status = state.lock().unwrap();
+    if status.disabled { return; }
     status.errors.clear();
-    let quick_key = if cfg!(target_os = "macos") { "Cmd+Option+K" } else { "Ctrl+Alt+K" };
-    for (code, key, kind) in [(Code::KeyT, "Ctrl+Alt+T", "Todo"), (Code::KeyN, "Ctrl+Alt+N", "Note"), (Code::KeyK, quick_key, "QuickOpen")] {
-        if status.registered.iter().any(|s| s == key) { continue; }
-        let primary = if kind == "QuickOpen" && cfg!(target_os = "macos") { Modifiers::SUPER } else { Modifiers::CONTROL };
-        let shortcut = Shortcut::new(Some(primary | Modifiers::ALT), code);
-        match app.global_shortcut().on_shortcut(shortcut, move |app, _, event| {
-            if event.state != ShortcutState::Pressed { return; }
-            // Windows delivers WM_HOTKEY inside a native window procedure. Queue
-            // webview/window work after that callback returns rather than reentering it.
-            let handle = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                if let Some(window) = handle.get_webview_window("main") {
-                    if window.is_minimized().unwrap_or(false) { let _ = window.unminimize(); }
-                    if !window.is_visible().unwrap_or(true) { let _ = window.show(); }
-                    if !window.is_focused().unwrap_or(false) { let _ = window.set_focus(); }
-                    let script = format!("window.dispatchEvent(new CustomEvent('notes-capture',{{detail:'{}'}}))", kind);
-                    if let Err(error) = window.eval(&script) {
-                        handle.state::<Mutex<CaptureStatus>>().lock().unwrap().errors.push(format!("Capture delivery failed: {error}"));
-                    }
+    let key = "Ctrl+Shift+Space";
+    if status.registered.iter().any(|s| s == key) { return; }
+    let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+    match app.global_shortcut().on_shortcut(shortcut, move |app, _, event| {
+        if event.state != ShortcutState::Pressed { return; }
+        // Windows delivers WM_HOTKEY inside a native window procedure. Queue
+        // webview/window work after that callback returns rather than reentering it.
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            if let Some(window) = handle.get_webview_window("main") {
+                if window.is_minimized().unwrap_or(false) { let _ = window.unminimize(); }
+                if !window.is_visible().unwrap_or(true) { let _ = window.show(); }
+                if !window.is_focused().unwrap_or(false) { let _ = window.set_focus(); }
+                if let Err(error) = window.eval("window.dispatchEvent(new CustomEvent('notes-capture',{detail:'QuickOpen'}))") {
+                    handle.state::<Mutex<CaptureStatus>>().lock().unwrap().errors.push(format!("Capture delivery failed: {error}"));
                 }
-            });
-        }) {
-            Ok(()) => status.registered.push(key.into()),
-            Err(error) => status.errors.push(format!("{key}: {error}. Close other copies of this app or apps using this shortcut, then return here to retry.")),
-        }
+            }
+        });
+    }) {
+        Ok(()) => status.registered.push(key.into()),
+        Err(error) => status.errors.push(format!("{key}: {error}. Close other copies of this app or apps using this shortcut, or turn it off in Settings.")),
     }
 }
 fn main() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // macOS gets a native menu bar; Windows keeps the in-app ☰ menu and no menu bar.
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .menu(|handle| menu::build(handle))
+        .on_menu_event(|handle, event| menu::deliver(handle, event.id().as_ref()));
+    let app = builder
         .manage(Mutex::new(Files::default()))
         .manage(CloseProbe::default())
         .manage(libraries::LibraryRuntime::default())
+        .manage(markdown_import::ImportRoot::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -179,6 +203,9 @@ fn main() {
             fonts::installed_font_families,
             pick_json,
             planner_calendar::read_planner_calendar,
+            markdown_import::pick_markdown_folder,
+            markdown_import::read_markdown_import_image,
+            markdown_import::end_markdown_import,
             write_json,
             open_link,
             confirm_close,
@@ -186,7 +213,8 @@ fn main() {
             acknowledge_close,
             finish_close_attempt,
             set_zoom,
-            capture_status
+            capture_status,
+            set_capture_enabled
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event {

@@ -21,11 +21,14 @@
   async function reportCaptureStatus(){
     try{const status=await call('capture_status');window.notesCaptureStatus=status;const error=status.errors.join(' ');if(error&&error!==lastCaptureError)toast('Global shortcut unavailable: '+error);lastCaptureError=error}catch(error){console.error(error)}
   }
-  window.addEventListener('DOMContentLoaded',reportCaptureStatus);
+  // The system-wide Quick Open shortcut (Ctrl+Shift+Space) can be turned off in Settings (review 38).
+  async function applyCapturePreference(){let on=true;try{on=localStorage.getItem('ytnh-global-quick-open')!=='off'}catch{}try{window.notesCaptureStatus=await call('set_capture_enabled',{enabled:on})}catch(error){console.error(error)}}
+  window.notesGlobalQuickOpen={get enabled(){try{return localStorage.getItem('ytnh-global-quick-open')!=='off'}catch{return true}},async set(on){try{localStorage.setItem('ytnh-global-quick-open',on?'on':'off')}catch{}await applyCapturePreference();await reportCaptureStatus()}};
+  window.addEventListener('DOMContentLoaded',()=>applyCapturePreference().then(reportCaptureStatus));
   window.addEventListener('focus',reportCaptureStatus);
   let zoom=1;
   window.addEventListener('keydown',e=>{
-    const mac=/Mac/.test(navigator.platform);
+    const mac=/mac/i.test(navigator.userAgentData?.platform||navigator.platform);
     if(!(mac?e.metaKey:e.ctrlKey)||e.altKey)return;
     const direction=['Equal','NumpadAdd'].includes(e.code)||e.key==='+'?1:['Minus','NumpadSubtract'].includes(e.code)||e.key==='-'?-1:0;
     if(!direction&&e.code!=='Digit0')return;
@@ -33,7 +36,7 @@
     call('set_zoom',{factor:zoom}).catch(e=>toast(e.message));
   },true);
   window.addEventListener('DOMContentLoaded',()=>{
-    if(!/Win/.test(navigator.platform))return;
+    if(!/win/i.test(navigator.userAgentData?.platform||navigator.platform))return;
     document.body.classList.add('windows-desktop');const timers=new WeakMap();
     document.addEventListener('scroll',e=>{const el=e.target;if(!(el instanceof Element))return;el.classList.add('is-scrolling');clearTimeout(timers.get(el));timers.set(el,setTimeout(()=>el.classList.remove('is-scrolling'),800))},true);
   });

@@ -208,7 +208,7 @@ pub fn create(
     limits: Limits,
 ) -> Result<Manifest> {
     if destination.exists() {
-        return Err("Destination already exists; choose a new master filename".into());
+        return Err("A file with that name already exists; choose a new filename".into());
     }
     fs::create_dir_all(local_stage)?;
     let stage = tempfile::tempdir_in(local_stage)?;
@@ -268,7 +268,7 @@ pub fn create(
         .map_err(|e| e.error)?;
     sync_dir(parent)?;
     if fingerprint(destination, limits.bytes)? != expected {
-        return Err("Master changed after creation; source library retained".into());
+        return Err("The library file changed after it was created; the source library was kept".into());
     }
     Ok(manifest)
 }
@@ -349,7 +349,7 @@ pub fn verify(master: &Path, local_stage: &Path, limits: Limits) -> Result<Verif
     output.sync_all()?;
     drop(output);
     if self::fingerprint(master, limits.bytes)? != fingerprint {
-        return Err("Master changed while reading; retry".into());
+        return Err("The library file changed while reading; try again".into());
     }
     let mut package_file = File::open(&package)?;
     preflight_zip(&mut package_file, limits)?;
@@ -534,7 +534,7 @@ impl WorkingStore {
         drop(regular(master)?);
         let master = master.canonicalize()?;
         if master.starts_with(&self.root) {
-            return Err("Master must be separate from local working storage".into());
+            return Err("The library file must be outside YTNH's own data folder".into());
         }
         let verified = verify(&master, &self.root.join("staging"), self.limits)?;
         let library = verified.manifest.state["library"]
@@ -547,7 +547,7 @@ impl WorkingStore {
                 let mut old = old;
                 if old.session.master != master {
                     if fingerprint(&master, self.limits.bytes)? != verified.fingerprint {
-                        return Err("Master changed before reconnecting; retry".into());
+                        return Err("The library file changed before reconnecting; try again".into());
                     }
                     old.session.master = master;
                     self.write_session(&old.session)?;
@@ -556,14 +556,14 @@ impl WorkingStore {
             }
             if old.unpublished {
                 return Err(
-                    "Master changed and local edits are unpublished; recover local work or Save As"
+                    "The library file changed and your latest edits aren't saved to it yet; recover your local work or use Save As"
                         .into(),
                 );
             }
             let new_repo = Repository::open(&verified.database())?;
             let old_repo = Repository::open(&old.database())?;
             if !new_repo.descends_from(&old_repo)? {
-                return Err("Stale or divergent master; local working copy retained".into());
+                return Err("The library file is older than or different from your local copy; your local copy was kept".into());
             }
         }
         // A crash after staging but before catalog activation may leave a recoverable generation.
@@ -580,7 +580,7 @@ impl WorkingStore {
         }
         // A second check closes the long verification window. No claim of cross-device CAS.
         if fingerprint(&master, self.limits.bytes)? != verified.fingerprint {
-            return Err("Master changed before activation; retry".into());
+            return Err("The library file changed before opening; try again".into());
         }
         let session = Session {
             version: VERSION,

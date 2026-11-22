@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 const screenshotDir=require('node:os').tmpdir();
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');const {pathToFileURL}=require('node:url');const path=require('node:path');
@@ -10,12 +11,13 @@ const assert=require('node:assert/strict');const {pathToFileURL}=require('node:u
  assert.equal(await css('#tree','borderTopWidth'),'0px');
  for(const theme of ['light', 'dark']){
   await p.evaluate(t=>{appearance.theme=t;applyTheme()},theme);
+  await p.waitForTimeout(300);/* let the search field finish collapsing */
   for(const sel of ['#appMenu>summary','#search','#groupBySelect','#jumpDate'])assert.equal(await css(sel,'backgroundColor'),'rgba(0, 0, 0, 0)');
   for(const sel of ['#appMenu>summary','#statusFilterBox','#mainPaneHead','.outlineActionsHead'])assert.equal(await css(sel,'borderBottomWidth'),'0px');
-  await p.evaluate(()=>openOutlineSearch());assert.equal(await css('#search','backgroundColor'),'rgba(0, 0, 0, 0)');await p.evaluate(()=>closeOutlineSearch());
+  await p.evaluate(()=>openOutlineSearch());await p.waitForTimeout(300);assert.notEqual(await css('#search','backgroundColor'),'rgba(0, 0, 0, 0)');/* the open search field is now a soft rounded pill */await p.evaluate(()=>closeOutlineSearch());
   assert.equal(await css('.weekrow','borderTopWidth'),await css('.weekrow>.day','borderLeftWidth'));
   assert.notEqual(await css('.weekrow','borderTopColor'),await css('.weekrow>.day','borderLeftColor'));
-  assert.equal(await css('.chip','fontSize'),await css('#tree .title','fontSize'));assert.equal(await css('.chip','backgroundColor'),'rgba(0, 0, 0, 0)');
+  assert(Math.abs(parseFloat(await css('.chip','fontSize'))-parseFloat(await css('#tree .title','fontSize'))*.86)<.1,'Calendar chips are 86% of the Outline text size');assert.equal(await css('.chip','backgroundColor'),'rgba(0, 0, 0, 0)');
   await p.screenshot({path:`${screenshotDir}/workspace-density-${theme}.png`});
  }
  for(const width of [1000,1500]){
@@ -27,8 +29,8 @@ const assert=require('node:assert/strict');const {pathToFileURL}=require('node:u
   await p.evaluate(()=>toggleEditorSidebar());await p.screenshot({path:`${screenshotDir}/workspace-density-editor-${width}.png`});await p.evaluate(()=>showCalendar());
  }
  for(const windows of [false,true])for(const size of [8,10,14,18]){await p.evaluate(({windows,size})=>{document.body.classList.toggle('windows-desktop',windows);appearance.interfaceSize=size;applyAppearance()}, {windows,size});for(const sel of ['#tree .itemMarker','#calendarBody .itemMarker']){assert.equal(await css(sel+' svg','width'),'15px');assert(await p.locator(sel).first().evaluate(e=>e.getBoundingClientRect().width>=24))}assert.equal(await css('#tree .title','fontSize'),size+'px')}
- await p.evaluate(()=>openSettings());await p.selectOption('#settingsInterfaceSize','8');await p.selectOption('#settingsEditorSize','8');await p.locator('#modalOK').click();
- assert.equal(await css('.chip','fontSize'),'8px');assert.equal(await css('#tree .title','fontSize'),'8px');
+ await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));await p.selectOption('#settingsInterfaceSize','8');await p.selectOption('#settingsEditorSize','8');await p.locator('#modalOK').click();
+ assert(Math.abs(parseFloat(await css('.chip','fontSize'))-8*.86)<.1,'Calendar chips follow the interface size');assert.equal(await css('#tree .title','fontSize'),'8px');
  await p.reload();assert.equal(await p.evaluate(()=>appearance.interfaceSize),8);assert.equal(await p.evaluate(()=>appearance.editorSize),8);
  assert.deepEqual(errors,[]);await browser.close();console.log('PASS Workspace density, two themes, aligned headers, equal calendar/Outline text, 8px persistence, sidebar width and removed dividers');
 })().catch(e=>{console.error(e);process.exit(1)});

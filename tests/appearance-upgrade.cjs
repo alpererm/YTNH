@@ -21,7 +21,7 @@ const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwrigh
     assert.deepEqual(await page.locator('#settingsTheme option').allTextContents(), ['Paper White', 'Graphite Dark']);
     assert.equal(await page.locator('#settingsFont').inputValue(), 'serif');
     assert.equal(await page.locator('#settingsUIStyle').count(), 0);
-    await page.locator('#modalCancel').click();
+    await page.locator('#modalOK').click();
     await page.evaluate(() => {
       autosaveEnabled = false;
       installDatabase(createEmptyDatabase());
