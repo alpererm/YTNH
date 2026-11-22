@@ -10,9 +10,10 @@ const assert=require('node:assert/strict');const {pathToFileURL}=require('node:u
  assert.equal(await css('#tree','borderTopWidth'),'0px');
  for(const theme of ['light', 'dark']){
   await p.evaluate(t=>{appearance.theme=t;applyTheme()},theme);
+  await p.waitForTimeout(300);/* let the search field finish collapsing */
   for(const sel of ['#appMenu>summary','#search','#groupBySelect','#jumpDate'])assert.equal(await css(sel,'backgroundColor'),'rgba(0, 0, 0, 0)');
   for(const sel of ['#appMenu>summary','#statusFilterBox','#mainPaneHead','.outlineActionsHead'])assert.equal(await css(sel,'borderBottomWidth'),'0px');
-  await p.evaluate(()=>openOutlineSearch());assert.equal(await css('#search','backgroundColor'),'rgba(0, 0, 0, 0)');await p.evaluate(()=>closeOutlineSearch());
+  await p.evaluate(()=>openOutlineSearch());await p.waitForTimeout(300);assert.notEqual(await css('#search','backgroundColor'),'rgba(0, 0, 0, 0)');/* the open search field is now a soft rounded pill */await p.evaluate(()=>closeOutlineSearch());
   assert.equal(await css('.weekrow','borderTopWidth'),await css('.weekrow>.day','borderLeftWidth'));
   assert.notEqual(await css('.weekrow','borderTopColor'),await css('.weekrow>.day','borderLeftColor'));
   assert(Math.abs(parseFloat(await css('.chip','fontSize'))-parseFloat(await css('#tree .title','fontSize'))*.86)<.1,'Calendar chips are 86% of the Outline text size');assert.equal(await css('.chip','backgroundColor'),'rgba(0, 0, 0, 0)');

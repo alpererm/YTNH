@@ -326,7 +326,7 @@ const DailyPlanner = (() => {
     dropItem(data?.id||e.dataTransfer.getData('text/plain'),quarterStart(minuteAt(e)),data?.from,calendarDropAddsDate(e))};
   scroll.addEventListener('scroll',()=>{if(!pane.hidden&&!timeQueued){timeQueued=true;requestAnimationFrame(()=>{timeQueued=false;timeLine()})}},{passive:true});let timeQueued=false;
   new ResizeObserver(refresh).observe(pane);setInterval(()=>{if(!pane.hidden)timeLine()},30000);
-  return {captureLayout:()=>({hidden:pane.hidden,suspended,date,previewing,scroll:scroll.scrollTop}),restoreLayout:s=>{if(!s)return;pane.hidden=s.hidden;suspended=s.suspended;date=s.date;previewing=s.previewing;pane.parentElement.classList.toggle("plannerOpen",!s.hidden);updateToggle(!s.hidden);paintPin();paint();scroll.scrollTop=s.scroll;syncSidebarVisibility()},showSession,follow,suspend,resume,previewDrop,clearSlot,dropItem,open,restore,paint,refresh,selectDay,form,mutate,popup,clock,parse,button,zone,get date(){return date},get visible(){return !pane.hidden}};
+  return {pinnedDate:()=>pinnedDate,captureLayout:()=>({hidden:pane.hidden,suspended,date,previewing,scroll:scroll.scrollTop}),restoreLayout:s=>{if(!s)return;pane.hidden=s.hidden;suspended=s.suspended;date=s.date;previewing=s.previewing;pane.parentElement.classList.toggle("plannerOpen",!s.hidden);updateToggle(!s.hidden);paintPin();paint();scroll.scrollTop=s.scroll;syncSidebarVisibility()},showSession,follow,suspend,resume,previewDrop,clearSlot,dropItem,open,restore,paint,refresh,selectDay,form,mutate,popup,clock,parse,button,zone,get date(){return date},get visible(){return !pane.hidden}};
 })();
 
 window.dailyPlanner=DailyPlanner;

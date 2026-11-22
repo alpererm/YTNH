@@ -1422,16 +1422,16 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 
 /* Shared item identification; content-editor list markers are independent. */
 .itemMarker{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;min-width:24px;box-sizing:border-box;vertical-align:middle;color:var(--outline-todo-ink,var(--todo-code));cursor:pointer;border:0;background:none;padding:0;line-height:1}
-.itemMarker[data-marker-type="Note"]{color:var(--outline-note-ink,var(--note-code))}
+.itemMarker[data-marker-type="Note"]{color:var(--outline-todo-ink,var(--todo-code))}
 .itemMarker svg{display:block;width:15px;height:15px;flex:none;overflow:visible}
 .itemMarker:focus-visible{outline:1px solid var(--accent);outline-offset:-2px;border-radius:3px}
 .itemMarker:hover{background:var(--soft);border-radius:3px}
 .itemMarker[data-marker-passive]{cursor:inherit}
 :root body #tree .itemMarker,:root body #pinnedOutline .itemMarker{margin-top:0;color:var(--outline-todo-ink,var(--todo-code))!important}
-:root body #tree .itemMarker[data-marker-type="Note"],:root body #pinnedOutline .itemMarker[data-marker-type="Note"]{color:var(--outline-note-ink,var(--note-code))!important}
+:root body #tree .itemMarker[data-marker-type="Note"],:root body #pinnedOutline .itemMarker[data-marker-type="Note"]{color:var(--outline-todo-ink,var(--todo-code))!important}
 :root body #calendarBody .cal-code{align-items:center;gap:2px}
 :root body #editor #editCode{border:0;padding:0;min-width:24px;background:transparent}
-.planBlock .itemMarker{flex:0 0 24px;height:24px;align-self:center}
+.planBlock .itemMarker{flex:0 0 20px;width:20px;min-width:20px;height:var(--plan-title-lh,17px);align-self:flex-start}
 
 .modal.jumpDateModal{width:min(390px,calc(100vw - 32px))}
 .jumpDateCalendar.tagSuggestions{position:static;display:block;min-width:0;width:100%;max-height:none;border:0;box-shadow:none;padding:0;margin-top:8px;background:transparent}
@@ -1521,8 +1521,8 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 }
 :root body #layout #editor .editorDocument .editmeta #formatMenu{grid-column:3;grid-row:1}
 :root body #layout #editor .editorDocument .editmeta #documentFindButton{grid-column:4;grid-row:1}
-:root body #layout #editor .editorDocument .editmeta #sidebarToggle{grid-column:5;grid-row:1}
-:root body #layout #editor .editorDocument .editmeta #editorFocusToggle{grid-column:6;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #sidebarToggle{grid-column:6;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #editorFocusToggle{grid-column:5;grid-row:1}
 :root body #layout #editor .editorDocument .editmeta #editorTitle{grid-column:2 / -1;grid-row:2;margin:0;padding:3px 0;align-self:start}
 :root body #layout #editor .editorDocument .editmeta #editCode{position:static;grid-column:1;grid-row:2;width:24px;height:24px;align-self:start;margin-top:calc((var(--title-first-line) - 24px) / 2)}
 :root body #layout .mainpanel:has(#editor:not(.hidden))::before{opacity:0}
@@ -1706,6 +1706,24 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body :is(#tree,#pinnedOutline) .row.headingRow .outlineTitleLine::after{content:"";flex:1;min-width:12px;border-top:1px solid var(--workspace-grid)}
 :root body :is(#tree,#pinnedOutline) .row.headingRow .outlineText{flex:1;min-width:0}
 :root body #tree .row.sectionHidden{display:none}
+/* Search: the magnifier stays and rides the left edge of a rounded field that grows out of it (and shrinks back into it). */
+:root body .outlineSearchSlot .outlineSearchButton{order:-1;position:relative;z-index:1;transition:margin-right 240ms cubic-bezier(.2,.8,.2,1),background-color 120ms}
+:root body .outlineSearchSlot #search{height:30px;border-radius:15px;border:0 solid transparent;box-sizing:border-box;transition:width 240ms cubic-bezier(.2,.8,.2,1),padding 240ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease,border-color 160ms ease,background-color 160ms ease,visibility 0s linear 240ms}
+:root body .outlineSearchSlot.search-expanded #search{width:100%;padding:0 10px 0 32px;border-width:1px;border-color:var(--line);background:var(--soft)!important;opacity:1;visibility:visible;transition:width 240ms cubic-bezier(.2,.8,.2,1),padding 240ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease 40ms,border-color 160ms ease,background-color 160ms ease,visibility 0s}
+:root body .outlineSearchSlot.search-expanded #search:focus{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+:root body .outlineSearchSlot.search-expanded .outlineSearchButton{display:flex;margin-right:-30px;pointer-events:none;background:transparent}
+@media(prefers-reduced-motion:reduce){:root body .outlineSearchSlot :is(#search,.outlineSearchButton){transition:none!important}}
+:root body :is(#tree,#pinnedOutline) .row{min-height:calc(var(--title-line-height) + 8px)}
+/* Outline indicators: equally small, thin and quiet; right-aligned, no backgrounds or borders. */
+:root body .outlineNavigation{gap:1px;margin-left:auto;padding-left:4px}
+:root body .outlineNavigation button{width:19px;min-width:19px;height:24px;color:var(--muted);opacity:.72;background:transparent!important;border:0;box-shadow:none;transition:opacity 120ms,color 120ms}
+:root body .outlineNavigation button:hover,:root body .outlineNavigation button:focus-visible{opacity:1;color:var(--ink)}
+:root body .outlineNavigation svg{width:12px;height:12px}
+#formatTooltip .tooltipLabel{white-space:pre-line}
+:root body :is(#tree,#pinnedOutline) .row>:is(.outlineChevron,.chevronSpace,.itemMarker,.outlineNavigation,.locationButton){margin-bottom:calc((var(--title-line-height) - 24px)/2)}
+:root body .planBlock{--plan-title-lh:17px;padding:4px 6px 3px 4px;column-gap:3px}
+:root body .planBlock .planTitle{line-height:var(--plan-title-lh)}
+:root body .planBlock .planTime{padding-left:23px}
 :root body #tree .row .searchContext{font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */
@@ -1952,8 +1970,9 @@ function rootOf(db,item){let x=item,seen=new Set();while(x?.parentId){if(seen.ha
 function itemMarker(item,{status=null,date=null,passive=false,code=false,planner=false,outline=false}={}){
  const state=status||(date&&isRecurringTodo(item)?occurrenceStatus(item,date):item.status)||'Todo';
  const kind=item.target?'Target':isMilestone(item)?'Milestone':isRecurringTodo(item)?'Recurring Todo':item.type;
- const special=!['Note','Todo'].includes(kind);
- let shape=kind==='Target'?'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>':kind==='Milestone'?'<path d="m12 2 10 10-10 10L2 12z"/>':kind==='Recurring Todo'?'<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/>':item.type==='Note'?'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h6"/>':'<circle cx="12" cy="12" r="8"'+(state==='Done'?' fill="currentColor"':'')+'/>';
+ // In the Outline a recurring Todo uses the plain Todo circle; the repeat icon moves to the right-hand indicators.
+ const plainRecurring=outline&&kind==='Recurring Todo',special=!plainRecurring&&!['Note','Todo'].includes(kind);
+ let shape=kind==='Target'?'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>':kind==='Milestone'?'<path d="m12 2 10 10-10 10L2 12z"/>':kind==='Recurring Todo'&&!plainRecurring?'<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/>':item.type==='Note'?'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h6"/>':'<circle cx="12" cy="12" r="8"'+(state==='Done'?' fill="currentColor"':'')+'/>';
  if(item.type==='Todo'&&special&&['Done','Cancelled','On hold'].includes(state))shape+='<circle cx="19" cy="19" r="5" fill="var(--bg)" stroke="none"/>'+(state==='Done'?'<circle cx="19" cy="19" r="3" fill="currentColor" stroke="none"/>':state==='Cancelled'?'<path d="m16.5 16.5 5 5m0-5-5 5"/>':'<path d="M16 19h6"/>');
  else if(item.type==='Todo'&&state==='Cancelled')shape+='<path d="m8 8 8 8m0-8-8 8"/>';
  else if(item.type==='Todo'&&state==='On hold')shape+='<path d="M7 12h10"/>';
@@ -3722,6 +3741,13 @@ function navigateCalendarByArrow(direction){
  stepOutlineDay(direction);
 }
 
+// WebKit keeps painting a blinking caret in the editor when an item switch places the selection there while
+// focus is in another pane. Drop that hidden selection whenever focus is in the Outline, Calendar or Planner.
+document.addEventListener('selectionchange',()=>{
+ const sel=getSelection(),node=sel.anchorNode,ed=$('richEditor'),ae=document.activeElement;
+ if(!node||!ed||!ed.contains(node)||ed.contains(ae))return;
+ if(ae?.closest?.('#tree,#pinnedOutline,#calendarBody,#dailyPlanner,.treepanel'))sel.removeAllRanges();
+});
 function focusPane(name){
  activePane=name;
  if(name==="outline")focusOutlineItem(selected);
@@ -3766,6 +3792,14 @@ function editorIsOpen(){return !$("editor").classList.contains("hidden")}
 function closeRightEditor(){
   if(!editorIsOpen())return false;
   if(appearance.defaultView==='editor'&&!focusLayout){focusOutlineItem(selected);return true;}
+  // Editor-first: Esc in Focus Mode returns to the normal editor layout, never to the Calendar or Targets.
+  if(appearance.defaultView==='editor'&&focusLayout){
+    const writing=$('editor').contains(document.activeElement);setEditorFocus(false);
+    if(!editorIsOpen()&&selected)edit(selected,{keepSearch:true});
+    $('layout').dataset.view='editor';activePane='editor';
+    if(writing||!$('editor').contains(document.activeElement))$(!$('content').classList.contains('hidden')?'content':'richEditor').focus({preventScroll:true});
+    return true;
+  }
   syncModelFromRich?.();
   completeSearchAction(selected);showCalendar();
   $("layout").dataset.view="outline";
@@ -3804,14 +3838,31 @@ function relevantCalendarDate(item){
  return dates.find(d=>d>=today())||dates.at(-1)||null;
 }
 function upcomingItemSessions(){const now=new Date();return PlannerModel.upcoming(db,today(),now.getHours()*60+now.getMinutes())}
+// Outline row indicators, right-aligned: calendar (scheduled, non-recurring), repeat (recurring) and clock
+// (Daily Planner sessions). Small thin-stroke SVGs; hover lists the dates, click navigates.
+const OUTLINE_INDICATOR_ICONS={
+ calendar:'<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M8.5 3.5v4M15.5 3.5v4M4 10.5h16"/>',
+ repeat:'<path d="m16.5 3.5 3 3-3 3"/><path d="M4.5 11.5v-1a4 4 0 0 1 4-4h11"/><path d="m7.5 20.5-3-3 3-3"/><path d="M19.5 12.5v1a4 4 0 0 1-4 4h-11"/>',
+ clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
+};
+function outlineIndicatorIcon(kind){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+OUTLINE_INDICATOR_ICONS[kind]+'</svg>'}
+function plannerBlockLabel(block){return displayDay(block.date)+' · '+DailyPlanner.clock(block.start)+'–'+DailyPlanner.clock(block.start+block.duration)}
+function itemPlannerBlocks(item,sessions){
+ const blocks=[...(sessions.get(item.id)||[])].sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);
+ return isRecurringTodo(item)?blocks.slice(0,1):blocks;
+}
 function outlineNavigationIndicators(item,sessions){
- const date=relevantCalendarDate(item),blocks=sessions.get(item.id)||[];
- const calendarIcon='<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/>';
- const clockIcon='<circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/>';
- const button=(kind,label,icon)=>'<button type="button" tabindex="-1" data-outline-navigation="'+kind+'" data-navigation-item="'+esc(item.id)+'" title="'+esc(label)+'" aria-label="'+esc(label)+'">'+sidebarIcon(icon)+'</button>';
- const list=[];
- if(date)list.push(button('calendar',displayDay(date)+' · Show in Calendar',calendarIcon));
- if(blocks.length){const next=blocks[0],time=String(Math.floor(next.start/60)).padStart(2,'0')+':'+String(next.start%60).padStart(2,'0');list.push(button('planner',displayDay(next.date)+' '+time+' · '+blocks.length+' upcoming session'+(blocks.length===1?'':'s')+(blocks.some(b=>b.origin)?' (next per repeating series)':'')+' · Show in Daily Planner',clockIcon))}
+ if(item.heading)return '';
+ const recurring=isRecurringTodo(item),blocks=itemPlannerBlocks(item,sessions),list=[];
+ const button=(kind,label,tip)=>'<button type="button" tabindex="-1" data-outline-navigation="'+kind+'" data-navigation-item="'+esc(item.id)+'" data-tip="'+esc(tip)+'" aria-label="'+esc(label)+'">'+outlineIndicatorIcon(kind)+'</button>';
+ if(recurring){
+   const next=relevantCalendarDate(item);
+   if(next)list.push(button('repeat','Repeats · next '+displayDay(next)+' · Show in Calendar','Next: '+displayDay(next)));
+ }else{
+   const dates=[...new Set(scheduledGroupingDates(item).filter(validDate))].sort();
+   if(dates.length){const shown=dates.slice(0,12).map(displayDay);if(dates.length>12)shown.push('+'+(dates.length-12)+' more');list.push(button('calendar','Scheduled '+dates.map(displayDay).join(', ')+' · Show in Calendar',shown.join('\n')))}
+ }
+ if(blocks.length)list.push(button('clock',(recurring?'Next planned session ':'Planned sessions ')+blocks.map(plannerBlockLabel).join(', ')+' · Show in Daily Planner',(recurring?'Next: ':'')+blocks.map(plannerBlockLabel).join('\n')));
  return list.length?'<span class="outlineNavigation">'+list.join('')+'</span>':'';
 }
 function flashNavigationElement(element){if(!element)return;element.classList.add('navigationFlash');setTimeout(()=>element.classList.remove('navigationFlash'),2200)}
@@ -3822,12 +3873,14 @@ function showItemInCalendar(item){
  expandedWeeks.add(iso(mondayOf(new Date(date+'T12:00:00'))));jumpToDate(date);focusPane('calendar');
  requestAnimationFrame(()=>{const day=$('calendarBody').querySelector('.day[data-date="'+date+'"]');day?.closest('.weekrow')?.scrollIntoView({block:'center'});flashNavigationElement(day?.querySelector('[data-cal-drag-item="'+CSS.escape(item.id)+'"]'))});
 }
-function showItemInPlanner(item,button){
- const blocks=upcomingItemSessions().get(item.id)||[];
- const open=block=>{if(editorIsOpen())flushPendingInputs();showCalendar();window.dailyPlanner.showSession(block)};
- if(blocks.length===1)return open(blocks[0]);if(!blocks.length){renderTree();return}
- const r=button.getBoundingClientRect();
- DailyPlanner.popup(r.left,r.bottom,blocks.map(block=>[displayDay(block.date)+' · '+DailyPlanner.clock(block.start)+'–'+DailyPlanner.clock(block.start+block.duration)+(block.origin?' · Repeating':''),()=>open(block)]),button);
+const plannerIconCycle=new Map();
+function showItemInPlanner(item){
+ const blocks=itemPlannerBlocks(item,upcomingItemSessions());if(!blocks.length){renderTree();return}
+ const key=b=>b.date+'@'+b.start,last=plannerIconCycle.get(item.id),at=blocks.findIndex(b=>key(b)===last);
+ const block=blocks[isRecurringTodo(item)||at<0?0:(at+1)%blocks.length];plannerIconCycle.set(item.id,key(block));
+ const pinned=window.dailyPlanner?.pinnedDate?.();
+ if(pinned&&pinned!==block.date){toast('Planner date is pinned.');return}
+ if(editorIsOpen())flushPendingInputs();showCalendar();window.dailyPlanner.showSession(block);
 }
 
 let calendarSelectionDate=null;
@@ -6196,7 +6249,7 @@ function hideFormatTooltip(){clearTimeout(formatTooltipTimer);formatTooltip.clas
 function showFormatTooltip(button,delay=350){
  hideFormatTooltip();formatTooltipTimer=setTimeout(()=>{
    if(!button.isConnected||(button.closest('#formatMenu')&&!$('formatMenu').open))return;
-   formatTooltipButton=button;const tipLabel=document.createElement('span');tipLabel.className='tooltipLabel';tipLabel.textContent=button.getAttribute('aria-label')||button.textContent.trim();formatTooltip.replaceChildren(tipLabel);
+   formatTooltipButton=button;const tipLabel=document.createElement('span');tipLabel.className='tooltipLabel';tipLabel.textContent=button.dataset.tip||button.getAttribute('aria-label')||button.textContent.trim();formatTooltip.replaceChildren(tipLabel);
    if(button.dataset.shortcut){const k=document.createElement('kbd');k.className='tooltipShortcut';k.textContent=shortcutText(button.dataset.shortcut);formatTooltip.append(k)}button.setAttribute('aria-describedby','formatTooltip');formatTooltip.classList.remove('hidden');
    const r=button.getBoundingClientRect();formatTooltip.style.left=Math.max(8,Math.min(r.left+(r.width-formatTooltip.offsetWidth)/2,innerWidth-formatTooltip.offsetWidth-8))+'px';
    formatTooltip.style.top=(r.bottom+5+formatTooltip.offsetHeight<innerHeight?r.bottom+5:Math.max(8,r.top-formatTooltip.offsetHeight-5))+'px';
@@ -7052,7 +7105,7 @@ function initEditorSidebar(){
  $('sidebar-properties').append($('editor').querySelector('.editorOptions'));
  $('editor').querySelector('.legacyItemActions').append($('childNote'),$('childTodo'),$('doneBtn'));$('editor').querySelector('.editorFooter').remove();
  $('itemDetails').classList.add('hidden');
- for(const [id,label,icon] of [['sidebarToggle','Show or hide editor sidebar','toggle'],['editorFocusToggle','Focus Mode','focus']]){const b=document.createElement('button');b.type='button';b.id=id;b.className='editorIconButton';b.setAttribute('aria-label',label);b.title=label;b.innerHTML=sidebarIcons[icon];$('editor').querySelector('.editmeta').append(b);b.onmousedown=e=>{sidebarSelection=captureEditorSelection();if(sidebarSelection)sidebarSelection.scrollTop=document.querySelector('.documentScroll').scrollTop;e.preventDefault()}}
+ for(const [id,label,icon] of [['editorFocusToggle','Focus Mode','focus'],['sidebarToggle','Show or hide editor sidebar','toggle']]){const b=document.createElement('button');b.type='button';b.id=id;b.className='editorIconButton';b.setAttribute('aria-label',label);b.title=label;b.innerHTML=sidebarIcons[icon];$('editor').querySelector('.editmeta').append(b);b.onmousedown=e=>{sidebarSelection=captureEditorSelection();if(sidebarSelection)sidebarSelection.scrollTop=document.querySelector('.documentScroll').scrollTop;e.preventDefault()}}
  $('sidebarToggle').onclick=()=>{toggleEditorSidebar();restoreSidebarCaret()};
  $('editorFocusToggle').onclick=()=>{setEditorFocus(!$('layout').classList.contains('editor-focus'));if(editorIsOpen())restoreSidebarCaret()};
  side.querySelectorAll('[data-sidebar-tab]').forEach(b=>{b.onmousedown=e=>{sidebarSelection=captureEditorSelection();if(sidebarSelection)sidebarSelection.scrollTop=document.querySelector('.documentScroll').scrollTop;e.preventDefault()};b.onclick=()=>{selectSidebarTab(b.dataset.sidebarTab);restoreSidebarCaret()};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...side.querySelectorAll('[data-sidebar-tab]')],index=tabs.indexOf(b),next=e.key==='Home'?0:e.key==='End'?2:(index+(e.key==='ArrowRight'?1:-1)+3)%3;selectSidebarTab(tabs[next].dataset.sidebarTab);tabs[next].focus()}});
@@ -7834,8 +7887,11 @@ document.addEventListener('click',e=>{
  const button=e.target.closest('[data-outline-navigation]');if(!button)return;
  e.preventDefault();e.stopImmediatePropagation();if(e.detail>1)return;
  const item=itemById(db,button.dataset.navigationItem);if(!item)return;
- if(button.dataset.outlineNavigation==='calendar')showItemInCalendar(item);else showItemInPlanner(item,button);
+ if(button.dataset.outlineNavigation==='clock')showItemInPlanner(item);else showItemInCalendar(item);
 },true);
+// Indicator tooltips list dates on separate lines, with the app's usual tooltip delay.
+document.addEventListener('mouseover',e=>{const b=e.target.closest?.('[data-outline-navigation]');if(b&&!b.contains(e.relatedTarget))showFormatTooltip(b)});
+document.addEventListener('mouseout',e=>{const b=e.target.closest?.('[data-outline-navigation]');if(b&&!b.contains(e.relatedTarget))hideFormatTooltip()});
 document.addEventListener('dblclick',e=>{if(e.target.closest('[data-outline-navigation]')){e.preventDefault();e.stopImmediatePropagation()}},true);
 document.addEventListener('keydown',e=>{if(e.target.matches('[data-outline-navigation]')&&['Enter',' '].includes(e.key)){e.preventDefault();e.stopImmediatePropagation();e.target.click()}},true);
 document.addEventListener('change',e=>{if(calendarNavigationReveal&&e.target.closest('#filtersContent,#statusFilterBox')){calendarNavigationReveal=null;renderCalendar()}},true);

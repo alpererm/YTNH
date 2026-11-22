@@ -45,7 +45,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  }
  await p.evaluate(()=>{showCalendar();filterOutlineDay('2026-11-06')});assert.equal(await p.locator('[data-remove-filter="day"]').count(),1);assert.equal(await p.locator('#dayFilterBar').count(),0);await p.keyboard.press('ArrowUp');assert.equal(await p.evaluate(()=>outlineDayFilter),'2026-10-30');await p.locator('[data-remove-filter="day"]').click();assert.equal(await p.evaluate(()=>outlineDayFilter),null);
  await p.evaluate(()=>{const n=itemById(db,noteId),t=itemById(db,todoId);t.status='Todo';n.scheduledDates=[today()];t.scheduledDates=[today()];db.settings.hideWeekends=false;appearance.theme='dark';applyTheme();weekAnchor=new Date();showCalendar();render()});
- for(const [id,color] of [[await p.evaluate(()=>noteId),'--outline-note-ink'],[await p.evaluate(()=>todoId),'--outline-todo-ink']]){
+ for(const [id,color] of [[await p.evaluate(()=>noteId),'--outline-todo-ink'/* Note icons share the Todo colour */],[await p.evaluate(()=>todoId),'--outline-todo-ink']]){
    for(const selector of [`#tree [data-marker-id="${id}"]`,`#calendarBody [data-marker-id="${id}"]`]){
      assert(await p.locator(selector).first().evaluate((e,token)=>{const probe=document.createElement('span');probe.style.color='var('+token+')';document.body.append(probe);const matches=getComputedStyle(probe).color===getComputedStyle(e).color;probe.remove();return matches},color));
      assert.deepEqual(await p.locator(selector).first().evaluate(e=>{const icon=e.querySelector('svg').getBoundingClientRect(),hit=e.getBoundingClientRect();return [icon.width,icon.height,hit.width>=24,hit.height>=24,e.textContent.trim()]}),[15,15,true,true,'']);
