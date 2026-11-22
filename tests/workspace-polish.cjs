@@ -10,7 +10,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');con
   assert.notEqual(await p.locator('#milestoneEnabled').evaluate(e=>getComputedStyle(e).accentColor),'auto');
   assert.equal(await p.locator('#filtersContent legend').first().evaluate(e=>getComputedStyle(e).textTransform),'none');
   await p.locator('#tagInput').focus();assert.equal(await p.locator('#editorSidebar').isVisible(),true);
-  await p.screenshot({path:`/private/tmp/workspace-polish-${theme}.png`});
+  await p.screenshot({path:`${require('node:os').tmpdir()}/workspace-polish-${theme}.png`});
  }
  await p.setViewportSize({width:1000,height:760});await p.waitForFunction(()=>getComputedStyle($('editorSidebar')).position==='absolute');
  await p.evaluate(()=>selectSidebarTab('properties'));
