@@ -4,6 +4,8 @@ mod fonts;
 mod close_probe;
 mod planner_calendar;
 mod markdown_import;
+#[cfg(target_os = "macos")]
+mod menu;
 #[cfg(feature="inline-images-preview")]
 mod image_import;
 #[cfg(feature="inline-images-preview")]
@@ -177,7 +179,13 @@ fn register_capture_shortcuts(app: &tauri::AppHandle) {
     }
 }
 fn main() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // macOS gets a native menu bar; Windows keeps the in-app ☰ menu and no menu bar.
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .menu(|handle| menu::build(handle))
+        .on_menu_event(|handle, event| menu::deliver(handle, event.id().as_ref()));
+    let app = builder
         .manage(Mutex::new(Files::default()))
         .manage(CloseProbe::default())
         .manage(libraries::LibraryRuntime::default())

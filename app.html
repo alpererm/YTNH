@@ -6304,6 +6304,26 @@ window.addEventListener('keydown',e=>{
  e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)openJumpToDate();
 },true);
 
+// Native macOS menu bar: each item arrives here and runs the same code as its shortcut or ☰ entry.
+//   key:<spec>   replays the keyboard shortcut (e.g. key:Mod+1), so behaviour matches exactly
+//   click:<id>   clicks the matching ☰ menu button      text:<label>  clicks the ☰ button with that label
+//   fn:<name>    calls a command directly
+const MENU_KEYS={Backslash:['\\','Backslash'],Equal:['=','Equal'],Minus:['-','Minus'],BracketLeft:['[','BracketLeft'],BracketRight:[']','BracketRight']};
+function replayShortcut(spec){
+ const parts=spec.split('+'),last=parts.at(-1),mods=new Set(parts.slice(0,-1));
+ const [key,code]=MENU_KEYS[last]||(/^Digit(\d)$/.test(last)?[last.slice(5),last]:/^\d$/.test(last)?[last,'Digit'+last]:[mods.has('Shift')?last.toUpperCase():last.toLowerCase(),'Key'+last.toUpperCase()]);
+ const mac=IS_MAC,init={key,code,bubbles:true,cancelable:true,metaKey:mac&&mods.has('Mod'),ctrlKey:(!mac&&mods.has('Mod'))||mods.has('Ctrl'),shiftKey:mods.has('Shift'),altKey:mods.has('Alt')};
+ (document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',init));
+}
+window.addEventListener('ytnh-menu',e=>{
+ const id=String(e.detail||''),[kind,...rest]=id.split(':'),arg=rest.join(':');
+ if($('modalbg')?.classList.contains('open')&&kind!=='key')closeModalShell?.();
+ if(kind==='key')replayShortcut(arg);
+ else if(kind==='click')$(arg)?.click();
+ else if(kind==='text')[...document.querySelectorAll('#appMenu button')].find(b=>b.textContent.trim()===arg)?.click();
+ else if(kind==='fn')({settings:()=>openSettings(),quickOpen:()=>openQuickOpen(),help:()=>openHelp(),tour:()=>YTNHTour.open()})[arg]?.();
+ $('appMenu')&&($('appMenu').open=false);
+});
 function openQuickOpen(){
  if($('modalbg').classList.contains('open')&&$('modalTitle').dataset.quickOpen==='true'){$('refSearch')?.focus();return}
  if(fileOperationBusy||archiveOperationBusy||$('modalbg').classList.contains('open')){toast('Finish the current dialog or file operation before Quick Open.');return}
