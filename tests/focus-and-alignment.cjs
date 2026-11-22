@@ -45,6 +45,15 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
  // Editor toolbar: Focus Mode comes before the sidebar toggle.
  await p.evaluate(()=>edit(ids.a));
  assert(await p.evaluate(()=>$('editorFocusToggle').getBoundingClientRect().left<$('sidebarToggle').getBoundingClientRect().left));
+ // A parent whose only children are hidden (here: weekend-only items while weekends are hidden) shows no arrow.
+ const arrows=await p.evaluate(()=>{installDatabase(createEmptyDatabase());db.settings.hideWeekends=true;const parent=createItem(db,'Todo');parent.title='Parent';const kid=createItem(db,'Todo',parent.id);kid.title='Saturday only';kid.scheduledDates=['2026-11-21'];const other=createItem(db,'Todo');other.title='Other parent';const visibleKid=createItem(db,'Note',other.id);visibleKid.title='Visible';render();
+   const has=id=>!!document.querySelector(`#tree .row[data-id="${id}"] > .outlineChevron`);return [has(parent.id),has(other.id)]});
+ assert.deepEqual(arrows,[false,true],'arrows only for children that are shown');
+ // No caret in an unfocused editor.
+ assert.equal(await p.evaluate(()=>{edit(db.items[0].id);document.activeElement?.blur();return getComputedStyle($('richEditor')).caretColor}),'rgba(0, 0, 0, 0)');
+ // A planned item without a date keeps the rightmost icon column free.
+ const slot=await p.evaluate(()=>{const i=createItem(db,'Todo');i.title='Planned only';PlannerModel.session(db,i,today(),1200,30);i.scheduledDates=[];render();return [...document.querySelector(`#tree .row[data-id="${i.id}"] .outlineNavigation`).children].map(c=>c.dataset.outlineNavigation||c.className)});
+ assert.deepEqual(slot,['clock','navigationSlot']);
  assert.deepEqual(errors,[]);
  await browser.close();console.log('PASS hidden caret, Focus Mode Esc in editor-first, row/planner alignment, Note colour, button order');
 })().catch(e=>{console.error(e);process.exit(1)});

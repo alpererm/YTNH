@@ -12,9 +12,9 @@ const assert=require('node:assert/strict');const{webkit,chromium}=require(proces
  assert.equal(await row('Parent').locator('.outlineNavigation').count(),0);
  assert.equal(await nav('Past','clock').count(),0,'past sessions show no clock');
  assert.equal(await nav('Current','clock').count(),1,'an ongoing session shows a clock');
- assert.deepEqual(await kinds('Note'),['calendar','clock']);
- assert.deepEqual(await kinds('Todo'),['calendar','clock']);
- assert.deepEqual(await kinds('Recurring'),['repeat','clock'],'recurring: repeat instead of calendar, plus clock');
+ assert.deepEqual(await kinds('Note'),['clock','calendar'],'calendar stays rightmost');
+ assert.deepEqual(await kinds('Todo'),['clock','calendar']);
+ assert.deepEqual(await kinds('Recurring'),['clock','repeat'],'recurring: repeat instead of calendar, rightmost; clock to its left');
  const marker=await row('Recurring').locator('.itemMarker').evaluate(m=>({kind:m.dataset.markerKind,html:m.innerHTML}));
  assert.equal(marker.kind,'Recurring Todo');assert.match(marker.html,/<circle/);assert.doesNotMatch(marker.html,/m17 2/,'recurring Todo shows the regular Todo circle in the Outline');
 
@@ -54,7 +54,7 @@ const assert=require('node:assert/strict');const{webkit,chromium}=require(proces
  // Keyboard on an indicator; no data or settings changes; icons update immediately
  await nav('Todo','calendar').focus();await p.keyboard.press('Enter');await p.waitForFunction(()=>calendarCursorDate==='2026-11-16');assert.equal(await p.evaluate(()=>selected),ids.Parent);
  assert.equal(await p.evaluate(()=>JSON.stringify({items:db.items,planner:db.planner})),await p.evaluate(()=>before));assert.equal(await p.evaluate(()=>JSON.stringify(db.settings)),await p.evaluate(()=>settingsBefore));
- await p.evaluate(()=>{itemById(db,ids.Todo).recurrence={frequency:'daily',interval:1,startDate:'2026-11-16'};renderTree()});assert.deepEqual(await kinds('Todo'),['repeat','clock'],'icons follow a recurrence change');
+ await p.evaluate(()=>{itemById(db,ids.Todo).recurrence={frequency:'daily',interval:1,startDate:'2026-11-16'};renderTree()});assert.deepEqual(await kinds('Todo'),['clock','repeat'],'icons follow a recurrence change');
  await p.evaluate(()=>{for(const k of ['n1','n2'])delete db.planner.sessions[k];renderTree()});assert.deepEqual(await kinds('Note'),['calendar'],'clock disappears with the sessions');
 
  // Themes and grouped view: same small icons

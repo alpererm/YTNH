@@ -1746,6 +1746,8 @@ body[data-theme="dark"] #editorSidebar .documentHeading .headingDisclosure{color
 :root body #tree .welcomeEmpty p{margin:0 0 8px}
 :root body #tree .welcomeActions{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:14px;max-width:220px}
 :root body .refResult.inactiveResult{opacity:.6}
+/* No caret unless the editor itself has focus (WebKit can paint one in an unfocused editor). */
+:root body :is(#richEditor,#content,#editorTitle):not(:focus){caret-color:transparent}
 #editor .documentScroll::after{content:"";display:block;height:var(--scroll-past-end,0px);pointer-events:none}
 #editor .documentScroll:has(> #content:not(.hidden))::after{display:none}
 :root body #editor .documentScroll > #content{padding-bottom:calc(16px + var(--scroll-past-end,0px))!important}
@@ -1755,6 +1757,7 @@ body[data-theme="dark"] #editorSidebar .documentHeading .headingDisclosure{color
 :root body .outlineNavigation button{width:19px;min-width:19px;height:24px;color:var(--muted);opacity:.72;background:transparent!important;border:0;box-shadow:none;transition:opacity 120ms,color 120ms}
 :root body .outlineNavigation button:hover,:root body .outlineNavigation button:focus-visible{opacity:1;color:var(--ink)}
 :root body .outlineNavigation svg{width:12px;height:12px}
+:root body .outlineNavigation .navigationSlot{display:inline-block;width:19px;min-width:19px}
 #formatTooltip .tooltipLabel{white-space:pre-line}
 :root body :is(#tree,#pinnedOutline) .row>:is(.outlineChevron,.chevronSpace,.itemMarker,.outlineNavigation,.locationButton){margin-bottom:calc((var(--title-line-height) - 24px)/2)}
 :root body .planBlock{--plan-title-lh:17px;padding:4px 6px 3px 4px;column-gap:3px}
@@ -2694,11 +2697,12 @@ function emptyEditorBlock(block){return !isEditorList(block)&&(block.dataset.mdb
 // List blocks are preorder records. Explicit depth plus ordered nodes define parent,
 // siblings and complete subtrees; CSS indentation is only a view of that structure.
 function editorStructure(){
- const blocks=[...$('richEditor').children],records=new Map(),top=[];let stack=[],run=null,afterBlank=false;
+ const blocks=[...$('richEditor').children],records=new Map(),top=[];let stack=[],run=null;
  for(const block of blocks){
-   if(emptyEditorBlock(block)){stack=[];run=null;afterBlank=true;continue;}
+   if(emptyEditorBlock(block)){stack=[];run=null;continue;}
    if(!isEditorList(block)){const entry={block,parent:null,children:[],depth:0,run:null};records.set(block,entry);top.push(entry);stack=[];run=null;continue}
-   if(!run){run={roots:[],base:afterBlank?1:Number(block.dataset.mdnum)||1};afterBlank=false}
+   // A new list starts at the number written on its first item ("5." stays 5); items that follow it continue in sequence.
+   if(!run)run={roots:[],base:/^\d{1,9}$/.test(block.dataset.mdnum||'')?Number(block.dataset.mdnum):1};
    const rawDepth=editorListDepth(block);while(stack.length&&stack.at(-1).rawDepth>=rawDepth)stack.pop();
    const depth=stack.length,parent=stack[depth-1]||null,entry={block,parent,children:[],depth,rawDepth,run};
    (parent?parent.children:run.roots).push(entry);if(!parent)top.push(entry);
@@ -3938,7 +3942,10 @@ function outlineNavigationIndicators(item,sessions){
    const dates=[...new Set(scheduledGroupingDates(item).filter(validDate))].sort();
    if(dates.length){const shown=dates.slice(0,12).map(displayDay);if(dates.length>12)shown.push('+'+(dates.length-12)+' more');list.push(button('calendar','Scheduled '+dates.map(displayDay).join(', ')+' · Show in Calendar',shown.join('\n')))}
  }
- if(blocks.length)list.push(button('clock',(recurring?'Next planned session ':'Planned sessions ')+blocks.map(plannerBlockLabel).join(', ')+' · Show in Daily Planner',(recurring?'Next: ':'')+blocks.map(plannerBlockLabel).join('\n')));
+ // The clock sits to the left; the calendar or repeat icon always takes the rightmost place.
+ if(blocks.length)list.unshift(button('clock',(recurring?'Next planned session ':'Planned sessions ')+blocks.map(plannerBlockLabel).join(', ')+' · Show in Daily Planner',(recurring?'Next: ':'')+blocks.map(plannerBlockLabel).join('\n')));
+ // A clock alone keeps the rightmost column free for a calendar or repeat icon, so the columns line up.
+ if(list.length===1&&blocks.length)list.push('<span class="navigationSlot" aria-hidden="true"></span>');
  return list.length?'<span class="outlineNavigation">'+list.join('')+'</span>':'';
 }
 function flashNavigationElement(element){if(!element)return;element.classList.add('navigationFlash');setTimeout(()=>element.classList.remove('navigationFlash'),2200)}
@@ -5032,7 +5039,9 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
    const count=graph?.byItem.get(i.id)?.length||1;
    const link=count>1?`<button type="button" class="locationButton" aria-label="Linked item — ${count} locations" title="Linked item — ${count} locations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 15H7a4 4 0 0 1 0-8h4m2 0h4a4 4 0 0 1 0 8h-2M8 11h8"/></svg></button>`:'';
    const collapsed=graph?(branchZoomRoot===i.id?branchZoomCollapsed:outlineFiltering()?(filterDisclosure.get(location.id)??false):location.collapsed):outlineCollapsed(i);
-   const showArrow=hasDisclosureChild(ks),groupArrow=heading&&(!ks.length||showArrow);
+   // Only children that would actually be shown (filters, hidden weekends/recurring items, search) earn an arrow.
+   const shownKids=(filtering||graph)&&match&&!grouped?ks.filter(k=>match.locations?match.locations.has(k.id):match.has((k.item||k).id)):ks;
+   const showArrow=hasDisclosureChild(shownKids),groupArrow=heading&&(!ks.length||showArrow);
    const icons='';
    const metadata=[
      isMilestone(i)?`<span class="outlineMilestone" aria-label="Milestone ${esc(i.milestone.targetWeek)}">W${i.milestone.targetWeek.slice(6)}/${i.milestone.targetWeek.slice(2,4)}</span>`:'',

@@ -41,8 +41,15 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
  const late=await p.evaluate(()=>{const m=createEmptyDatabase();YTNHTour.build(m,{date:'2026-11-23',minutes:22*60});return Object.values(m.planner.sessions).map(s=>[s.date,s.start])});
  assert.deepEqual(late,[['2026-11-24',540]]);
  // Shortcuts are written for the platform.
- const mac=await p.evaluate(()=>{const m=createEmptyDatabase();YTNHTour.build(m);return m.items.find(i=>i.title==='Start here').content});
- assert.match(mac,/Open Library… \((⌘O|Ctrl\+O)\)/);
+ // Every shortcut is written for both systems, whatever computer opens the Tour.
+ const text=await p.evaluate(()=>{const m=createEmptyDatabase();YTNHTour.build(m);return m.items.map(i=>i.title+'\n'+i.content).join('\n')});
+ for(const pair of ['⌘O / Ctrl+O','⌥⇧D / Alt+Shift+D','⇧↩ / Shift+Enter','⌘\\ / Ctrl+\\','⌥⇧F / Alt+Shift+F','⌃⇧Space / Ctrl+Shift+Space','⌘Click / Ctrl+Click','⌃⌘F / F11'])assert(text.includes(pair),pair);
+ // Each Mac key combination is followed by its Windows form (the explanation in Start here aside).
+ const macOnly=[...text.matchAll(/[⌘⌥⇧⌃][^\s/)]*/g)].filter(m=>!text.startsWith(' / ',m.index+m[0].length)&&!text.startsWith(' on a Mac',m.index+m[0].length)).map(m=>m[0]);
+ assert.deepEqual(macOnly,[],'no Mac-only shortcut');
+ const inline=await p.evaluate(()=>{const m=createEmptyDatabase();const r=YTNHTour.build(m);return {parent:itemById(m,r.inline.parentId).title,c:r.inline.content}});
+ assert.equal(inline.parent,'3 · Write in the editor');
+ for(const part of ['`<send the summary to the team>`','`@`','`[`','`d<…>`','`t<…>`','`!<`','Right-click'])assert(inline.c.includes(part),part);
  assert.deepEqual(errors,[]);
  await browser.close();console.log('PASS Tour: chapters, valid library, dates around today, planner, targets, links, no stray tags, entry points');
 })().catch(e=>{console.error(e);process.exit(1)});
