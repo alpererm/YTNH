@@ -11,7 +11,7 @@
     {
       "id": "f30c60f8-64dc-4b89-a21a-dd5c11b99e23",
       "type": "Todo",
-      "title": "Kontrol",
+      "title": "Bahçe kontrolü",
       "content": "![[ @ref ]]\n<span data-inline-todo=\"9a1c83b5-b6c8-4384-8f8e-69ba59a613b0\" data-occurrence=\"sample-occurrence\">Plan</span>",
       "parentId": "9a1c83b5-b6c8-4384-8f8e-69ba59a613b0",
       "rootId": null,
@@ -22,7 +22,7 @@
       "createdAt": "2026-11-06T11:02:00.000Z",
       "updatedAt": "2026-11-06T11:02:00.000Z",
       "explicitTags": [
-        "proje/teknik"
+        "proje/bahçe"
       ],
       "scheduledDates": [
         "2026-11-06"
@@ -49,8 +49,8 @@
     {
       "id": "9a1c83b5-b6c8-4384-8f8e-69ba59a613b0",
       "type": "Todo",
-      "title": "Teknik plan",
-      "content": "## Teknik değerlendirme\n\n| Part | Supplier |\n|---|---|\n| A | B |",
+      "title": "Bahçe planı",
+      "content": "## Bitki seçimi\n\n| Bitki | Yer |\n|---|---|\n| Lavanta | Güney |",
       "parentId": null,
       "rootId": "001.003",
       "order": 3,
@@ -60,7 +60,7 @@
       "createdAt": "2026-11-06T11:02:00.000Z",
       "updatedAt": "2026-11-06T11:02:00.000Z",
       "explicitTags": [
-        "proje/teknik"
+        "proje/bahçe"
       ],
       "scheduledDates": [
         "2026-11-06"
@@ -89,13 +89,13 @@
       "archiveFile": "cold-archive.json",
       "coldArchivedAt": "2026-11-06T11:02:00.000Z",
       "type": "Todo",
-      "title": "Eski çizim",
+      "title": "Eski taslak",
       "code": "001.001",
       "parentId": null,
       "createdAt": "2026-11-06T11:02:00.000Z",
       "updatedAt": "2026-11-06T11:02:00.000Z",
       "tags": [
-        "proje/teknik"
+        "proje/bahçe"
       ],
       "codeAliases": []
     }

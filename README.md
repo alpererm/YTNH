@@ -12,14 +12,14 @@ The first time you open YTNH, choose **Take the Tour**, or later **☰ → Open 
 
 - **Organise in an Outline.** Notes and Todos side by side, nested as deep as you like, with headings that divide a project into sections, tags that children inherit, filters and grouping.
 - **Finish things with satisfaction.** Completing a Todo ticks it, leaves it in place for a moment so you can undo, then moves it out of the way. Todos can also be Waiting for, On hold or Cancelled.
-- **Write naturally.** Rich text with headings, lists (numbered from any number), checklists, quotes, tables, code blocks and images, with Markdown underneath and a Source view. Focus Mode hides everything but your writing.
+- **Write naturally.** Rich text with headings, lists (numbered from any number), checklists, quotes, tables, code blocks and images, with Markdown underneath and a Source view. Type `/` for a menu of blocks; select text for a formatting toolbar. Focus Mode hides everything but your writing.
 - **Capture tasks inside your writing.** Type `<call the supplier>` in a sentence and it becomes a real Todo, with an optional date, parent and status, without leaving the sentence.
-- **Link ideas.** Link or embed other items with `[[`; links survive renaming and moving, and every item shows its backlinks.
-- **Plan your time.** Schedule items on the Calendar by dragging, repeat Todos daily, weekly or monthly, and plan the day hour by hour in the Daily Planner. Small icons in the Outline show what's scheduled, repeating or planned, and take you there.
+- **Link ideas.** Type `[[` to link or embed another item from suggestions that appear as you type; links survive renaming and moving, and every item shows its backlinks.
+- **Plan your time.** Schedule items on the Calendar by dragging, repeat Todos daily, weekly or monthly, and plan the day hour by hour in the Daily Planner. Small icons in the Outline show what's scheduled, repeating, planned or overdue, and take you there. One set of status colours is used everywhere.
 - **Think long-term.** Month-based Targets and week-based Milestones in a five-year view.
 - **Find anything.** Search ranks title matches first, forgives typos, and understands `#tag`, `status:Done` and date ranges. Quick Open (Ctrl+Shift+Space) works even when YTNH is in the background.
 - **Bring your notes and meetings.** Import a folder of Markdown files (subfolders, front matter tags and dates, images and links included) and meetings from an Outlook calendar export.
-- **Work from the keyboard.** Shortcuts for nearly everything, shown in tooltips and menus; see ☰ → Help.
+- **Work from the keyboard.** Shortcuts for nearly everything, shown in tooltips and menus; on macOS every command is also in the menu bar. See ☰ → Help.
 - **Make it yours.** Paper White and Graphite Dark themes, fonts, interface and editor sizes, and a Calendar-first or editor-first layout.
 
 ## Download

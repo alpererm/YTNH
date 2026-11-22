@@ -1791,6 +1791,19 @@ body[data-theme="dark"] #editorSidebar .documentHeading .headingDisclosure{color
 :root body #dailyPlanner .planBlock.complete .itemMarker{color:var(--st-done)!important}
 :root body .outlineNavigation button.overdue{color:var(--st-overdue);opacity:1}
 body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-index].current{color:var(--accent)}
+:root body .caretPopover{position:fixed;z-index:60;min-width:220px;max-width:340px;max-height:300px;overflow:auto;padding:4px;border:1px solid var(--workspace-grid);border-radius:8px;background:var(--panel,var(--bg));box-shadow:0 6px 20px rgba(0,0,0,.18);font-size:13px}
+:root body .caretPopover.hidden{display:none}
+:root body .caretPopoverItem{display:flex;align-items:center;gap:6px;width:100%;border:0;background:transparent;box-shadow:none;text-align:left;padding:5px 8px;border-radius:6px;color:var(--ink);cursor:pointer}
+:root body .caretPopoverItem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:root body .caretPopoverItem[aria-selected="true"],:root body .caretPopoverItem:hover{background:var(--soft)}
+:root body .caretPopoverItem.inactiveResult{opacity:.6}
+:root body .caretPopoverEmpty{padding:6px 8px;color:var(--muted)}
+:root body .selectionBar{position:fixed;z-index:59;display:flex;gap:2px;padding:3px;border:1px solid var(--workspace-grid);border-radius:8px;background:var(--panel,var(--bg));box-shadow:0 4px 14px rgba(0,0,0,.16)}
+:root body .selectionBar.hidden{display:none}
+:root body .selectionBar button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;box-shadow:none;color:var(--muted);cursor:pointer}
+:root body .selectionBar button:hover{background:var(--outline-hover);color:var(--ink)}
+:root body .selectionBar button[aria-pressed="true"]{background:var(--soft);color:var(--ink)}
+:root body .selectionBar svg{width:16px;height:16px}
 #editor .documentScroll::after{content:"";display:block;height:var(--scroll-past-end,0px);pointer-events:none}
 #editor .documentScroll:has(> #content:not(.hidden))::after{display:none}
 :root body #editor .documentScroll > #content{padding-bottom:calc(16px + var(--scroll-past-end,0px))!important}
@@ -3654,9 +3667,105 @@ function typedReferenceTrigger(){
  const range=sel.getRangeAt(0),node=range.startContainer;if(node.nodeType!==Node.TEXT_NODE||!rangeBelongsToRichEditor(range))return;
  const block=bodyBlock(node);if(block?.dataset.mdblock==='code'||node.parentElement.closest('code,a,.mdref,.inlineTodo'))return;
  const text=node.data.slice(0,range.startOffset),match=/(!?\[\[)$/.exec(text);if(!match)return;
- const trigger=range.cloneRange();trigger.setStart(node,range.startOffset-match[1].length);savedRichRange=trigger;
- insertReference(match[1].startsWith('!'));return true;
+ // [[ and ![[ open item suggestions right at the caret; the toolbar's Link/Embed buttons keep the dialog.
+ openCaretPopover('reference',node,range.startOffset-match[1].length,match[1].length,{embed:match[1].startsWith('!')});return true;
 }
+// A small suggestion list at the caret, driven from the keyboard while typing continues in the editor.
+// Used by the slash menu ("/" at the start of a line) and by [[ item links.
+let caretPopover=null;
+const caretPopoverEl=document.createElement('div');caretPopoverEl.className='caretPopover hidden';caretPopoverEl.setAttribute('role','listbox');caretPopoverEl.id='caretPopover';queueMicrotask(()=>document.body.append(caretPopoverEl));
+caretPopoverEl.addEventListener('mousedown',e=>e.preventDefault());
+function openCaretPopover(kind,node,start,triggerLength,extra={}){caretPopover={kind,node,start,triggerLength,index:0,...extra};updateCaretPopover()}
+function closeCaretPopover(){caretPopover=null;caretPopoverEl.classList.add('hidden');caretPopoverEl.replaceChildren()}
+function caretPopoverQuery(){
+ const p=caretPopover;if(!p)return null;const sel=getSelection();if(!sel?.rangeCount||!sel.isCollapsed)return null;
+ const r=sel.getRangeAt(0);if(r.startContainer!==p.node||!p.node.isConnected||r.startOffset<p.start+p.triggerLength)return null;
+ return p.node.data.slice(p.start+p.triggerLength,r.startOffset);
+}
+const SLASH_COMMANDS=[
+ ['Heading 1','h1 title','#',' '],['Heading 2','h2 subtitle','##',' '],['Heading 3','h3','###',' '],
+ ['Bullet list','ul unordered','-',' '],['Numbered list','ol ordered number','1.',' '],['Checklist','todo task checkbox','[]',' '],
+ ['Quote','blockquote','>',' '],['Code block','pre fence','```','Enter'],['Divider','hr line rule','---',' '],
+ ['Table','grid columns',()=>insertEditorTable(3,2)],['Link to an item','reference [[',()=>typeAtCaret('[[')],['Embed an item','reference ![[',()=>typeAtCaret('![[')],
+ ['Todo in this sentence','inline todo <',()=>typeAtCaret('<')],['Image','picture photo',()=>document.querySelector('#formatMenu [aria-label="Insert image"]')?.click()]
+];
+function typeAtCaret(text){const sel=getSelection();if(!sel.rangeCount)return;insertTextAtRange(sel.getRangeAt(0),text);$('richEditor').dispatchEvent(new Event('input',{bubbles:true}))}
+function caretPopoverChoices(q){
+ if(caretPopover.kind==='slash'){const t=q.toLowerCase();return SLASH_COMMANDS.filter(([label,words])=>!t||(label+' '+words).toLowerCase().split(/\s+/).some(w=>w.startsWith(t))||label.toLowerCase().includes(t)).map(c=>({label:c[0],command:c}))}
+ const items=rankItems(q?activeItems(db):activeItems(db).slice().sort((a,b)=>inactiveRank(a)-inactiveRank(b)||String(b.updatedAt).localeCompare(String(a.updatedAt))),q).filter(i=>i.id!==selected).slice(0,8).map(i=>({label:i.title||'(untitled)',item:i}));
+ if(q.trim()&&!activeItems(db).some(i=>String(i.title||'').trim().toLowerCase()===q.trim().toLowerCase()))for(const type of ['Note','Todo'])items.push({label:'Create '+type+': “'+q.trim()+'”',create:type});
+ return items;
+}
+function updateCaretPopover(){
+ const p=caretPopover;if(!p)return;const q=caretPopoverQuery();
+ if(q===null||(p.kind==='slash'&&/\s\s|^\s/.test(q))||(p.kind==='reference'&&/\]|\n/.test(q))){closeCaretPopover();return}
+ const choices=caretPopoverChoices(q);if(!choices.length&&p.kind==='slash'){closeCaretPopover();return}
+ p.choices=choices;p.index=Math.min(p.index,Math.max(0,choices.length-1));
+ caretPopoverEl.replaceChildren(...choices.map((c,i)=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','option');b.className='caretPopoverItem'+(c.item&&inactiveRank(c.item)?' inactiveResult':'');b.setAttribute('aria-selected',String(i===p.index));
+   if(c.item)b.insertAdjacentHTML('afterbegin',itemMarker(c.item,{passive:true}));const span=document.createElement('span');span.textContent=c.label;b.append(span);b.onclick=()=>{p.index=i;chooseCaretPopover()};return b}));
+ if(!choices.length){const empty=document.createElement('div');empty.className='caretPopoverEmpty';empty.textContent='No matching items';caretPopoverEl.append(empty)}
+ const r=getSelection().getRangeAt(0).cloneRange(),box=(r.getClientRects()[0]||r.startContainer.parentElement.getBoundingClientRect());
+ caretPopoverEl.classList.remove('hidden');
+ const h=caretPopoverEl.offsetHeight,w=caretPopoverEl.offsetWidth;
+ caretPopoverEl.style.left=Math.max(8,Math.min(box.left,innerWidth-w-8))+'px';
+ caretPopoverEl.style.top=(box.bottom+6+h<innerHeight?box.bottom+6:Math.max(8,box.top-h-6))+'px';
+ caretPopoverEl.querySelector('[aria-selected="true"]')?.scrollIntoView({block:'nearest'});
+}
+function chooseCaretPopover(){
+ const p=caretPopover;if(!p||!p.choices?.length)return;const choice=p.choices[p.index];const sel=getSelection();
+ const r=document.createRange();r.setStart(p.node,p.start);r.setEnd(sel.getRangeAt(0).startContainer,sel.getRangeAt(0).startOffset);
+ closeCaretPopover();forceRichHistoryCheckpoint();r.deleteContents();sel.removeAllRanges();sel.addRange(r);
+ if(choice.command){
+   const [,,trigger,key]=choice.command;
+   if(typeof trigger==='function'){syncModelFromRich();trigger();return}
+   insertTextAtRange(r,trigger);applyMarkdownTypingShortcut({key,ctrlKey:false,metaKey:false,altKey:false,isComposing:false,preventDefault(){}});syncModelFromRich();rememberRichSelection();return;
+ }
+ let target=choice.item;
+ if(choice.create){checkpoint();try{target=createItem(db,choice.create);target.title=choice.label.replace(/^Create (Note|Todo): “|”$/g,'');touch(db,target)}catch(error){toast(error.message);return}}
+ const span=makeReferenceElement(target,p.embed);r.insertNode(span);r.setStartAfter(span);r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+ syncModelFromRich();rememberRichSelection();if(choice.create){renderTree();renderStatus?.()}
+}
+function slashTrigger(){
+ if(caretPopover||activeTableCell())return;const sel=getSelection();if(!sel?.isCollapsed||!sel.rangeCount||editorComposing)return;
+ const range=sel.getRangeAt(0),node=range.startContainer;if(node.nodeType!==3||!rangeBelongsToRichEditor(range))return;
+ const block=bodyBlock(node);if(!block||(block.dataset.mdblock||'p')!=='p'||block===$('richEditor').firstElementChild&&rangeTouchesEditorTitleLine?.(range))return;
+ if(textBeforeCaretInBlock(block,range)!=='/')return;
+ openCaretPopover('slash',node,range.startOffset-1,1);
+}
+// Registered once the page is built (this script section runs before the editor exists).
+queueMicrotask(()=>{$('richEditor').addEventListener('keydown',e=>{
+ if(!caretPopover)return;
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();e.stopImmediatePropagation();const n=caretPopover.choices?.length||0;if(n){caretPopover.index=(caretPopover.index+(e.key==='ArrowDown'?1:-1)+n)%n;updateCaretPopover()}}
+ else if((e.key==='Enter'||e.key==='Tab')&&caretPopover.choices?.length){e.preventDefault();e.stopImmediatePropagation();chooseCaretPopover()}
+ else if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();closeCaretPopover()}
+},true);
+document.addEventListener('selectionchange',()=>{if(caretPopover&&caretPopoverQuery()===null)closeCaretPopover()});
+$('richEditor').addEventListener('blur',()=>setTimeout(()=>{if(!$('richEditor').contains(document.activeElement))closeCaretPopover()},0));
+});
+// Selection toolbar: selecting text in the editor shows bold, italic, underline, code and link right above it.
+// Each button runs the same command as the formatting menu or its shortcut.
+const selectionBar=document.createElement('div');selectionBar.className='selectionBar hidden';selectionBar.setAttribute('role','toolbar');selectionBar.setAttribute('aria-label','Format selection');selectionBar.id='selectionBar';
+const SELECTION_TOOLS=[['bold','Bold','Mod+B','<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/>'],['italic','Italic','Mod+I','<path d="M14 5h-4M14 19h-4M14 5l-4 14"/>'],['underline','Underline','','<path d="M7 5v6a5 5 0 0 0 10 0V5M6 20h12"/>'],['code','Code','','<path d="m9 8-4 4 4 4M15 8l4 4-4 4"/>'],['link','Link','Mod+K','<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>']];
+for(const [cmd,label,key,icon] of SELECTION_TOOLS){const b=document.createElement('button');b.type='button';b.dataset.selectionCmd=cmd;b.setAttribute('aria-label',label);if(key)b.dataset.shortcut=key;b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+icon+'</svg>';selectionBar.append(b)}
+selectionBar.addEventListener('mousedown',e=>e.preventDefault());
+selectionBar.addEventListener('mouseover',e=>{const b=e.target.closest('button');if(b&&!b.contains(e.relatedTarget))showFormatTooltip(b)});
+selectionBar.addEventListener('mouseout',e=>{const b=e.target.closest('button');if(b&&!b.contains(e.relatedTarget))hideFormatTooltip()});
+selectionBar.addEventListener('click',e=>{const b=e.target.closest('[data-selection-cmd]');if(!b)return;hideFormatTooltip();rememberRichSelection();
+ if(b.dataset.selectionCmd==='link')openLinkDialog();else document.querySelector('#formatMenu [data-format="'+b.dataset.selectionCmd+'"]')?.onclick?.();
+ requestAnimationFrame(paintSelectionBar)});
+function paintSelectionBar(){
+ const sel=getSelection(),ed=$('richEditor');
+ const ok=sel?.rangeCount&&!sel.isCollapsed&&ed&&!sourceMode()&&ed.contains(document.activeElement)&&rangeBelongsToRichEditor(sel.getRangeAt(0))&&!caretPopover&&!activeTableCell()&&!richSelectionTouchesTitleLine()&&!bodyBlock(sel.anchorNode)?.matches?.('[data-mdblock="code"]');
+ if(!ok){selectionBar.classList.add('hidden');return}
+ for(const b of selectionBar.querySelectorAll('[data-selection-cmd]'))if(b.dataset.selectionCmd!=='link'&&b.dataset.selectionCmd!=='code'){let on=false;try{on=document.queryCommandState(b.dataset.selectionCmd)}catch{}b.setAttribute('aria-pressed',String(on))}
+ const r=sel.getRangeAt(0).getBoundingClientRect();selectionBar.classList.remove('hidden');
+ const w=selectionBar.offsetWidth,h=selectionBar.offsetHeight;
+ selectionBar.style.left=Math.max(8,Math.min(r.left+r.width/2-w/2,innerWidth-w-8))+'px';
+ selectionBar.style.top=(r.top-h-8>8?r.top-h-8:r.bottom+8)+'px';
+}
+let selectionBarQueued=false;
+document.addEventListener('selectionchange',()=>{if(selectionBarQueued)return;selectionBarQueued=true;requestAnimationFrame(()=>{selectionBarQueued=false;paintSelectionBar()})});
+queueMicrotask(()=>{document.body.append(selectionBar);document.querySelector('.documentScroll')?.addEventListener('scroll',()=>selectionBar.classList.add('hidden'),{passive:true});$('richEditor').addEventListener('blur',()=>setTimeout(paintSelectionBar,0))});
 
 function insertReference(embed=false){
  if(!db||activeTableCell())return;
@@ -4293,8 +4402,8 @@ function openHelp(){
    <input id="helpSearch" class="field helpSearch" type="search" placeholder="Search help" aria-label="Search help">
    <details open><summary>Getting started</summary><p>Your notes, todos and plans live in a <strong>library</strong>, a single .ytnh file you choose. Use <strong>☰ → New Library…</strong> or <strong>Open Library…</strong> to start. New to YTNH? <strong>☰ → Open the Tour…</strong> creates a practice library that walks you through everything. The <strong>Outline</strong> on the left holds everything; the right side shows the <strong>Calendar</strong>, <strong>Targets</strong> or the <strong>editor</strong> for the selected item.</p><p>Press <strong>N</strong> or <strong>T</strong> in the Outline (or ${esc(shortcutText('Mod+N'))} / ${esc(shortcutText('Mod+T'))} anywhere) to add a Note or a Todo. Double-click an item to write in it.</p></details>
    <details><summary>Outline and items</summary><p><strong>Notes</strong> hold writing; <strong>Todos</strong> have a status: Todo, Done, Waiting for, On hold or Cancelled. Click a Todo's marker to mark it done; middle-click to cancel it; right-click for more.</p><p>Drag a row to move it: drop on the top quarter of another row to place it before, the middle to make it a child, the bottom quarter to place it after. Drop on empty space to make it a top-level item. Use Group by to see items by date, type or tag.</p><p><strong>Headings</strong> divide a project into sections: select an item and press <strong>H</strong>. Click a heading’s arrow to fold its section; right-click it to rename it or turn it into a real parent.</p><p><strong>Archive</strong> hides a branch but keeps it; you can restore it later. Deleting asks whether to delete the children too or keep them.</p></details>
-   <details><summary>Writing</summary><p>The editor is rich text with Markdown underneath; switch to Source to see the Markdown. Type at the start of a line: <code>-</code> for a bullet, <code>1.</code> for a numbered list, <code>[]</code> for a checklist, <code>&gt;</code> for a quote, <code>#</code> to <code>###</code> for headings, <code>---</code> for a divider and three backticks then Enter for a code block.</p><p>Type <code>[[</code> to link or embed another item. Links survive renaming and moving; the side panel lists backlinks.</p><p><strong>Inline Todos:</strong> type <code>&lt;call the supplier&gt;</code> inside a sentence to create a child Todo. Start with d, w, h or c for Done, Waiting for, On hold or Cancelled; t or m for a Target or Milestone.</p><p><strong>Images:</strong> paste or drop an image into a note. YTNH keeps a copy inside your library, so it still shows on another computer.</p></details>
-   <details><summary>Calendar</summary><p>Drag an item onto a day to schedule it; drag a chip to another day to move it. An item can have several dates. Todos can repeat daily, on weekdays, weekly on chosen days or monthly; each occurrence keeps its own status.</p><p>Click an empty part of a day to show only that day's items in the Outline. Weekends are hidden by default; show them under Filters → More. Busy weeks show up to 20 items; use + on the week to see everything.</p></details>
+   <details><summary>Writing</summary><p>The editor is rich text with Markdown underneath; switch to Source to see the Markdown. Type at the start of a line: <code>-</code> for a bullet, <code>1.</code> for a numbered list, <code>[]</code> for a checklist, <code>&gt;</code> for a quote, <code>#</code> to <code>###</code> for headings, <code>---</code> for a divider and three backticks then Enter for a code block. A numbered list starts at the number you type, such as <code>5.</code>.</p><p><strong>Slash menu:</strong> type <code>/</code> at the start of a line to pick a heading, list, checklist, quote, code block, divider, table, image, link or inline Todo. Keep typing to filter; Enter chooses, Esc keeps the text.</p><p><strong>Formatting a selection:</strong> select text and a small toolbar appears for bold, italic, underline, code and links.</p><p>Type <code>[[</code> (or <code>![[</code> to embed) to link another item: suggestions appear as you type, best title matches first, with options to create a new Note or Todo. Links survive renaming and moving; the side panel lists backlinks.</p><p><strong>Inline Todos:</strong> type <code>&lt;call the supplier&gt;</code> inside a sentence to create a child Todo. Inside the brackets, <code>@tomorrow</code> schedules it and <code>[</code> chooses another parent. Start with d, w, h or c for Done, Waiting for, On hold or Cancelled; t or m for a Target or Milestone. <code>!&lt;</code> points to an existing Todo. Right-click one to change its status.</p><p><strong>Images:</strong> paste or drop an image into a note. YTNH keeps a copy inside your library, so it still shows on another computer.</p></details>
+   <details><summary>Calendar</summary><p>Drag an item onto a day to schedule it; drag a chip to another day to move it. An item can have several dates. Todos can repeat daily, on weekdays, weekly on chosen days or monthly; each occurrence keeps its own status.</p><p>Click an empty part of a day to show only that day's items in the Outline. Weekends are hidden by default; show them under Filters → More. Busy weeks show up to 20 items; use + on the week to see everything.</p><p><strong>Icons in the Outline:</strong> a calendar icon marks scheduled items, a repeat icon repeating Todos and a clock items planned in the Daily Planner. Hover to see the dates; click to go there. The calendar icon turns red when an unfinished Todo's dates have all passed.</p><p><strong>Colours:</strong> a Todo's circle shows its status everywhere: graphite for open, filled for Done, amber for Waiting for, violet for On hold and grey for Cancelled. Meetings are teal.</p></details>
    <details><summary>Daily Planner</summary><p>Open it with the panel button beside Targets or ${esc(shortcutText('Mod+Shift+D'))}. Click an empty time slot (or press Enter on it) to plan a Note, Todo or meeting, or drag an item from the Outline onto the timeline. Planning an unscheduled item also schedules it for that day.</p><p>Double-click a meeting to write in its document. The red line shows the current time. The pin keeps the planner on one day while you browse the Calendar.</p></details>
    <details><summary>Targets and milestones</summary><p>A <strong>Target</strong> is a Todo with a start and end month, shown as a bar in Targets. A <strong>Milestone</strong> is a Todo planned for a week. Items under a target count towards it; the number on a bar shows milestones done out of the total.</p></details>
    <details><summary>Search and filters</summary><p>Search is forgiving about typos. Use <code>#tag</code> for tags, <code>status:Done</code>, <code>created:&gt;=2026-01-01</code> or <code>scheduled:&lt;=2026-12-31</code>. Filters narrow by type, status, recurrence and dates; chips beside Filters show what's active, and Clear all resets them.</p></details>
@@ -6161,7 +6270,7 @@ writingScroll.addEventListener('click',e=>{
 let editorComposing=false;
 $("richEditor").oncompositionstart=()=>{ensureRichHistoryCheckpoint();editorComposing=true};
 $("richEditor").oncompositionend=()=>{editorComposing=false;normalizeRichTitleLine();syncModelFromRich();rememberRichSelection()};
-$("richEditor").oninput=()=>{if(editorComposing)return;normalizeRichTitleLine();applyInlineMarkdown();rememberRichSelection();syncModelFromRich();rememberEditorLocation();typedReferenceTrigger()};
+$("richEditor").oninput=()=>{if(editorComposing)return;normalizeRichTitleLine();applyInlineMarkdown();rememberRichSelection();syncModelFromRich();rememberEditorLocation();if(caretPopover)updateCaretPopover();else if(!typedReferenceTrigger())slashTrigger()};
 // A native paragraph selection can extend to offset zero in the following
 // block. Replace that paragraph directly so its neighbour keeps its markup.
 let clickedParagraph=null;

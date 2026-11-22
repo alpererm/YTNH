@@ -34,7 +34,7 @@ Work through the numbered chapters in the Outline on the left, from top to botto
 - **Open** it in the editor with a double-click or ${key('Shift+Enter')}.
 - **Come back** to the Outline with Esc or ${key('Mod+1')}.
 
-Shortcuts are written as **Mac / Windows**: ${key('Mod+O')} means ⌘O on a Mac and Ctrl+O on Windows. Keys such as Space, Enter, Esc, F2 and the arrow keys are the same on both.
+Shortcuts are written as **Mac / Windows**: ${key('Mod+O')} means ⌘O on a Mac and Ctrl+O on Windows. Keys such as Space, Enter, Esc, F2 and the arrow keys are the same on both. On a Mac, every command is also in the menu bar at the top of the screen.
 
 ## When you're done
 
@@ -76,17 +76,21 @@ Press **Esc** to go back to the Outline, then mark this Todo done.`,ch1);
 - \`> \` for a quote, \`# \` to \`### \` for headings
 - \`---\` for a divider, three backticks and Enter for a code block
 
+## Or use the slash menu
+
+Type \`/\` at the start of an empty line to choose a heading, list, checklist, quote, code block, divider, table, image or link from a menu. Keep typing to filter, for example \`/che\` for a checklist, and press Enter.
+
 ## Try it here
 
 - [ ] Click at the end of this line and press Enter to add another checklist item
 - [ ] Tick this box with a click or ${key('Mod+Shift+Enter')}
 - [x] Already done
 
-> Quotes look like this. Select some words and press ${key('Mod+B')} for **bold** or ${key('Mod+I')} for *italic*.
+> Quotes look like this. Select some words: a small toolbar appears for **bold**, *italic*, underline, code and links. ${key('Mod+B')} and ${key('Mod+I')} work too.
 
 ## Links between items
 
-This links to ${link(target)}. Type \`[[\` anywhere to link or embed another item; links keep working when you rename or move it.
+This links to ${link(target)}. Type \`[[\` anywhere and suggestions appear as you type: pick an item with the arrow keys and Enter, or create a new Note or Todo. Links keep working when you rename or move the item.
 
 ## Look around
 
@@ -136,7 +140,7 @@ Angle brackets that look like code, web addresses or comparisons (such as \`a < 
    const ch4=todo('4 · Plan your time','Items appear on the Calendar on their scheduled dates. Show the Calendar with '+key('Mod+3')+'.');
    todo('Find this Todo on today’s Calendar','Selecting an item highlights it on the Calendar. Click the small calendar icon at the right of its row to jump there.',ch4,{scheduledDates:[date]});
    todo('Drag my Calendar chip to another day',null,ch4,{scheduledDates:[addDays(date,1)]});
-   todo('Water the plants','This Todo repeats every week; the repeat icon on the right shows its next date. Completing it finishes only this week’s occurrence.',ch4,{recurrence:{frequency:'weekly',interval:1,startDate:date}});
+   todo('Water the plants','This Todo repeats every week; the repeat icon on the right shows its next date. Completing it finishes only this week’s occurrence. A Todo whose dates have all passed gets a red calendar icon, so overdue work stands out.',ch4,{recurrence:{frequency:'weekly',interval:1,startDate:date}});
    const planned=todo('Open the Daily Planner to see when this is planned','Press '+key('Mod+Shift+D')+' or use the panel button beside Targets. Click an empty time slot to plan something new, or drag an item from the Outline onto the timeline. The clock icon on this row jumps to the session.',ch4);
    todo('Click an empty part of a day in the Calendar','The Outline then shows only that day’s items. Press Esc to show everything again.',ch4);
    // A session later today (or tomorrow morning if it's late).
@@ -174,7 +178,7 @@ YTNH has no account and sends nothing anywhere.
 
 ## Make it yours
 
-- **Settings** (${key('Mod+,')}): theme, font, sizes, whether the app opens on the Calendar or the editor.
+- **Settings** (${key('Mod+,')}), in four tabs: General (whether the app opens on the Calendar or the editor), Appearance (theme, font, sizes), Editor (width, spelling, scroll past end) and Calendar (Daily Planner hours, weekends).
 - **Help** (?): every feature and keyboard shortcut, with search.
 
 You've reached the end of the tour. Open your own library with ☰ → Open Library…, or start a new one with ☰ → New Library….`);

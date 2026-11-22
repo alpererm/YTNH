@@ -19,6 +19,11 @@ User-visible changes to YTNH. Older entries keep their original wording; names s
 - Headings inside projects, Things-style completion with a short undo window, and quieter Outline arrows with deeper indentation.
 - Outline icons for scheduled, recurring and planned items, with date tooltips; the clock steps through planned sessions and never moves a pinned Planner date.
 - Search results are ranked the same way everywhere (Outline search, Quick Open, link and parent pickers): titles before text, whole words before partial ones, active before finished; typo matching handles swapped letters and half-typed words; finished items stay findable in pickers, dimmed.
+- Slash menu ("/" at the start of a line), [[ suggestions at the caret, and a formatting toolbar for selected text.
+- Native macOS menu bar with every command; Windows keeps the ☰ menu.
+- Settings in four tabs (General, Appearance, Editor, Calendar).
+- One status colour palette everywhere: graphite open, accent Done, amber Waiting for, violet On hold, grey Cancelled, teal meetings; red only for overdue dates. Accent-coloured list markers.
+- Numbered lists keep the number you start them with; the Tour explains inline Todos and shows Mac and Windows shortcuts.
 - Consistent toolbars with SVG icons, softer pane separators, a growing search field and an optional "Scroll past end".
 
 ## Earlier releases
