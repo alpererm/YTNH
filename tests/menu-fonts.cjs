@@ -24,7 +24,7 @@ const assert=require('node:assert/strict');const {pathToFileURL}=require('node:u
    await p.evaluate(t=>{appearance.theme=t;applyTheme();$('appMenu').open=true},theme);
    for(const button of await p.locator('.appMenuBody button').all())assert.equal(await button.evaluate(e=>getComputedStyle(e).borderTopWidth),'0px');
    for(const divider of await p.locator('.appMenuSection+.appMenuSection').all())assert.equal(await divider.evaluate(e=>getComputedStyle(e).borderTopWidth),'1px');
-   if(installed.length===0)await p.screenshot({path:`/private/tmp/compact-menu-${theme}.png`});
+   if(installed.length===0)await p.screenshot({path:`${require('node:os').tmpdir()}/compact-menu-${theme}.png`});
    await p.evaluate(()=>$('appMenu').open=false);
   }
   await p.evaluate(()=>{window.before=JSON.stringify(db);openQuickOpen()});
