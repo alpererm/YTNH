@@ -52,8 +52,11 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
  // No caret in an unfocused editor.
  assert.equal(await p.evaluate(()=>{edit(db.items[0].id);document.activeElement?.blur();return getComputedStyle($('richEditor')).caretColor}),'rgba(0, 0, 0, 0)');
  // A planned item without a date keeps the rightmost icon column free.
- const slot=await p.evaluate(()=>{const i=createItem(db,'Todo');i.title='Planned only';PlannerModel.session(db,i,today(),1200,30);i.scheduledDates=[];render();return [...document.querySelector(`#tree .row[data-id="${i.id}"] .outlineNavigation`).children].map(c=>c.dataset.outlineNavigation||c.className)});
+ const slot=await p.evaluate(()=>{db.settings.hideWeekends=false;const i=createItem(db,'Todo');i.title='Planned only';PlannerModel.session(db,i,iso(new Date(Date.now()+86400000)),600,30);i.scheduledDates=[];render();return [...document.querySelector(`#tree .row[data-id="${i.id}"] .outlineNavigation`).children].map(c=>c.dataset.outlineNavigation||c.className)});
  assert.deepEqual(slot,['clock','navigationSlot']);
+ // Long pinned items wrap; the pinned area never scrolls sideways.
+ const pin=await p.evaluate(()=>{installDatabase(createEmptyDatabase());const a=createItem(db,'Todo');a.title='A long pinned title that has to wrap over several lines instead of widening the pinned area';a.scheduledDates=[today()];db.settings.pinnedItems=[a.id];render();const box=$('pinnedOutline');return [box.scrollWidth<=box.clientWidth,box.querySelector('.title').getBoundingClientRect().height>30]});
+ assert.deepEqual(pin,[true,true],'pinned items wrap');
  assert.deepEqual(errors,[]);
  await browser.close();console.log('PASS hidden caret, Focus Mode Esc in editor-first, row/planner alignment, Note colour, button order');
 })().catch(e=>{console.error(e);process.exit(1)});

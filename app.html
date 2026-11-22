@@ -1805,6 +1805,11 @@ body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-ind
 :root body .selectionBar button:hover{background:var(--outline-hover);color:var(--ink)}
 :root body .selectionBar button[aria-pressed="true"]{background:var(--soft);color:var(--ink)}
 :root body .selectionBar svg{width:16px;height:16px}
+/* Pinned items wrap like Outline rows instead of widening the pinned area (no horizontal scrollbar). */
+:root body #pinnedOutline{overflow-x:hidden}
+:root body #pinnedOutline .pinEntry,:root body #pinnedOutline .row{min-width:0;max-width:100%}
+:root body #pinnedOutline .row .outlineText{flex:1;min-width:0}
+:root body #pinnedOutline .row .title{white-space:normal;overflow-wrap:anywhere;text-overflow:clip}
 #editor .documentScroll::after{content:"";display:block;height:var(--scroll-past-end,0px);pointer-events:none}
 #editor .documentScroll:has(> #content:not(.hidden))::after{display:none}
 :root body #editor .documentScroll > #content{padding-bottom:calc(16px + var(--scroll-past-end,0px))!important}
