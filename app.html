@@ -1745,6 +1745,7 @@ body[data-theme="dark"] #editorSidebar .documentHeading .headingDisclosure{color
 :root body #tree .welcomeEmpty{padding:28px 18px;text-align:left;line-height:1.5}
 :root body #tree .welcomeEmpty p{margin:0 0 8px}
 :root body #tree .welcomeActions{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:14px;max-width:220px}
+:root body .refResult.inactiveResult{opacity:.6}
 #editor .documentScroll::after{content:"";display:block;height:var(--scroll-past-end,0px);pointer-events:none}
 #editor .documentScroll:has(> #content:not(.hidden))::after{display:none}
 :root body #editor .documentScroll > #content{padding-bottom:calc(16px + var(--scroll-past-end,0px))!important}
@@ -2128,20 +2129,6 @@ function downloadText(name,text){if(!window.notesDesktop)throw new Error('Recove
 
 
 
-function levenshtein(a,b,max=3){
- a=String(a||"").toLowerCase();b=String(b||"").toLowerCase();
- if(Math.abs(a.length-b.length)>max)return max+1;
- let prev=Array.from({length:b.length+1},(_,i)=>i);
- for(let i=1;i<=a.length;i++){
-   const cur=[i],start=Math.max(1,i-max),end=Math.min(b.length,i+max);
-   for(let j=1;j<=b.length;j++){
-     const cost=a[i-1]===b[j-1]?0:1;
-     cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+cost);
-   }
-   prev=cur;
- }
- return prev[b.length];
-}
 
 let archiveOperationBusy=false;
 async function writeColdArchiveFile(payload,suggestedName){
@@ -2244,17 +2231,70 @@ async function restoreColdArchiveFile(file){
  recordChangedCodes(staged,previous);reconcileAllocator(staged);validateDatabase(staged);
  checkpoint();db=staged;db.updatedAt=now();markDirty();render();toast(`Restored ${incoming.length} items into the in-file Archive.`);return true;
 }
+// Typo tolerance: one typo in words of 5+ letters, two in words of 8+; swapping neighbouring letters is
+// one typo; a typo near the start of a longer word still matches ("progrm" → "programme").
+function typoDistance(a,b,max){
+ if(Math.abs(a.length-b.length)>max)return max+1;
+ const d=Array.from({length:a.length+1},(_,i)=>{const r=new Array(b.length+1).fill(0);r[0]=i;return r});
+ for(let j=0;j<=b.length;j++)d[0][j]=j;
+ for(let i=1;i<=a.length;i++){let best=max+1;for(let j=1;j<=b.length;j++){
+   const cost=a[i-1]===b[j-1]?0:1;let v=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+cost);
+   if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])v=Math.min(v,d[i-2][j-2]+1);
+   d[i][j]=v;if(v<best)best=v}
+   if(best>max)return max+1}
+ return d[a.length][b.length];
+}
 function fuzzyWordMatch(term,word){
  term=String(term||'').toLowerCase();word=String(word||'').toLowerCase();
  if(!term||word.includes(term))return true;
- return term.length>=5&&word.length>=5&&Math.abs(term.length-word.length)<=1&&levenshtein(term,word,1)<=1;
+ if(term.length<5||word.length<4)return false;
+ const max=term.length>=8?2:1;
+ if(typoDistance(term,word,max)<=max)return true;
+ // A half-typed word: compare with the start of the longer word.
+ if(word.length>term.length)for(let k=Math.max(4,term.length-max);k<=Math.min(word.length-1,term.length+max);k++)if(typoDistance(term,word.slice(0,k),max)<=max)return true;
+ return false;
 }
+const SEARCH_WORDS=/[^\p{L}\p{N}_.-]+/u;
 function fuzzyTextMatch(term,hay){
  term=String(term||"").trim().toLowerCase();hay=String(hay||"").toLowerCase();
  if(!term)return true;
  if(hay.includes(term))return true;
- const words=hay.split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean);
- return words.some(w=>fuzzyWordMatch(term,w));
+ return hay.split(SEARCH_WORDS).filter(Boolean).some(w=>fuzzyWordMatch(term,w));
+}
+// One ranking for Outline search, Quick Open and every item picker. Per search word, best first:
+// 1 a whole word of the title · 2 the title starts with it · 3 a title word (or code) starts with it ·
+// 4 inside a title word · 5 title with a typo · 6 a whole word of the text · 7 a text word starts with it ·
+// 8 inside the text · 9 text with a typo. An exact title is 0; the whole title with a typo is 4.5. Title matches come before text-only matches;
+// within each, active items come before finished ones, then by the weakest word, the sum, the shorter title
+// and the most recent edit.
+function searchTerms(query){return String(query||'').trim().toLowerCase().split(/\s+/).filter(Boolean)}
+function termTier(term,title,titleWords,body,bodyWords,codes){
+ if(titleWords.includes(term))return 1;
+ if(title.startsWith(term))return 2;
+ if(titleWords.some(w=>w.startsWith(term))||codes.some(c=>c.startsWith(term)))return 3;
+ if(title.includes(term))return 4;
+ if(titleWords.some(w=>fuzzyWordMatch(term,w)))return 5;
+ if(bodyWords.includes(term))return 6;
+ if(bodyWords.some(w=>w.startsWith(term)))return 7;
+ if(body.includes(term)||codes.some(c=>c.includes(term)))return 8;
+ if(bodyWords.some(w=>fuzzyWordMatch(term,w)))return 9;
+ return Infinity;
+}
+function inactiveRank(item){return item?.type!=='Todo'?0:({'On hold':1,Done:2,Cancelled:3}[item.status]||0)}
+// stable: equally good results keep their given (Outline) order, so moving items in search results stays predictable.
+function rankItems(items,query,{title=i=>i.title,body=i=>descriptionSearchText(i.content),codes=i=>itemSearchCodes(db,i),item=i=>i,stable=false}={}){
+ const terms=Array.isArray(query)?query.map(t=>String(t).toLowerCase()).filter(Boolean):searchTerms(query);
+ if(!terms.length)return items;
+ const whole=terms.join(' ');
+ return items.map((entry,index)=>{
+   const t=String(title(entry)||'').toLowerCase().trim(),b=String(body(entry)||'').toLowerCase(),c=String(codes(entry)||'').toLowerCase().split(/\s+/).filter(Boolean);
+   const tw=t.split(SEARCH_WORDS).filter(Boolean),bw=b.split(SEARCH_WORDS).filter(Boolean);
+   const tiers=terms.map(term=>termTier(term,t,tw,b,bw,c));
+   const target=item(entry);
+   return {entry,index,worst:t===whole?0:whole.length>=5&&typoDistance(whole,t,whole.length>=8?2:1)<=(whole.length>=8?2:1)?Math.min(4.5,Math.max(...tiers)):Math.max(...tiers),sum:tiers.reduce((a,x)=>a+x,0),length:t.length,inactive:inactiveRank(target),edited:String(target?.updatedAt||'')};
+ }).filter(h=>Number.isFinite(h.worst))
+   .sort((a,b)=>(a.worst>5)-(b.worst>5)||a.inactive-b.inactive||a.worst-b.worst||a.sum-b.sum||(stable?0:a.length-b.length||b.edited.localeCompare(a.edited))||a.index-b.index)
+   .map(h=>h.entry);
 }
 
 function filterItems(db,{text="",texts=[],status=[],tag="",tags=[],createdFrom="",createdTo="",scheduledFrom="",scheduledTo="",typeMode="",recurringOnly=false,notRecurring=false,scheduledDatesForItem=i=>i.scheduledDates||[]}={}){
@@ -3489,14 +3529,6 @@ function moveLocationByKey(direction,toRoot){
  }catch(error){toast(error.message);return false}
 }
 
-function quickOpenRank(items,query){
- const q=String(query||'').trim().toLowerCase();
- if(!q)return items;
- const relevance=value=>{const text=String(value||'').trim().toLowerCase();return text===q?0:text.startsWith(q)?1:text.includes(q)?2:fuzzyTextMatch(q,text)?3:Infinity};
- const status=item=>item.type!=='Todo'?0:({'On hold':1,Done:2,Cancelled:3}[item.status]||0);
- return items.map((item,index)=>({item,index,rank:Math.min(relevance(item.title),4+relevance(item.content),8+relevance(itemSearchCodes(db,item))),status:status(item)}))
-   .filter(hit=>Number.isFinite(hit.rank)).sort((a,b)=>a.rank-b.rank||a.status-b.status||a.index-b.index).map(hit=>hit.item);
-}
 function chooseReference(embed=false,onChoose=null,options={}){
  if(!db)return;
  const returnState=captureEditorSelection();
@@ -3512,10 +3544,13 @@ function chooseReference(embed=false,onChoose=null,options={}){
  const paint=()=>{const buttons=[...$("refResults").querySelectorAll("button")];buttons.forEach((b,i)=>b.classList.toggle("active",i===choice));buttons[choice]?.scrollIntoView({block:"nearest"})};
  const renderResults=()=>{
    choice=0;const q=String($("refSearch").value||"").trim().toLowerCase();
-   let matches=(options.items?options.items():all).filter(i=>{const item=options.resolve?options.resolve(i.id):i;return item&&!item.archived&&!(!options.includeInactive&&item.type==='Todo'&&['Done','Cancelled'].includes(item.status))}).filter(i=>!q||fuzzyTextMatch(q,((options.code?.(i)||itemSearchCodes(db,i))+" "+i.title+" "+i.content).toLowerCase()));
-   if(options.rank)matches=options.rank(matches,q);
+   // Finished items stay findable but rank last and look dimmed. Without a search, recently edited items come first.
+   const target=i=>i.markerItem||(options.resolve?options.resolve(i.id):i)||i;
+   let matches=(options.items?options.items():all).filter(i=>{const item=options.resolve?options.resolve(i.id):i;return item&&!item.archived});
+   if(q)matches=rankItems(matches,q,{codes:i=>options.code?.(i)||itemSearchCodes(db,i),body:i=>options.describe?i.content:descriptionSearchText(i.content),item:target});
+   else if(!options.items)matches=matches.slice().sort((a,b)=>inactiveRank(a)-inactiveRank(b)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
    matches=matches.slice(0,options.limit?options.limit():80);
-   $("refResults").innerHTML=matches.length?matches.map(i=>`<button type="button" class="refResult" data-ref-pick="${esc(i.id)}">${itemMarker(i.markerItem||i)}<span>${esc(i.title||"(untitled)")}${options.describe?.(i)?`<small class="refLocationDescription">${esc(options.describe(i))}</small>`:""}</span></button>`).join(""):'<div class="empty">No matching items.</div>';
+   $("refResults").innerHTML=matches.length?matches.map(i=>`<button type="button" class="refResult${inactiveRank(target(i))>0?' inactiveResult':''}" data-ref-pick="${esc(i.id)}">${itemMarker(i.markerItem||i)}<span>${esc(i.title||"(untitled)")}${options.describe?.(i)?`<small class="refLocationDescription">${esc(options.describe(i))}</small>`:""}</span></button>`).join(""):'<div class="empty">No matching items.</div>';
    $("refResults").querySelectorAll("[data-ref-pick]").forEach(b=>b.onclick=()=>{
      const target=options.resolve?options.resolve(b.dataset.refPick):itemById(db,b.dataset.refPick);if(!target)return;
      $("modalbg").classList.remove("open");$("modalCancel").classList.remove("hidden");
@@ -5010,7 +5045,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
  paintPins(row,graph);
  if(dateErr&&!searching){t.innerHTML=`<div class="empty filterError">${esc(dateErr.message)}</div>`;return}
  if(searching){
-   t.innerHTML=directMatchedItems().filter(inZoomBranch).flatMap(item=>graph?graph.byItem.get(item.id).filter(location=>!branchZoomRoot||graph.chain(location).some(p=>p.id===branchZoomLocation)).map(location=>row(item,0,{grouped:true,location})):row(item,0,{grouped:true})).join('')||'<div class="empty">No matching items.</div>';
+   t.innerHTML=rankItems(directMatchedItems().filter(inZoomBranch),parseSearchQuery($('search').value).texts,{stable:true}).flatMap(item=>graph?graph.byItem.get(item.id).filter(location=>!branchZoomRoot||graph.chain(location).some(p=>p.id===branchZoomLocation)).map(location=>row(item,0,{grouped:true,location})):row(item,0,{grouped:true})).join('')||'<div class="empty">No matching items.</div>';
    if(!graph)t.querySelectorAll('.row[data-id]').forEach(r=>{const item=itemById(db,r.dataset.id),path=item?headingContextPath(item):'';const line=r.querySelector('.outlineTitleLine');if(path&&line){const c=document.createElement('div');c.className='searchContext';c.textContent=path;line.after(c)}});
    if(db.planner&&!zoomRootItem())DailyMeetingEditor.search(t,$('search').value.trim());
    paintHierarchy(t,hierarchyViews.outline,row,false);t.scrollTop=previousScrollTop;
@@ -6185,7 +6220,7 @@ function openQuickOpen(){
  if(fileOperationBusy||archiveOperationBusy||$('modalbg').classList.contains('open')){toast('Finish the current dialog or file operation before Quick Open.');return}
  if(!db){toast('Open a data file before Quick Open.');return}
  flushPendingInputs();
- chooseReference(false,target=>{openSelectedInFullEditor(target.id);queueMicrotask(()=>focusBodyStart())},{title:'Quick Open',includeInactive:true,rank:quickOpenRank});
+ chooseReference(false,target=>{openSelectedInFullEditor(target.id);queueMicrotask(()=>focusBodyStart())},{title:'Quick Open'});
  $('modalTitle').dataset.quickOpen='true';$('modalText').textContent='Open an existing item. Windows: Ctrl+Alt+K · macOS: Cmd+Option+K';
 }
 function desktopCapture(type){
@@ -7041,7 +7076,7 @@ function chooseInlineTodo(){
  const c=inlineCaret();if(!c||!c.text.endsWith('!<'))return;const range=c.r.cloneRange();const point=c.pointAt(c.end-2);range.setStart(point.node,point.offset);const state=captureEditorSelection();
  const references=new Set(inlineTodoRecords(itemById(db,selected)?.content).map(r=>r.id));for(const id of referenceTargetIds(itemById(db,selected)?.content))references.add(id);
  const nearby=new Set(descendants(db,selected,true).map(i=>i.id));let global=false;
- chooseReference(false,target=>{restoreEditorSelection(state);forceRichHistoryCheckpoint();insertInlineOccurrence(range,target,target.title)}, {title:'Reference an existing Todo',includeInactive:true,filter:i=>i.type==='Todo',items:()=>db.items.filter(i=>i.type==='Todo'&&(global||references.has(i.id)||nearby.has(i.id))).sort((a,b)=>Number(references.has(b.id))-Number(references.has(a.id))),limit:()=>global?10:8,describe:i=>i.status+' · '+(inlineTodoPath(itemById(db,i.parentId))||'Top level'),setup:render=>{const b=document.createElement('button');b.type='button';b.textContent='Search all Todos';b.onclick=()=>{global=true;b.hidden=true;$('refSearch').value='';$('refSearch').placeholder='Search all Todos…';render();$('refSearch').focus()};$('refSearch').after(b)}});
+ chooseReference(false,target=>{restoreEditorSelection(state);forceRichHistoryCheckpoint();insertInlineOccurrence(range,target,target.title)}, {title:'Reference an existing Todo',filter:i=>i.type==='Todo',items:()=>db.items.filter(i=>i.type==='Todo'&&(global||references.has(i.id)||nearby.has(i.id))).sort((a,b)=>Number(references.has(b.id))-Number(references.has(a.id))),limit:()=>global?10:8,describe:i=>i.status+' · '+(inlineTodoPath(itemById(db,i.parentId))||'Top level'),setup:render=>{const b=document.createElement('button');b.type='button';b.textContent='Search all Todos';b.onclick=()=>{global=true;b.hidden=true;$('refSearch').value='';$('refSearch').placeholder='Search all Todos…';render();$('refSearch').focus()};$('refSearch').after(b)}});
 }
 const inlineMenu=document.createElement('div');inlineMenu.className='inlineTodoMenu hidden';inlineMenu.setAttribute('role','menu');document.body.append(inlineMenu);
 function closeInlineMenu(){inlineMenu.classList.add('hidden')}

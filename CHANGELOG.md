@@ -18,6 +18,7 @@ User-visible changes to YTNH. Older entries keep their original wording; names s
 - Import Markdown Folder…: a folder of Markdown files becomes Notes named after the files, with subfolders as parent Notes, front matter tags and dates, copied images and working links between the files.
 - Headings inside projects, Things-style completion with a short undo window, and quieter Outline arrows with deeper indentation.
 - Outline icons for scheduled, recurring and planned items, with date tooltips; the clock steps through planned sessions and never moves a pinned Planner date.
+- Search results are ranked the same way everywhere (Outline search, Quick Open, link and parent pickers): titles before text, whole words before partial ones, active before finished; typo matching handles swapped letters and half-typed words; finished items stay findable in pickers, dimmed.
 - Consistent toolbars with SVG icons, softer pane separators, a growing search field and an optional "Scroll past end".
 
 ## Earlier releases

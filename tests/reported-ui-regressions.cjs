@@ -21,7 +21,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await p.locator('.planBlock').count(),2);assert.equal(await p.locator('.planNow').count(),1);
  const boxes=await p.locator('.planBlock').evaluateAll(ns=>ns.map(n=>({x:n.offsetLeft,y:n.offsetTop,h:n.offsetHeight,w:n.offsetWidth})));assert(boxes[0].x!==boxes[1].x);assert(Math.max(...boxes.map(b=>b.h))>=85);
  await p.evaluate(()=>{edit(parent.id);$('editorTitle').value='Schedule @';$('editorTitle').focus();$('editorTitle').setSelectionRange(10,10);updateDateSuggestions($('editorTitle'))});assert.equal(await p.locator('#dateSuggestions .weekLabel').count(),6);
- await p.keyboard.press('Escape');await p.evaluate(()=>{child.status='Done';other.status='Cancelled';chooseReference()});assert.equal(await p.locator('[data-ref-pick="'+await p.evaluate(()=>child.id)+'"]').count(),0);assert.equal(await p.locator('[data-ref-pick="'+await p.evaluate(()=>other.id)+'"]').count(),0);
+ await p.keyboard.press('Escape');await p.evaluate(()=>{child.status='Done';other.status='Cancelled';chooseReference()});/* finished items stay findable in pickers, dimmed (shared ranking) */assert.equal(await p.locator('[data-ref-pick="'+await p.evaluate(()=>child.id)+'"].inactiveResult').count(),1);assert.equal(await p.locator('[data-ref-pick="'+await p.evaluate(()=>other.id)+'"].inactiveResult').count(),1);
  assert.deepEqual(errors,[]);console.log('PASS search branch scope, formatted inline Todo, sidebar default, panel history, mouse date selection, continuous meeting columns, all-date marker, week numbers and reference status filtering');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
