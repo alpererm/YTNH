@@ -67,4 +67,9 @@ Installers are written to `src-tauri/target/release/bundle/`. Browser tests use 
 
 - [Changelog](CHANGELOG.md)
 - [Developer documentation](docs/development/): desktop notes, internals, and the storage design and verification records
-- [License](LICENSE): MIT
+- [License](LICENSE): Apache 2.0
+
+Copyright 2026 alpererm
+
+Licensed under the Apache License, Version 2.0.
+See the LICENSE file for details.
