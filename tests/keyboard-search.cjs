@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 const assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url'),path=require('node:path');
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
@@ -40,7 +41,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await p.keyboard.press('ArrowLeft');assert(await p.evaluate(()=>bodyBlock(getSelection().focusNode)===$('richEditor').firstElementChild));await p.keyboard.type('!');assert(await p.evaluate(()=>itemById(db,noteId).content.startsWith('Previous line!\n')));
  }
  for(const theme of ['dark']){
-   await p.evaluate(t=>{appearance.theme=t;applyTheme();openSettings()},theme);await p.locator('#settingsFont').click();assert(await p.locator('.selectPopover').isVisible());
+   await p.evaluate(t=>{appearance.theme=t;applyTheme();(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false))},theme);await p.locator('#settingsFont').click();assert(await p.locator('.selectPopover').isVisible());
    await p.keyboard.press('ArrowDown');await p.keyboard.press('Escape');assert.equal(await p.locator('.selectPopover').count(),0);await p.locator('#modalOK').click();
  }
  await p.evaluate(()=>{showCalendar();filterOutlineDay('2026-11-06')});assert.equal(await p.locator('[data-remove-filter="day"]').count(),1);assert.equal(await p.locator('#dayFilterBar').count(),0);await p.keyboard.press('ArrowUp');assert.equal(await p.evaluate(()=>outlineDayFilter),'2026-10-30');await p.locator('[data-remove-filter="day"]').click();assert.equal(await p.evaluate(()=>outlineDayFilter),null);

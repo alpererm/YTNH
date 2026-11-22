@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 const screenshotDir=require('node:os').tmpdir();
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');const {pathToFileURL}=require('node:url');const path=require('node:path');
@@ -28,7 +29,7 @@ const assert=require('node:assert/strict');const {pathToFileURL}=require('node:u
   await p.evaluate(()=>toggleEditorSidebar());await p.screenshot({path:`${screenshotDir}/workspace-density-editor-${width}.png`});await p.evaluate(()=>showCalendar());
  }
  for(const windows of [false,true])for(const size of [8,10,14,18]){await p.evaluate(({windows,size})=>{document.body.classList.toggle('windows-desktop',windows);appearance.interfaceSize=size;applyAppearance()}, {windows,size});for(const sel of ['#tree .itemMarker','#calendarBody .itemMarker']){assert.equal(await css(sel+' svg','width'),'15px');assert(await p.locator(sel).first().evaluate(e=>e.getBoundingClientRect().width>=24))}assert.equal(await css('#tree .title','fontSize'),size+'px')}
- await p.evaluate(()=>openSettings());await p.selectOption('#settingsInterfaceSize','8');await p.selectOption('#settingsEditorSize','8');await p.locator('#modalOK').click();
+ await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));await p.selectOption('#settingsInterfaceSize','8');await p.selectOption('#settingsEditorSize','8');await p.locator('#modalOK').click();
  assert(Math.abs(parseFloat(await css('.chip','fontSize'))-8*.86)<.1,'Calendar chips follow the interface size');assert.equal(await css('#tree .title','fontSize'),'8px');
  await p.reload();assert.equal(await p.evaluate(()=>appearance.interfaceSize),8);assert.equal(await p.evaluate(()=>appearance.editorSize),8);
  assert.deepEqual(errors,[]);await browser.close();console.log('PASS Workspace density, two themes, aligned headers, equal calendar/Outline text, 8px persistence, sidebar width and removed dividers');

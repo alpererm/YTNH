@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 // Editor heading list: one current heading, set by a click / visible caret / scroll position, never stuck on
 // the first heading; colour only (no background); Graphite Dark colours. Softer pane separators. Toolbars on
 // one scale with SVG icons. Scroll past end: visual space only, per device, on by default.
@@ -46,7 +47,7 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
  const spe=await p.evaluate(async()=>{const d=document.querySelector('#editor .documentScroll');d.scrollTop=1e6;await new Promise(r=>setTimeout(r,50));const v=d.getBoundingClientRect(),l=$('richEditor').lastElementChild.getBoundingClientRect();return {extra:parseFloat(d.style.getPropertyValue('--scroll-past-end')),h:d.clientHeight,end:(l.bottom-v.top)/d.clientHeight}});
  assert(Math.abs(spe.extra-spe.h*.4)<2,JSON.stringify(spe));assert(spe.end<0.7,'last line can sit well above the bottom '+JSON.stringify(spe));
  const before=await p.evaluate(()=>itemById(db,ids.long).content);
- await p.evaluate(()=>openSettings());assert.equal(await p.locator('#settingsScrollPastEnd').isChecked(),true);
+ await p.evaluate(()=>(openSettings(),document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false)));assert.equal(await p.locator('#settingsScrollPastEnd').isChecked(),true);
  await p.locator('#settingsScrollPastEnd').uncheck();
  assert.equal(await p.evaluate(()=>localStorage.getItem('ytnh-scroll-past-end')),'off');
  assert.equal(await p.evaluate(()=>JSON.stringify(db).includes('scroll-past-end')||JSON.stringify(db.settings).includes('scrollPast')),false,'not stored in the library');

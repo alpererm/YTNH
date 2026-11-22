@@ -1748,6 +1748,49 @@ body[data-theme="dark"] #editorSidebar .documentHeading .headingDisclosure{color
 :root body .refResult.inactiveResult{opacity:.6}
 /* No caret unless the editor itself has focus (WebKit can paint one in an unfocused editor). */
 :root body :is(#richEditor,#content,#editorTitle):not(:focus){caret-color:transparent}
+:root body .settingsForm .settingsTabs{display:flex;gap:4px;border-bottom:1px solid var(--workspace-grid);margin:0 0 12px;padding-bottom:6px;position:sticky;top:0;background:var(--panel,var(--bg));z-index:1}
+:root body .settingsTabs button{border:0;background:transparent;box-shadow:none;padding:5px 12px;border-radius:8px;color:var(--muted);font-weight:500}
+:root body .settingsTabs button:hover{background:var(--outline-hover);color:var(--ink)}
+:root body .settingsTabs button[aria-selected="true"]{background:var(--soft);color:var(--ink)}
+:root body .settingsPanel{display:grid;gap:12px;align-content:start;min-height:330px}
+:root body .settingsPanel[hidden]{display:none}
+:root body .settingsGroupTitle{font-size:12px;color:var(--muted);margin:6px 0 4px}
+/* Editor lists: markers in the theme accent; nested bullets change shape; numbers align; the quote bar
+   steps back so it doesn't compete with the markers. */
+:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])::before{color:var(--accent);font-weight:700}
+:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="1"]::before,:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="4"]::before{content:"◦";font-weight:400}
+:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="2"]::before,:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="5"]::before{content:"▪";font-weight:400;font-size:.8em}
+:root body #editor #richEditor .md-list-marker{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+:root body #editor .richEditor input.md-check:not(:checked){border:1.5px solid var(--accent)}
+:root body #editor #richEditor>[data-mdblock="quote"]{border-left-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+/* One status palette everywhere (Outline, Calendar, Daily Planner, inline Todos, pickers).
+   Open items are quiet graphite; Done fills with the accent; Waiting for is amber; On hold is violet with a
+   dashed ring; Cancelled is grey and struck; meetings are teal; red only marks overdue dates.
+   Titles keep the normal text colour; the marker carries the status. */
+:root body{--st-open:#5d6670;--st-done:var(--accent);--st-wait:#8a5d0f;--st-hold:#6f5e86;--st-cancel:#8a8f94;--st-meeting:#2f6f68;--st-overdue:#a83232;--st-muted:#6b7177}
+:root body[data-theme="dark"]{--st-open:#b9c2ca;--st-wait:#e3b866;--st-hold:#b4a3cb;--st-cancel:#8e9399;--st-meeting:#7cc4bc;--st-overdue:#f08c8c;--st-muted:#9a9fa5}
+:root body{--status-done:var(--st-muted);--status-cancelled:var(--st-cancel);--status-waiting:var(--st-wait);--status-hold:var(--st-hold);--outline-todo-ink:var(--st-open);--outline-note-ink:var(--st-open);--todo-code:var(--st-open);--note-code:var(--st-open);
+ --inline-todo:var(--accent);--inline-done:var(--st-muted);--inline-wait:var(--st-wait);--inline-hold:var(--st-hold);--inline-cancel:var(--st-cancel)}
+:root body :is(#app) .itemMarker{color:var(--st-open)!important}
+:root body :is(#app) .itemMarker[data-marker-status="Done"]{color:var(--st-done)!important}
+:root body :is(#app) .itemMarker[data-marker-status="Waiting for"]{color:var(--st-wait)!important}
+:root body :is(#app) .itemMarker[data-marker-status="On hold"]{color:var(--st-hold)!important}
+:root body :is(#app) .itemMarker[data-marker-status="Cancelled"]{color:var(--st-cancel)!important}
+:root body :is(#app) .itemMarker[data-marker-type="Todo"][data-marker-status="On hold"] svg>circle:first-child{stroke-dasharray:3.2 2.4}
+:root body :is(#tree,#pinnedOutline) .row:is(.status-waiting-for,.status-on-hold) .title{color:inherit}
+:root body :is(#tree,#pinnedOutline) .row:is(.status-done,.status-cancelled) .title{color:var(--st-muted);opacity:1;text-decoration:line-through}
+:root body #calendarBody .chip,:root body #calendarBody .chip .cal-code{color:var(--ink)!important}
+:root body #calendarBody .chip:is(.status-waiting-for,.status-on-hold){background:transparent}
+:root body #calendarBody .chip:is(.status-done,.status-cancelled),:root body #calendarBody .chip:is(.status-done,.status-cancelled) .cal-code{color:var(--st-muted)!important;background:transparent;opacity:1;text-decoration:line-through}
+:root body #dailyPlanner{--meeting-color:var(--st-meeting);--plan-note:var(--st-cancel)}
+:root body #dailyPlanner .planBlock.Todo{--block-color:var(--accent);--tint:14%}
+:root body #dailyPlanner .planBlock.Todo[data-status="Waiting for"]{--block-color:var(--st-wait)}
+:root body #dailyPlanner .planBlock.Todo[data-status="On hold"]{--block-color:var(--st-hold)}
+:root body #dailyPlanner .planBlock.Todo:is([data-status="Done"],[data-status="Cancelled"]),:root body #dailyPlanner .planBlock.complete{--block-color:var(--st-cancel);--tint:8%}
+:root body #dailyPlanner .planBlock.Note{--tint:12%}
+:root body #dailyPlanner .planBlock.complete .itemMarker{color:var(--st-done)!important}
+:root body .outlineNavigation button.overdue{color:var(--st-overdue);opacity:1}
+body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-index].current{color:var(--accent)}
 #editor .documentScroll::after{content:"";display:block;height:var(--scroll-past-end,0px);pointer-events:none}
 #editor .documentScroll:has(> #content:not(.hidden))::after{display:none}
 :root body #editor .documentScroll > #content{padding-bottom:calc(16px + var(--scroll-past-end,0px))!important}
@@ -3940,7 +3983,10 @@ function outlineNavigationIndicators(item,sessions){
    if(next)list.push(button('repeat','Repeats · next '+displayDay(next)+' · Show in Calendar','Next: '+displayDay(next)));
  }else{
    const dates=[...new Set(scheduledGroupingDates(item).filter(validDate))].sort();
-   if(dates.length){const shown=dates.slice(0,12).map(displayDay);if(dates.length>12)shown.push('+'+(dates.length-12)+' more');list.push(button('calendar','Scheduled '+dates.map(displayDay).join(', ')+' · Show in Calendar',shown.join('\n')))}
+   if(dates.length){const shown=dates.slice(0,12).map(displayDay);if(dates.length>12)shown.push('+'+(dates.length-12)+' more');
+     // Overdue: an unfinished Todo whose scheduled dates are all in the past. Red is used for nothing else.
+     const overdue=item.type==='Todo'&&!['Done','Cancelled'].includes(item.status)&&dates.at(-1)<today();
+     list.push(button('calendar',(overdue?'Overdue · ':'')+'Scheduled '+dates.map(displayDay).join(', ')+' · Show in Calendar',(overdue?'Overdue\n':'')+shown.join('\n')).replace('<button ','<button '+(overdue?'class="overdue" ':'')))}
  }
  // The clock sits to the left; the calendar or repeat icon always takes the rightmost place.
  if(blocks.length)list.unshift(button('clock',(recurring?'Next planned session ':'Planned sessions ')+blocks.map(plannerBlockLabel).join(', ')+' · Show in Daily Planner',(recurring?'Next: ':'')+blocks.map(plannerBlockLabel).join('\n')));
@@ -4500,9 +4546,43 @@ function openSettings(){
  $('modalCancel').classList.add('hidden');$('modalOK').textContent='Done';
  $('modalOK').onclick=()=>{if(commitHours())closeModalShell();else $('plannerEnd').focus()};
  modalAfterClose=()=>{commitHours()};
+ arrangeSettingsTabs();
  $('modalbg').classList.add('open');
 }
 $('settingsBtn').onclick=openSettings;
+// Settings in four tabs. The form is built as one list; this moves each control into its tab.
+const SETTINGS_TAB_KEY='ytnh-settings-tab';
+function arrangeSettingsTabs(){
+ const form=document.querySelector('#modalExtra .settingsForm');if(!form)return;
+ const row=id=>$(id)?.closest('label')||null;
+ const tabs=[['general','General'],['appearance','Appearance'],['editor','Editor'],['calendar','Calendar']];
+ const bar=document.createElement('div');bar.className='settingsTabs';bar.setAttribute('role','tablist');bar.setAttribute('aria-label','Settings sections');
+ const panels={};
+ for(const [key,label] of tabs){
+   const b=document.createElement('button');b.type='button';b.id='settingsTab-'+key;b.dataset.settingsTab=key;b.setAttribute('role','tab');b.setAttribute('aria-controls','settingsPanel-'+key);b.textContent=label;bar.append(b);
+   const panel=document.createElement('div');panel.id='settingsPanel-'+key;panel.className='settingsPanel';panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',b.id);panels[key]=panel;
+ }
+ const put=(key,...nodes)=>nodes.filter(Boolean).forEach(n=>panels[key].append(n));
+ // Split the shared size row: interface size belongs to Appearance, editor size to Editor.
+ const sizes=$('settingsInterfaceSize')?.closest('.settingsSizes'),editorSize=row('settingsEditorSize');
+ put('general',row('settingsDefaultView'),row('settingsGlobalQuickOpen'),row('settingsCompletionSound'));
+ const clean=[...$('modalExtra').querySelectorAll(':scope > button')].find(b=>/unused images/i.test(b.textContent));if(clean){const box=document.createElement('div');box.className='settingsGroup';const h=document.createElement('div');h.className='settingsGroupTitle';h.textContent='Library';box.append(h,clean);put('general',box)}
+ put('appearance',row('settingsTheme'),row('settingsFont'),form.querySelector('.fontActions'),$('fontPicker'),sizes,$('settingsPreview'));
+ const editorSizes=document.createElement('div');editorSizes.className='settingsSizes';if(editorSize)editorSizes.append(editorSize);
+ put('editor',editorSizes,row('settingsLimitWidth'),row('settingsScrollPastEnd'),row('settingsSpellcheck'),row('settingsLanguage'),[...form.querySelectorAll(':scope > small')].find(s=>/dictionar/i.test(s.textContent)));
+ // Calendar: Daily Planner hours and showing weekends (a library setting, like Filters → More).
+ put('calendar',$('plannerStart')?.closest('.settingsSizes'));
+ if(db&&$('showWeekends')){const w=document.createElement('label');w.innerHTML='<span><input id="settingsShowWeekends" type="checkbox"> Show weekends in the Calendar and Outline</span>';const box=w.querySelector('input');box.checked=$('showWeekends').checked;box.onchange=()=>{$('showWeekends').checked=box.checked;$('showWeekends').dispatchEvent(new Event('change'))};put('calendar',w)}
+ if(!panels.calendar.children.length){const p=document.createElement('p');p.className='muted';p.textContent='Open a library to set Daily Planner hours and weekends.';put('calendar',p)}
+ // Anything not placed stays visible in General rather than disappearing.
+ [...form.children].forEach(n=>put('general',n));
+ form.replaceChildren(bar,...Object.values(panels));
+ const show=key=>{for(const b of bar.children){const on=b.dataset.settingsTab===key;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1}for(const [k,p] of Object.entries(panels))p.hidden=k!==key;try{localStorage.setItem(SETTINGS_TAB_KEY,key)}catch{}};
+ bar.onclick=e=>{const b=e.target.closest('[data-settings-tab]');if(b)show(b.dataset.settingsTab)};
+ bar.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const list=[...bar.children],i=list.indexOf(document.activeElement),n=e.key==='Home'?0:e.key==='End'?list.length-1:(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;show(list[n].dataset.settingsTab);list[n].focus()};
+ let last='general';try{last=localStorage.getItem(SETTINGS_TAB_KEY)||'general'}catch{}
+ show(panels[last]?last:'general');
+}
 function quietScheduledDateField(){
  const text=document.querySelector('.scheduledDateBox .dayFirstText');if(!text||text.dataset.quiet)return;text.dataset.quiet='1';
  const idle=()=>{if(!text.value)text.placeholder='Add date'};idle();

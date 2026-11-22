@@ -1,3 +1,4 @@
+// Settings are tabbed; these checks show every panel so each control can be reached directly.
 const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');
 (async()=>{
@@ -6,7 +7,7 @@ const assert=require('node:assert/strict');
  await page.goto(require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../app.html')).href);
  await page.evaluate(()=>{localStorage.removeItem(APPEARANCE_KEY);appearance=normalizeAppearance(null);applyAppearance();installDatabase(createEmptyDatabase());const i=createItem(db,'Note');i.title='Settings test';i.content='Body text';edit(i.id)});
  const before=await page.evaluate(()=>JSON.stringify(db));
- const open=async()=>{await page.locator('#appMenu summary').first().click();await page.locator('#settingsBtn').click()};
+ const open=async()=>{await page.locator('#appMenu summary').first().click();await page.locator('#settingsBtn').click();await page.evaluate(()=>document.querySelectorAll('.settingsPanel').forEach(x=>x.hidden=false))};
  await open();await page.selectOption('#settingsFont','serif');await page.selectOption('#settingsEditorSize','20');await page.selectOption('#settingsInterfaceSize','16');await page.selectOption('#settingsTheme','dark');await page.locator('#modalOK').click();
  assert.equal(await page.evaluate(()=>JSON.stringify(db)),before);
  assert.equal(await page.locator('body').getAttribute('data-theme'),'dark');

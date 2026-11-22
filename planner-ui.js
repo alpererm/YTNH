@@ -205,6 +205,7 @@ const DailyPlanner = (() => {
     const gutter=64;
     const node=document.createElement('div'),i=b.item&&(itemById(db,b.item)||db.archiveIndex.find(a=>a.id===b.item));
     node.className='planBlock '+(b.meeting?'meeting':i?.type||'Note')+(b.done?' complete':'')+(identity(b)===selectedKey?' planSelected':'');
+    if(!b.meeting&&i?.type==='Todo')node.dataset.status=b.done?'Done':i.status||'Todo';
     node.style.top=top+'px';node.style.height=(bottom-top)+'px';node.dataset.part=start;
     node.style.left='calc('+gutter+'px + (100% - '+gutter+'px) * '+lane/count+')';node.style.width='calc((100% - '+gutter+'px) * '+1/count+' - 2px)';
 
