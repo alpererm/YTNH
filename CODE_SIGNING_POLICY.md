@@ -1,7 +1,5 @@
 # Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org)
-
 ## What is signed
 
 Only the Windows installer (`*-setup.exe`) and the application executable
