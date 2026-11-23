@@ -65,7 +65,7 @@ def verify(workflow)
   # The sqlite-handoff-preview branch no longer exists, so packaging always uses the main configuration.
   expected = "cargo tauri build --bundles ${{ matrix.bundles }}"
   check(package && package['run'] == expected, 'Packaging command must remain unchanged')
-  upload = build.fetch('steps').find { |step| step['uses'] == 'actions/upload-artifact@v6' }
+  upload = build.fetch('steps').find { |step| step['uses'] == 'actions/upload-artifact@v7' }
   check(upload && upload['with'] == {
     'name'=>'${{ matrix.name }}', 'if-no-files-found'=>'error',
     'path'=>"src-tauri/target/release/bundle/nsis/*-setup.exe\nsrc-tauri/target/release/bundle/dmg/*.dmg\n"

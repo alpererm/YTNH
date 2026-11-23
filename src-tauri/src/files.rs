@@ -18,7 +18,7 @@ pub struct Handle {
     pub revision: Option<String>,
 }
 pub fn revision(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
 }
 pub fn read_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
     match fs::metadata(path) {

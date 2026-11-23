@@ -26,7 +26,7 @@ pub fn canonical(value: &V) -> Vec<u8> {
     ordered.to_string().into_bytes()
 }
 pub fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
 }
 fn object(v: &V) -> Result<&Obj> {
     v.as_object().ok_or_else(|| "Expected an object".into())
@@ -676,4 +676,16 @@ fn read_model(c: &Connection) -> Result<V> {
     m["items"] = V::Array(items);
     locations::read(c, &mut m)?;
     Ok(m)
+}
+
+#[cfg(test)]
+mod digest_format {
+    // Stored fingerprints must stay lowercase hex across sha2 upgrades.
+    #[test]
+    fn digest_is_lowercase_hex_sha256() {
+        assert_eq!(
+            super::digest(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
 }
