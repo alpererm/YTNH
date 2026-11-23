@@ -41,3 +41,15 @@ jobs:
         run: cargo test --locked --manifest-path crates/library/Cargo.toml
       - name: Native storage tests
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml --features inline-images-preview
+  dependency-audit:
+    # Fails when a Rust dependency has a published security advisory (RustSec database).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Audit desktop shell dependencies
+        run: cargo audit --file src-tauri/Cargo.lock
+      - name: Audit shared library dependencies
+        run: cargo audit --file crates/library/Cargo.lock
