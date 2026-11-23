@@ -20,7 +20,7 @@
     "homepage": "https://github.com/alpererm/YTNH",
     "shortDescription": "Notes, todos and long-term planning in your own files",
     "longDescription": "YTNH is a local-first desktop app that keeps notes, todos and long-term planning together: a hierarchical outline, a rich-text editor and calendar planning, with your data in portable library files you control.",
-    "windows": { "nsis": { "installMode": "currentUser" }, "webviewInstallMode": { "type": "downloadBootstrapper" } },
+    "windows": { "nsis": { "installMode": "currentUser" }, "webviewInstallMode": { "type": "embedBootstrapper" } },
     "macOS": { "minimumSystemVersion": "11.0", "signingIdentity": "-" }
   }
 }

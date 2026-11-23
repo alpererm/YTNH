@@ -1,0 +1,310 @@
+/* ===== Review polish (2026-11) =====
+   Later layers win; each block names the review finding it implements. */
+
+/* Editor type scale (34, 41): the note title stays largest; no heading is smaller than body text. */
+:root body #layout #editor .editorDocument .editmeta{--title-first-line:calc(var(--editor-size,14px) * 1.64 * 1.3 + 6px)}
+:root body #layout #editor .editorDocument .editmeta #editorTitle{font-size:calc(var(--editor-size,14px) * 1.64);line-height:1.3;font-weight:650}
+:root body #editor #richEditor{line-height:1.6}
+:root body #editor #richEditor>:is([data-mdblock="h1"],[data-check-heading="h1"]){font-size:1.43em;font-weight:680;line-height:1.3;margin:1.1em 0 .45em}
+:root body #editor #richEditor>:is([data-mdblock="h2"],[data-check-heading="h2"]){font-size:1.21em;font-weight:660;line-height:1.35;margin:1em 0 .4em}
+:root body #editor #richEditor>:is([data-mdblock="h3"],[data-check-heading="h3"]){font-size:1.07em;font-weight:650;line-height:1.4;margin:.9em 0 .35em}
+:root body #editor #richEditor>:is([data-mdblock="h4"],[data-check-heading="h4"],[data-mdblock="h5"],[data-check-heading="h5"],[data-mdblock="h6"],[data-check-heading="h6"]){font-size:1em;font-weight:650;line-height:1.5;margin:.8em 0 .3em}
+:root body #editor #richEditor>:is([data-mdblock="h5"],[data-check-heading="h5"],[data-mdblock="h6"],[data-check-heading="h6"]){color:var(--muted)}
+:root body #editor #richEditor>:first-child{margin-top:0}
+
+/* Paragraph spacing (35): about half a line between paragraphs; list and checklist items stay tight. */
+:root body #editor #richEditor>[data-mdblock="p"]{margin:0 0 .55em}
+
+/* Consecutive quote lines read as one quote (36). */
+:root body #editor #richEditor>[data-mdblock="quote"]:has(+[data-mdblock="quote"]){margin-bottom:0;padding-bottom:0}
+:root body #editor #richEditor>[data-mdblock="quote"]+[data-mdblock="quote"]{margin-top:0;padding-top:0}
+
+/* Checklist boxes (2, 4): about 80% of the text, 12-18 px, centred on the first line; done items get a tick and muted text. */
+:root body #editor #richEditor{--check-size:clamp(12px,.8em,18px)}
+:root body #editor #richEditor>[data-mdblock="check"]{padding-left:calc(var(--check-size) + .65em)}
+:root body #editor .richEditor input.md-check{width:var(--check-size);height:var(--check-size);top:calc((1.6em - var(--check-size)) / 2);border-radius:3px}
+:root body #editor .richEditor input.md-check:checked{background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/80% no-repeat;border-color:var(--accent)}
+:root body[data-theme="dark"] #editor .richEditor input.md-check:checked{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23202123' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+:root body[data-theme="dark"] #editor .richEditor input.md-check:not(:checked){border-color:#7d8187}
+:root body #editor #richEditor>[data-mdblock="check"]:has(>input.md-check:checked){color:var(--muted)}
+
+/* Settings (3, 11): the list scrolls; Restore defaults and Done stay visible in a footer. */
+:root body .modal.settingsModal{display:flex;flex-direction:column;max-height:calc(100dvh - 36px);overflow:hidden}
+:root body .modal.settingsModal>#modalTitle{position:static;margin:0 0 4px;padding:0;border:0}
+:root body .modal.settingsModal>#modalText{margin:0 0 12px}
+:root body .modal.settingsModal>#modalExtra{flex:1 1 auto;min-height:0;overflow:auto;margin:0 -18px;padding:2px 18px 12px;border-top:1px solid var(--workspace-grid)}
+:root body .modal.settingsModal>.modalactions{flex:none;display:flex;align-items:center;gap:8px;margin:0 -18px -18px;padding:12px 18px;border-top:1px solid var(--workspace-grid)}
+:root body .modal.settingsModal>.modalactions .settingsDefaults{margin:0 auto 0 0}
+:root body .settingsError{grid-column:1 / -1;color:var(--danger)}
+
+/* About (15): standard layout; technical details stay small and last. */
+:root body .aboutContent .aboutLead{margin:0 0 10px;color:var(--ink);font-size:1.05em}
+:root body .aboutContent .aboutVersion{margin:0 0 12px;color:var(--muted)}
+:root body .aboutContent .aboutLinks{margin:0 0 12px}
+:root body .aboutContent .aboutLinks a{color:var(--accent)}
+:root body .aboutContent .aboutFootnote{margin:4px 0 0;color:var(--muted);font-size:12px}
+:root body .aboutContent .aboutTechnical{font-size:11px}
+
+/* Calendar and Targets fit their pane (30): no sideways scrolling, also with weekends shown and the Daily Planner open. */
+:root body #calendarBody :is(.weekview,.weekview.hide-weekends,.yearsGrid){min-width:0}
+:root body #calendarBody :is(.weekheader,.weekrow){grid-template-columns:34px repeat(7,minmax(0,1fr))}
+:root body #calendarBody .weekview.hide-weekends :is(.weekheader,.weekrow){grid-template-columns:34px repeat(5,minmax(0,1fr))}
+:root body #calendarBody .weekrow>.day{min-width:0}
+:root body #calendarBody .weekrow>.day .chip{min-width:0;max-width:100%}
+
+/* Calendar header (42): arrow buttons and the period title. */
+:root body #calendarControls .calendarArrow{display:inline-flex;align-items:center;justify-content:center;width:28px;min-width:28px;height:28px;padding:0}
+:root body #calendarControls .calendarArrow svg{width:16px;height:16px}
+:root body #calendarControls .calendarPeriodTitle{margin-left:6px;font-size:1.07em;font-weight:650;color:var(--ink);white-space:nowrap}
+
+/* A stronger today (42): tinted column, filled badge, accent week number. */
+:root body #calendarBody .weekrow>.day.today{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+:root body #calendarBody .weekrow>.day.today .daynum{font-weight:700;color:var(--ink)}
+:root body #calendarBody .weekrow>.day .daynum .todayBadge{display:inline-block;margin-left:5px;padding:0 7px;border-radius:9px;background:var(--accent);color:var(--accent-ink,#fff);font-size:11px;font-weight:650;line-height:1.6;vertical-align:1px}
+:root body #calendarBody .weekrow.current-week>.weeknum{font-weight:700;color:var(--accent)}
+:root body #calendarBody .weeknum .weekYear{display:block;font-size:10px;font-weight:600;color:var(--muted);line-height:1.2}
+
+/* Calendar chips (42): 11 px with tighter padding so more of each title fits. */
+:root body #calendarBody .weekrow>.day .chip{font-size:calc(var(--interface-size,14px) * .86);padding-inline:3px}
+:root body #calendarBody .weekrow>.day .chip .calendarItemTitle{font-size:inherit}
+/* The marker keeps its 24 px click target but only takes 16 px of the chip's width. */
+:root body #calendarBody .weekrow>.day .chip .itemMarker{margin-inline:-4px}
+
+/* Targets (7): the title starts at the bar's left edge; the marker and counter keep their size. */
+:root body #calendarBody .targetBar>.itemMarker{flex:none}
+:root body #calendarBody .targetBar>span:not(.itemMarker):not(.milestoneCount){flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+
+/* Daily Planner (42): readable block titles with a time line, and a clear red now-line. */
+:root body .planBlock{flex-wrap:wrap;align-content:flex-start}
+:root body .planBlock .planTitle{font-weight:600}
+:root body .planBlock .planTime{flex:0 0 100%;font-size:11px;color:var(--muted);line-height:1.3;padding-left:2px}
+:root body .planNow{height:2px;background:#d64545}
+:root body .planNow::before,:root body .planNow::after{background:#d64545}
+:root body .planNow span{color:#fff;background:#d64545;border-radius:4px;padding:0 4px;font-weight:600}
+:root body[data-theme="dark"] .planNow,:root body[data-theme="dark"] .planNow::before,:root body[data-theme="dark"] .planNow::after{background:#e28d8d}
+:root body[data-theme="dark"] .planNow span{color:#202123;background:#e28d8d}
+
+/* Code blocks (33): a shaded monospace box; the ``` fence lines are hidden in rich mode (Source mode still shows them). */
+:root body #editor #richEditor>[data-mdblock="code"]{font-family:var(--mono);font-size:.9em;line-height:1.55;white-space:pre;overflow-x:auto;tab-size:4;background:color-mix(in srgb,var(--ink) 5%,transparent);border:0;border-radius:6px;padding:9px 12px;margin:.45em 0 .8em}
+:root body[data-theme="dark"] #editor #richEditor>[data-mdblock="code"]{background:var(--panel);border:1px solid var(--line)}
+:root body #editor #richEditor>[data-mdblock="code"] .md-fence{display:none}
+
+/* Tags (37): removable chips inside the field; inherited tags as muted badges below. */
+:root body #editorSidebar .tagField{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-height:32px;padding:4px 6px;cursor:text;box-sizing:border-box}
+:root body #editorSidebar .tagField:focus-within{border-color:var(--accent)}
+:root body #editorSidebar .tagChips{display:contents}
+:root body #editorSidebar .tagChip{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:1px 3px 1px 8px;border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,var(--bg));color:var(--ink);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+:root body #editorSidebar .tagChip button{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;min-width:16px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:13px;line-height:1;cursor:pointer}
+:root body #editorSidebar .tagChip button:hover{background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink)}
+:root body #editorSidebar #tagInput{flex:1 1 70px;min-width:70px;border:0;outline:0;background:transparent;padding:2px;font:inherit;font-size:12px;color:var(--ink);box-shadow:none}
+:root body #editorSidebar #inheritedTagInfo{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px}
+:root body #editorSidebar #inheritedTagInfo:empty{display:none}
+:root body #editorSidebar .tagInheritedLabel{font-size:12px;color:var(--muted)}
+:root body #editorSidebar #inheritedTagInfo .tagbadge.inherited{background:var(--soft);color:var(--muted);font-size:12px;border-radius:10px;padding:1px 8px}
+
+/* Application menu (16, 40): one flat list with dividers, shortcuts on the right, Open Recent as a side flyout. */
+:root body #appMenu .appMenuBody{min-width:260px;padding:5px}
+:root body #appMenu .appMenuSection{display:grid;gap:1px;margin:0;padding:4px 0;border:0}
+:root body #appMenu .appMenuSection+.appMenuSection{border-top:1px solid var(--workspace-grid);margin-top:0}
+:root body #appMenu .appMenuSection:empty{display:none}
+:root body #appMenu .appMenuSection>button,:root body #appMenu .recentFilesMenu>summary{display:flex;align-items:center;gap:16px;width:100%;padding:6px 10px;border:0;border-radius:6px;background:transparent;color:var(--ink);font:inherit;font-weight:400;text-align:left;white-space:nowrap;cursor:pointer;box-shadow:none}
+:root body #appMenu .appMenuSection>button:hover:not(:disabled),:root body #appMenu .recentFilesMenu>summary:hover,:root body #appMenu .recentFilesMenu[open]>summary{background:var(--workspace-hover)}
+:root body #appMenu .appMenuSection>button:disabled{color:var(--muted);cursor:default}
+:root body #appMenu .appMenuSection>button[hidden]{display:none}
+:root body #appMenu .menuShortcut{margin-left:auto;font:inherit;font-size:12px;color:var(--muted);background:none;border:0;padding:0}
+:root body #appMenu .recentFilesMenu{position:relative}
+:root body #appMenu .recentFilesMenu>summary{list-style:none}
+:root body #appMenu .recentFilesMenu>summary::-webkit-details-marker{display:none}
+:root body #appMenu .recentFilesMenu>summary::after{content:"›";margin-left:auto;color:var(--muted);font-size:15px;line-height:1}
+:root body :is(#appMenu .recentFilesMenu>#recentFilesList,#recentFilesList.recentFilesFlyout){position:absolute;left:calc(100% + 6px);top:-5px;z-index:41;display:grid;gap:1px;min-width:220px;max-width:340px;padding:5px;border:1px solid var(--workspace-grid);border-radius:8px;background:var(--panel);color:var(--muted);font-size:13px}
+:root body :is(#appMenu .recentFilesMenu>#recentFilesList,#recentFilesList.recentFilesFlyout)>button{padding:6px 10px;border:0;border-radius:6px;background:transparent;color:var(--ink);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+:root body #appMenu .recentFilesMenu>#recentFilesList>button:hover{background:var(--workspace-hover)}
+:root body #appMenu .menuStatus{display:block;margin-top:4px;padding:7px 10px 3px;border-top:1px solid var(--workspace-grid);font-size:12px;color:var(--muted)}
+:root body #formatTooltip .tooltipShortcut{margin-left:10px;font:inherit;opacity:.75;background:none;border:0;padding:0}
+
+/* Type and spacing (41): secondary text follows the interface size at 86% (12 px by default); the side panel gets even 14 px padding and clearer section spacing. */
+:root body #tree :is(.outlineTarget,.outlineTag,.outlineMilestone){font-size:calc(var(--interface-size,14px) * .86)}
+:root body #editorSidebar :is(.label,.dateJumpBtn,.muted.small){font-size:calc(var(--interface-size,14px) * .86)}
+:root body #editorSidebar .label{color:var(--muted);margin-bottom:5px}
+:root body #editorSidebar .sidebarPanel{padding:14px}
+:root body #editorSidebar .sidebarTabs{margin-inline:14px}
+:root body #editorSidebar .editorOptions{gap:18px}
+:root body #editorSidebar .editorPropertyRow{gap:18px}
+:root body #editorSidebar .scheduledDateBox .dayFirstField:not(:focus-within) .dayFirstText{border-color:transparent;background:transparent;padding-left:2px}
+:root body #editorSidebar .scheduledDateBox .dayFirstField:not(:focus-within) .dayFirstText::placeholder{color:var(--muted);opacity:1}
+:root body #editorSidebar .scheduledDateBox .dayFirstField:not(:focus-within) .dayPickerGlyph{opacity:.6}
+:root body #editorSidebar .scheduledDateBox .dates:not(:empty){margin-top:6px}
+
+/* Help (14): search box, grouped shortcut tables. */
+:root body .helpContent .helpSearch{width:100%;margin:0 0 10px;box-sizing:border-box}
+:root body .helpContent>details>p{margin:6px 0 10px;line-height:1.55}
+:root body .helpContent .helpShortcuts h4{margin:14px 0 6px;font-size:13px;color:var(--ink)}
+:root body .helpContent .helpShortcuts h4:first-child{margin-top:4px}
+:root body .helpContent .helpShortcuts .helpGrid{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:4px 14px;align-items:baseline}
+:root body .helpContent .helpKeys{font-family:var(--app-font,system-ui);font-size:12px;color:var(--ink);white-space:nowrap;font-weight:600}
+:root body .helpContent [hidden]{display:none!important}
+
+/* Outline arrows (45): the arrow button and the empty slot share one size and offset, so rows with
+   and without an arrow have the same height and the arrow is centred on the title's first line. */
+:root body :is(#tree,#pinnedOutline) .row>:is(.outlineChevron,.chevronSpace){height:24px;margin-top:calc((var(--title-line-height) - 24px)/2)}
+
+/* Quieter arrows (46): on expanded parents the arrow appears on hover or keyboard focus; collapsed
+   parents always show theirs because it signals hidden content. Every arrow gets a hover background. */
+:root body :is(#tree,#pinnedOutline) .row>.outlineChevron[aria-expanded="true"]{opacity:0;transition:opacity .12s ease}
+:root body :is(#tree,#pinnedOutline) .row:is(:hover,:focus,:focus-within,.currentItem)>.outlineChevron[aria-expanded="true"],
+:root body :is(#tree,#pinnedOutline):focus-within .row.currentItem>.outlineChevron{opacity:1}
+:root body :is(#tree,#pinnedOutline) .row>.outlineChevron:hover{background:var(--workspace-hover);border-radius:5px;color:var(--ink)}
+@media (prefers-reduced-motion:reduce){:root body :is(#tree,#pinnedOutline) .row>.outlineChevron{transition:none}}
+
+/* Completion feedback (43): the marker pops when a Todo is completed; after the grace period the row fades and collapses. */
+@keyframes ytnhCompletePop{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
+:root body .itemMarker.justCompleted svg{animation:ytnhCompletePop .36s cubic-bezier(.3,1.6,.5,1)}
+@keyframes ytnhCompleteOut{from{opacity:1;max-height:80px}to{opacity:0;max-height:0;padding-top:0;padding-bottom:0;margin-top:0;margin-bottom:0}}
+:root body :is(.row,.chip).completingOut{animation:ytnhCompleteOut .22s ease forwards;overflow:hidden;pointer-events:none}
+@media (prefers-reduced-motion:reduce){:root body .itemMarker.justCompleted svg,:root body :is(.row,.chip).completingOut{animation:none}}
+
+/* Headings (44): a muted section label with a rule after it; no marker; hidden rows of a collapsed section. */
+:root body :is(#tree,#pinnedOutline) .row.headingRow .title{font-size:calc(var(--interface-size,14px) * .86);font-weight:650;letter-spacing:.02em;color:var(--muted);text-decoration:none}
+:root body :is(#tree,#pinnedOutline) .row.headingRow .outlineTitleLine{display:flex;align-items:center;gap:8px;width:100%}
+:root body :is(#tree,#pinnedOutline) .row.headingRow .outlineTitleLine::after{content:"";flex:1;min-width:12px;border-top:1px solid var(--workspace-grid)}
+:root body :is(#tree,#pinnedOutline) .row.headingRow .outlineText{flex:1;min-width:0}
+:root body #tree .row.sectionHidden{display:none}
+/* Search: the magnifier stays and rides the left edge of a rounded field that grows out of it (and shrinks back into it). */
+:root body .outlineSearchSlot .outlineSearchButton{order:-1;position:relative;z-index:1;transition:margin-right 240ms cubic-bezier(.2,.8,.2,1),background-color 120ms}
+:root body .outlineSearchSlot #search{height:30px;border-radius:15px;border:0 solid transparent;box-sizing:border-box;transition:width 240ms cubic-bezier(.2,.8,.2,1),padding 240ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease,border-color 160ms ease,background-color 160ms ease,visibility 0s linear 240ms}
+:root body .outlineSearchSlot.search-expanded #search{width:100%;padding:0 10px 0 32px;border-width:1px;border-color:var(--line);background:var(--soft)!important;opacity:1;visibility:visible;transition:width 240ms cubic-bezier(.2,.8,.2,1),padding 240ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease 40ms,border-color 160ms ease,background-color 160ms ease,visibility 0s}
+:root body .outlineSearchSlot.search-expanded #search:focus{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+:root body .outlineSearchSlot.search-expanded .outlineSearchButton{display:flex;margin-right:-30px;pointer-events:none;background:transparent}
+@media(prefers-reduced-motion:reduce){:root body .outlineSearchSlot :is(#search,.outlineSearchButton){transition:none!important}}
+/* Editor heading list: the current heading is shown by text colour only (no background, in every theme). */
+:root body #editorSidebar .documentHeading button.current,:root body .documentHeading button.current{background:transparent!important}
+:root body #editorSidebar .documentHeading .headingDisclosure{opacity:.55;font-size:9px}
+:root body #editorSidebar .documentHeading .headingDisclosure:hover{opacity:.9}
+body[data-theme="dark"] #editorSidebar .documentHeading button[data-heading-index]{color:#97A6B1}
+body[data-theme="dark"] #editorSidebar .documentHeading button[data-heading-index].current{color:#CCDBE5}
+body[data-theme="dark"] #editorSidebar .documentHeading .headingDisclosure{color:#97A6B1}
+/* Pane separators: about 25% softer than the workspace grid; same thickness, position and behaviour. */
+:root body{--pane-divider:color-mix(in srgb,var(--line) 31%,transparent)}
+:root body .splitter:not(:hover)::after{background:var(--pane-divider)}
+:root body.resizing .splitter::after{background:var(--accent)}
+:root body #dailyPlanner{border-left-color:var(--pane-divider)}
+:root body #layout #editorSidebar{border-inline-start-color:var(--pane-divider)}
+/* Toolbars: one scale everywhere (Outline, Editor, sidebar, Calendar, Targets, Daily Planner).
+   Icon-only buttons 30x30 round with 16 px SVG icons; text buttons 30 px tall; 4 px within a group.
+   One hover, active (pressed/open), disabled and focus treatment. */
+:root body{--tb-size:30px;--tb-icon:16px;--tb-gap:4px}
+:root body :is(#appMenu>summary,#outlineSearchButton,#filtersToggle,#outlineGroupButton,#editor #formatMenu>summary,#documentFindButton,#editorFocusToggle,#sidebarToggle,#editorSidebar .sidebarTabs button,#weeksEarlier,#weeksLater,#yearsPrevious,#yearsNext,#plannerToggle,#dailyPlanner header :is([data-act=prev],[data-act=next],[data-act=pin])){
+ display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:var(--tb-size);min-width:var(--tb-size);height:var(--tb-size);padding:0;margin:0;border:0 solid transparent;border-radius:50%;background:transparent;box-shadow:none;color:var(--muted);font-weight:400;line-height:1;cursor:pointer;transition:background-color 120ms,color 120ms}
+:root body :is(#appMenu>summary,#outlineSearchButton,#filtersToggle,#outlineGroupButton,#editor #formatMenu>summary,#documentFindButton,#editorFocusToggle,#sidebarToggle,#editorSidebar .sidebarTabs button,#weeksEarlier,#weeksLater,#yearsPrevious,#yearsNext,#plannerToggle,#dailyPlanner header :is([data-act=prev],[data-act=next],[data-act=pin])) svg{width:var(--tb-icon);height:var(--tb-icon);flex:none;display:block}
+:root body :is(#appMenu>summary,#outlineSearchButton,#filtersToggle,#outlineGroupButton,#editor #formatMenu>summary,#documentFindButton,#editorFocusToggle,#sidebarToggle,#editorSidebar .sidebarTabs button,#weeksEarlier,#weeksLater,#yearsPrevious,#yearsNext,#plannerToggle,#dailyPlanner header :is([data-act=prev],[data-act=next],[data-act=pin])):hover{background:var(--outline-hover);color:var(--ink)}
+:root body :is(#appMenu[open]>summary,#outlineSearchButton[aria-expanded=true],#filtersToggle:is([data-active=true],[aria-expanded=true]),#outlineGroupButton:is([data-active=true],[aria-expanded=true]),#editor #formatMenu[open]>summary,#documentFindButton[aria-pressed=true],#editorFocusToggle[aria-pressed=true],#sidebarToggle[aria-pressed=true],#editorSidebar .sidebarTabs button:is([aria-selected=true],[aria-pressed=true],.active),#plannerToggle[aria-pressed=true],#dailyPlanner header [data-act=pin][aria-pressed=true]){background:var(--soft);color:var(--ink)}
+:root body :is(#calendarControls,#mainPaneHead,#dailyPlanner header,.outlineActionsHead,#editor .editmeta,#editorSidebar .sidebarTabs) :is(button,summary):disabled{opacity:.4;cursor:default;background:transparent}
+:root body :is(#calendarControls,#mainPaneHead,#dailyPlanner header,.outlineActionsHead,#editor .editmeta,#editorSidebar .sidebarTabs) :is(button,summary):focus-visible{outline:1px solid var(--accent);outline-offset:1px}
+:root body :is(#weeksEarlier,#weeksLater,#yearsPrevious,#yearsNext,#editor #formatMenu>summary) svg :is(path,circle,rect,line,polyline){stroke-width:1.7}
+:root body :is(#today,#weekMode,#yearsMode){height:var(--tb-size);min-height:var(--tb-size);padding:0 10px;border-radius:8px;line-height:1;transition:background-color 120ms,color 120ms}
+:root body :is(#today,#weekMode,#yearsMode):hover{background:var(--outline-hover);color:var(--ink)}
+:root body :is(.outlineIconActions,#weeksNavigation,#dailyPlanner header,#editorSidebar .sidebarTabs){gap:var(--tb-gap)}
+:root body .outlineActionsHead .outlineHeaderLeft{gap:var(--tb-gap)}
+:root body #tree .welcomeEmpty{padding:28px 18px;text-align:left;line-height:1.5}
+:root body #tree .welcomeEmpty p{margin:0 0 8px}
+:root body #tree .welcomeActions{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:14px;max-width:220px}
+:root body .refResult.inactiveResult{opacity:.6}
+/* No caret unless the editor itself has focus (WebKit can paint one in an unfocused editor). */
+:root body :is(#richEditor,#content,#editorTitle):not(:focus){caret-color:transparent}
+:root body .settingsForm .settingsTabs{display:flex;gap:4px;border-bottom:1px solid var(--workspace-grid);margin:0 0 12px;padding-bottom:6px;position:sticky;top:0;background:var(--panel,var(--bg));z-index:1}
+:root body .settingsTabs button{border:0;background:transparent;box-shadow:none;padding:5px 12px;border-radius:8px;color:var(--muted);font-weight:500}
+:root body .settingsTabs button:hover{background:var(--outline-hover);color:var(--ink)}
+:root body .settingsTabs button[aria-selected="true"]{background:var(--soft);color:var(--ink)}
+:root body .settingsPanel{display:grid;gap:12px;align-content:start;min-height:330px}
+:root body .settingsPanel[hidden]{display:none}
+:root body .settingsGroupTitle{font-size:12px;color:var(--muted);margin:6px 0 4px}
+/* Editor lists: markers in the theme accent; nested bullets change shape; numbers align; the quote bar
+   steps back so it doesn't compete with the markers. */
+:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])::before{color:var(--accent);font-weight:700}
+:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="1"]::before,:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="4"]::before{content:"◦";font-weight:400}
+:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="2"]::before,:root body #editor #richEditor :is([data-mdblock="ul"],[data-mdblock="li"])[data-mddepth="5"]::before{content:"▪";font-weight:400;font-size:.8em}
+:root body #editor #richEditor .md-list-marker{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+:root body #editor .richEditor input.md-check:not(:checked){border:1.5px solid var(--accent)}
+:root body #editor #richEditor>[data-mdblock="quote"]{border-left-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+/* One status palette everywhere (Outline, Calendar, Daily Planner, inline Todos, pickers).
+   Open items are quiet graphite; Done fills with the accent; Waiting for is amber; On hold is violet with a
+   dashed ring; Cancelled is grey and struck; meetings are teal; red only marks overdue dates.
+   Titles keep the normal text colour; the marker carries the status. */
+:root body{--st-open:#5d6670;--st-done:var(--accent);--st-wait:#8a5d0f;--st-hold:#6f5e86;--st-cancel:#8a8f94;--st-meeting:#2f6f68;--st-overdue:#a83232;--st-muted:#6b7177}
+:root body[data-theme="dark"]{--st-open:#b9c2ca;--st-wait:#e3b866;--st-hold:#b4a3cb;--st-cancel:#8e9399;--st-meeting:#7cc4bc;--st-overdue:#f08c8c;--st-muted:#9a9fa5}
+:root body{--status-done:var(--st-muted);--status-cancelled:var(--st-cancel);--status-waiting:var(--st-wait);--status-hold:var(--st-hold);--outline-todo-ink:var(--st-open);--outline-note-ink:var(--st-open);--todo-code:var(--st-open);--note-code:var(--st-open);
+ --inline-todo:var(--accent);--inline-done:var(--st-muted);--inline-wait:var(--st-wait);--inline-hold:var(--st-hold);--inline-cancel:var(--st-cancel)}
+:root body :is(#app) .itemMarker{color:var(--st-open)!important}
+:root body :is(#app) .itemMarker[data-marker-status="Done"]{color:var(--st-done)!important}
+:root body :is(#app) .itemMarker[data-marker-status="Waiting for"]{color:var(--st-wait)!important}
+:root body :is(#app) .itemMarker[data-marker-status="On hold"]{color:var(--st-hold)!important}
+:root body :is(#app) .itemMarker[data-marker-status="Cancelled"]{color:var(--st-cancel)!important}
+:root body :is(#app) .itemMarker[data-marker-type="Todo"][data-marker-status="On hold"] svg>circle:first-child{stroke-dasharray:3.2 2.4}
+:root body :is(#tree,#pinnedOutline) .row:is(.status-waiting-for,.status-on-hold) .title{color:inherit}
+:root body :is(#tree,#pinnedOutline) .row:is(.status-done,.status-cancelled) .title{color:var(--st-muted);opacity:1;text-decoration:line-through}
+:root body #calendarBody .chip,:root body #calendarBody .chip .cal-code{color:var(--ink)!important}
+:root body #calendarBody .chip:is(.status-waiting-for,.status-on-hold){background:transparent}
+:root body #calendarBody .chip:is(.status-done,.status-cancelled),:root body #calendarBody .chip:is(.status-done,.status-cancelled) .cal-code{color:var(--st-muted)!important;background:transparent;opacity:1;text-decoration:line-through}
+:root body #dailyPlanner{--meeting-color:var(--st-meeting);--plan-note:var(--st-cancel)}
+:root body #dailyPlanner .planBlock.Todo{--block-color:var(--accent);--tint:14%}
+:root body #dailyPlanner .planBlock.Todo[data-status="Waiting for"]{--block-color:var(--st-wait)}
+:root body #dailyPlanner .planBlock.Todo[data-status="On hold"]{--block-color:var(--st-hold)}
+:root body #dailyPlanner .planBlock.Todo:is([data-status="Done"],[data-status="Cancelled"]),:root body #dailyPlanner .planBlock.complete{--block-color:var(--st-cancel);--tint:8%}
+:root body #dailyPlanner .planBlock.Note{--tint:12%}
+:root body #dailyPlanner .planBlock.complete .itemMarker{color:var(--st-done)!important}
+:root body .outlineNavigation button.overdue{color:var(--st-overdue);opacity:1}
+body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-index].current{color:var(--accent)}
+:root body .caretPopover{position:fixed;z-index:60;min-width:220px;max-width:340px;max-height:300px;overflow:auto;padding:4px;border:1px solid var(--workspace-grid);border-radius:8px;background:var(--panel,var(--bg));box-shadow:0 6px 20px rgba(0,0,0,.18);font-size:13px}
+:root body .caretPopover.hidden{display:none}
+:root body .caretPopoverItem{display:flex;align-items:center;gap:6px;width:100%;border:0;background:transparent;box-shadow:none;text-align:left;padding:5px 8px;border-radius:6px;color:var(--ink);cursor:pointer}
+:root body .caretPopoverItem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:root body .caretPopoverItem[aria-selected="true"],:root body .caretPopoverItem:hover{background:var(--soft)}
+:root body .caretPopoverItem.inactiveResult{opacity:.6}
+:root body .caretPopoverEmpty{padding:6px 8px;color:var(--muted)}
+:root body .selectionBar{position:fixed;z-index:59;display:flex;gap:2px;padding:3px;border:1px solid var(--workspace-grid);border-radius:8px;background:var(--panel,var(--bg));box-shadow:0 4px 14px rgba(0,0,0,.16)}
+:root body .selectionBar.hidden{display:none}
+:root body .selectionBar button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;box-shadow:none;color:var(--muted);cursor:pointer}
+:root body .selectionBar button:hover{background:var(--outline-hover);color:var(--ink)}
+:root body .selectionBar button[aria-pressed="true"]{background:var(--soft);color:var(--ink)}
+:root body .selectionBar svg{width:16px;height:16px}
+/* Pinned items wrap like Outline rows instead of widening the pinned area (no horizontal scrollbar). */
+:root body #pinnedOutline{overflow-x:hidden}
+:root body #pinnedOutline .pinEntry,:root body #pinnedOutline .row{min-width:0;max-width:100%}
+:root body #pinnedOutline .row .outlineText{flex:1;min-width:0}
+:root body #pinnedOutline .row .title{white-space:normal;overflow-wrap:anywhere;text-overflow:clip}
+#editor .documentScroll::after{content:"";display:block;height:var(--scroll-past-end,0px);pointer-events:none}
+#editor .documentScroll:has(> #content:not(.hidden))::after{display:none}
+:root body #editor .documentScroll > #content{padding-bottom:calc(16px + var(--scroll-past-end,0px))!important}
+:root body :is(#tree,#pinnedOutline) .row{min-height:calc(var(--title-line-height) + 8px)}
+/* Outline indicators: equally small, thin and quiet; right-aligned, no backgrounds or borders. */
+:root body .outlineNavigation{gap:1px;margin-left:auto;padding-left:4px}
+:root body .outlineNavigation button{width:19px;min-width:19px;height:24px;color:var(--muted);opacity:.72;background:transparent!important;border:0;box-shadow:none;transition:opacity 120ms,color 120ms}
+:root body .outlineNavigation button:hover,:root body .outlineNavigation button:focus-visible{opacity:1;color:var(--ink)}
+:root body .outlineNavigation svg{width:12px;height:12px}
+:root body .outlineNavigation .navigationSlot{display:inline-block;width:19px;min-width:19px}
+#formatTooltip .tooltipLabel{white-space:pre-line}
+:root body :is(#tree,#pinnedOutline) .row>:is(.outlineChevron,.chevronSpace,.itemMarker,.outlineNavigation,.locationButton){margin-bottom:calc((var(--title-line-height) - 24px)/2)}
+:root body .planBlock{--plan-title-lh:17px;padding:4px 6px 3px 4px;column-gap:3px}
+:root body .planBlock .planTitle{line-height:var(--plan-title-lh)}
+:root body .planBlock .planTime{padding-left:23px}
+:root body #tree .row .searchContext{font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */
+:root body #layout.editor-focus #editor .editorDocument{width:100%;max-width:calc(var(--editor-size,14px) * 40 + 72px);margin-inline:auto}
+:root body #layout.editor-focus #editor #richEditor .editorTable,:root body #layout.editor-focus #editor #richEditor [data-mdblock="table"]{max-width:100%;overflow-x:auto}
+
+/* Grouped Outline headers: quiet section labels with the Outline chevron (nested tags indent). */
+:root body #tree button.outlineGroupHead{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:26px;margin:0;padding:3px 8px 3px 4px;border:0;border-radius:6px;background:transparent;box-shadow:none;font:inherit;font-size:12px;font-weight:400;color:var(--muted);text-align:left;cursor:pointer}
+:root body #tree button.outlineGroupHead:hover{background:var(--workspace-hover)}
+:root body #tree .outlineGroupHead .groupHeadLabel{display:flex;align-items:center;gap:4px;min-width:0}
+:root body #tree .outlineGroupHead .groupChevron{display:inline-grid;place-items:center;width:15px;height:17px;flex:0 0 15px;background:transparent;border:0;border-radius:0;color:var(--muted)}
+:root body #tree .outlineGroupHead .groupChevron svg{width:13px;height:13px;display:block}
+:root body #tree .outlineGroupHead .groupHeadTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)!important;font-size:12px;font-weight:400;background:transparent!important;border-radius:0;padding:0}
+:root body #tree .outlineGroupHead .groupHeadCount{flex:none;font-size:11px;font-weight:400;color:var(--muted);background:transparent!important;padding:0}
+
+/* Calendar titles wrap to two lines before shortening (R8). */
+:root body #calendarBody .chip,:root body #calendarBody .chip .cal-code{white-space:normal}
+:root body #calendarBody .chip .calendarItemTitle{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:1.25}
+
+/* Open Recent flyout while moved to the page top level. */
+:root body #recentFilesList.recentFilesFlyout{position:fixed;z-index:300}
