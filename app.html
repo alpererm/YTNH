@@ -187,7 +187,7 @@ function paintOutlineSelection(){
  paintTargetSelection();
  rememberFocusedItem();
  const activeLocation=locationRow(selected)?.dataset.location;
- $("tree").querySelectorAll(".row[data-id]").forEach(r=>{const current=r.dataset.id===selected&&(!db?.locations||r.dataset.location===activeLocation);r.classList.toggle("sel",current||(db?.locations&&multiLocations.size?multiLocations.has(r.dataset.location):multiSelected.size>1&&multiSelected.has(r.dataset.id)));r.classList.toggle("currentItem",current)});updateOutlinePaneMarker();
+ $("tree").querySelectorAll(".row[data-id]").forEach(r=>{const current=r.dataset.id===selected&&(!db?.locations||r.dataset.location===activeLocation);r.classList.toggle("sel",current||(db?.locations&&multiLocations.size?multiLocations.has(r.dataset.location):multiSelected.size>1&&multiSelected.has(r.dataset.id)));r.classList.toggle("currentItem",current);r.setAttribute("aria-selected",current?"true":"false")});updateOutlinePaneMarker();
 }
 function openSelectedInFullEditor(id){
  if(!id)return;selected=id;clearTimeout(codeSingleClickTimer);clearTimeout(calendarSingleClickTimer);
@@ -236,7 +236,7 @@ function startCompletionGrace(item,{candidates=[],wasOpen=false}={}){
  cancelCompletionGrace(item.id);
  const timer=setTimeout(()=>finishCompletionGrace(item.id),2000);
  completionGrace.set(item.id,{timer,candidates,wasOpen});
- render();if(editorIsOpen()&&selected===item.id)edit(item.id);
+ if(!patchRender([item.id]))render();if(editorIsOpen()&&selected===item.id)edit(item.id);
  markJustCompleted(item.id);playCompletionSound();
  focusOutlineItem(selected);
 }
@@ -250,7 +250,7 @@ function finishCompletionGrace(id){
    if(completionGrace.get(id)!==g)return;
    completionGrace.delete(id);
    const item=itemById(db,id);
-   render();
+   if(!patchRemoveOutlineRow(id))render();
    if(item&&selected===id&&!doneIsVisible(item.status,null,item)){
      const visible=new Set(visibleOutlineIds());selected=g.candidates.find(c=>visible.has(c))||null;multiSelected.clear();paintOutlineSelection();
      if(g.wasOpen){if(selected)edit(selected);else showCalendar()}
@@ -274,7 +274,7 @@ function setOutlineCompletion(item,status){
  const ids=visibleOutlineIds(),index=ids.indexOf(item.id),candidates=[...ids.slice(index+1),...ids.slice(0,Math.max(0,index)).reverse()].filter(id=>id!==item.id),wasOpen=editorIsOpen();
  checkpoint();setItemCompletionStatus(item,status);completeSearchAction(item.id);outlineRevealId=null;
  if(status==='Done'&&!isRecurringTodo(item)&&!showDoneItems()){startCompletionGrace(item,{candidates,wasOpen});return}
- cancelCompletionGrace(item.id);render();
+ cancelCompletionGrace(item.id);if(!patchRender([item.id]))render();
  const statuses=parseSearchQuery($('search').value).statuses.length?parseSearchQuery($('search').value).statuses:selectedStatusFilters();
  if(!isRecurringTodo(item)&&!doneIsVisible(item.status,statuses)){
    const visible=new Set(visibleOutlineIds());selected=candidates.find(id=>visible.has(id))||null;multiSelected.clear();paintOutlineSelection();
@@ -1005,7 +1005,7 @@ $("dates").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
   const d=b.dataset.rm;if(!(i.scheduledDates||[]).includes(d))return;
   checkpoint();i.scheduledDates=i.scheduledDates.filter(x=>x!==d);touch(db,i);render();edit(i.id)
 });
-renderTree();restoreItemEditorLocation(id,false);refreshEditorSidebar()}
+if(outlinePatchable()&&locationRow(id))paintSelectionLikeRedraw();else renderTree();restoreItemEditorLocation(id,false);refreshEditorSidebar()}
 function moveVisibleOutline(direction,toRoot=false){
  return !!(db&&!currentGroupBy()&&moveLocationByKey(direction,toRoot));
 }

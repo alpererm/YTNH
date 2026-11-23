@@ -386,7 +386,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
 
  const match=searching?null:matchedSet(),filtering=!!(!showDoneItems()||$("search").value||statusFilterActive()||$("createdFrom").value||$("createdTo").value||$("scheduledFrom").value||$("scheduledTo").value);
  const graph=db.locations?locationsForRead(db):null,chosen=graph?.selected(itemById(db,selected));
- const row=(i,d,{grouped=false,shortcut=false,hierarchy=false,allowed=null,heading=null,location=graph?.primary(i)}={})=>{
+ const rowRaw=(i,d,{grouped=false,shortcut=false,hierarchy=false,allowed=null,heading=null,location=graph?.primary(i)}={})=>{
    const current=selected===i.id&&(!graph||location?.id===chosen?.id);
    if(allowed&&!allowed.has(graph&&hierarchy?location.id:i.id))return '';
    if(!grouped&&(filtering||graph)&&!(match?.locations?match.locations.has(location.id):match.has(i.id)))return '';
@@ -418,6 +418,10 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
    ].filter(Boolean).join('');
    return `<div class="row ${i.heading?'headingRow':''} ${current?'currentItem':''} ${grouped?'grouped-row':''} ${outlineDayFilter&&!scheduledGroupingDates(i).includes(outlineDayFilter)?'day-context-row':''} ${heading?'targetGroupRow':''} ${current||(graph&&multiLocations.size?multiLocations.has(location.id):multiSelected.size>1&&multiSelected.has(i.id))?'sel':''} ${i.type==='Todo'?statusClass(i.status||'Todo'):''}" data-id="${esc(i.id)}" data-location="${esc(location?.id||i.id)}" data-item-type="${i.type}" draggable="true" tabindex="-1" role="treeitem" aria-level="${visualDepth+1}" aria-selected="${current?'true':'false'}" data-indent="${indent}" data-hierarchy-depth="${visualDepth}" ${groupArrow||showArrow?`aria-expanded="${heading?!heading.collapsed:!collapsed}"`:''}>${groupArrow?`<button type="button" class="targetGroupToggle outlineChevron" data-group-toggle="${esc(heading.key)}" aria-label="${heading.collapsed?'Expand':'Collapse'} Target group" aria-expanded="${!heading.collapsed}">${disclosureIcon(!heading.collapsed)}</button>`:!shortcut&&(!grouped||hierarchy)?(i.heading?`<button type="button" tabindex="-1" class="outlineChevron headingToggle" data-heading-toggle="${esc(i.id)}" aria-label="${i.collapsed?'Expand':'Collapse'} section" aria-expanded="${!i.collapsed}">${disclosureIcon(!i.collapsed)}</button>`:showArrow?disclosureButton(!collapsed,'treeExpand'):'<span class="chevronSpace" aria-hidden="true"></span>'):''}${i.heading?'':itemMarker(i,{code:true,outline:true})}<div class="outlineText"><div class="outlineTitleLine"><span class="title ${cl}">${esc(i.title||'(untitled)')}</span>${icons?`<span class="outlineIcons">${icons}</span>`:''}</div>${searching?imageSearchResult(i,$("search").value):''}${metadata?`<div class="outlineMetadata">${metadata}</div>`:''}</div>${link}${outlineNavigationIndicators(i,navigationSessions)}</div>${heading||(grouped&&!hierarchy)||collapsed?'':ks.map(k=>renderChild(k,d+1)).join('')}`;
  };
+ // Remember how every row was built so one changed row can be rebuilt alone (patchRender).
+ const rowArgs=new Map();
+ const row=(i,d,opts)=>{rowArgs.set(((opts&&opts.location)||graph?.primary(i))?.id||i.id,[i,d,opts]);return rowRaw(i,d,opts)};
+ outlineRowContext={db,row:rowRaw,args:rowArgs,searching,mode:currentGroupBy(),filtersKey:outlineFilterKey()};
  paintPins(row,graph);
  if(dateErr&&!searching){t.innerHTML=`<div class="empty filterError">${esc(dateErr.message)}</div>`;return}
  if(searching){
@@ -464,4 +468,56 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
 }
 function mondayOf(date){
  const d=new Date(date.getFullYear(),date.getMonth(),date.getDate(),12),off=(d.getDay()+6)%7;d.setDate(d.getDate()-off);return d
+}
+
+// Single-row updates: when one item changes but the Outline's structure cannot, rebuild just
+// that row from the arguments of the last full redraw. Searches, filters, grouping, zoom,
+// linked items, pins and any change in the number of rows all fall back to a full redraw.
+let outlineRowContext=null;
+function outlineFilterKey(){return JSON.stringify([$('search').value,selectedStatusFilters(),selectedItemTypes(),statusRecurringOnly(),statusNotRecurring(),showDoneItems(),['createdFrom','createdTo','scheduledFrom','scheduledTo'].map(id=>$(id).value),currentGroupBy(),outlineDayFilter,branchZoomRoot,db?.settings?.hideWeekends,db?.settings?.hideRecurring])}
+function outlinePatchable(){
+ const c=outlineRowContext;
+ return !!(c&&db&&c.db===db&&!c.searching&&!c.mode&&!db.locations&&!hierarchyViews.outline&&!branchZoomRoot
+   &&!$('search').value&&!selectedStatusFilters().length&&!selectedItemTypes().length
+   &&c.filtersKey===outlineFilterKey()&&!$('tree').querySelector('.inlineEdit'));
+}
+function outlineRowDepth(r){return Number(r.dataset.hierarchyDepth)}
+function patchOutlineRow(id){
+ const rows=$('tree').querySelectorAll(`.row[data-id="${CSS.escape(id)}"]`);if(rows.length!==1)return false;
+ const old=rows[0],args=outlineRowContext.args.get(old.dataset.location);if(!args)return false;
+ const tpl=document.createElement('template');tpl.innerHTML=outlineRowContext.row(...args);
+ const fresh=tpl.content.firstElementChild;if(!fresh||!fresh.matches('.row')||fresh.dataset.id!==id)return false;
+ // The row's visible children follow it in the flat list; their number must stay the same.
+ let shown=0;for(let r=old.nextElementSibling;r?.matches?.('.row')&&outlineRowDepth(r)>outlineRowDepth(old);r=r.nextElementSibling)shown++;
+ if(shown!==tpl.content.querySelectorAll('.row').length-1)return false;
+ fresh.style.paddingLeft=fresh.dataset.indent+'px';old.replaceWith(fresh);return true;
+}
+function patchRenderFinish(){window.dailyPlanner?.refresh();if(!editorIsOpen())renderCalendar();renderStatus();refreshInlineTodos();paintOutlineSelection()}
+function patchRender(ids){
+ if(!outlinePatchable())return false;
+ const pins=new Set(pinnedIds());if(ids.some(id=>pins.has(id)))return false;
+ for(const id of ids)if(!patchOutlineRow(id))return false;
+ patchRenderFinish();return true;
+}
+// A finished Todo leaving the Outline: remove its row when nothing else can change shape.
+function patchRemoveOutlineRow(id){
+ if(!outlinePatchable())return false;
+ const item=itemById(db,id);if(!item||doneIsVisible(item.status,null,item)||pinnedIds().includes(id))return false;
+ const rows=$('tree').querySelectorAll(`.row[data-id="${CSS.escape(id)}"]`);if(rows.length!==1)return false;
+ const row=rows[0],d=outlineRowDepth(row),next=row.nextElementSibling;
+ if(next?.matches?.('.row')&&outlineRowDepth(next)>d)return false; // it has visible children
+ // Keep the parent's arrow valid: another sibling must remain under the same parent.
+ const sibling=step=>{for(let r=row[step];r?.matches?.('.row')&&outlineRowDepth(r)>=d;r=r[step])if(outlineRowDepth(r)===d)return true;return false};
+ if(d>0&&!sibling('previousElementSibling')&&!sibling('nextElementSibling'))return false;
+ outlineRowContext.args.delete(row.dataset.location);row.remove();
+ patchRenderFinish();return true;
+}
+// Selection-only change: repaint the highlight and do the same scroll and focus follow-up
+// that a full redraw schedules.
+function paintSelectionLikeRedraw(){
+ const focusedRow=document.activeElement?.closest?.('.row[data-id]')?.dataset.id;
+ // A full redraw replaces the focused row, which drops focus; keep that behaviour.
+ if(document.activeElement&&$('tree').contains(document.activeElement))document.activeElement.blur();
+ paintOutlineSelection();
+ queueMicrotask(()=>{const row=locationRow(selected);if(row){if(!recurrenceViewportHold)row.scrollIntoView({block:'nearest'});if(focusedRow&&focusedRow===selected&&!isTextEntry(document.activeElement))row.focus({preventScroll:true})}});
 }
