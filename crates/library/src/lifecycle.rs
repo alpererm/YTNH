@@ -79,5 +79,148 @@ pub fn backup_retained(repo: &Repository, folder: &Path, vault: &Path, force: bo
         .open(&snap)?
         .sync_all()?;
     fs::rename(snap, folder.join(name))?;
+    // Thinning old copies must never block saving; a failure leaves extra copies behind.
+    let _ = prune_backups(folder, now_ms());
     Ok(())
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+const DAY_MS: u64 = 86_400_000;
+
+/// Milliseconds since 1970 from a backup file name `{stamp:016}-{uuid}.sqlite`.
+/// Any other name returns None and is never touched by pruning.
+fn backup_stamp(name: &str) -> Option<u64> {
+    let rest = name.strip_suffix(".sqlite")?;
+    let (stamp, id) = rest.split_once('-')?;
+    if stamp.len() != 16 || !stamp.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Uuid::parse_str(id).ok()?;
+    stamp.parse().ok()
+}
+
+/// Calendar month (year * 12 + month) of a day count since 1970 (UTC).
+fn month_of_day(day: u64) -> u64 {
+    // Howard Hinnant's days-to-civil algorithm.
+    let z = day as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + if month <= 2 { 1 } else { 0 };
+    (year * 12 + month - 1) as u64
+}
+
+/// Which backups to delete, given (name, stamp) pairs and the current time.
+/// Keeps every copy from the last 24 hours, the newest copy per day for 30 days,
+/// per week for 26 weeks, and per month after that. The newest copy is always kept.
+pub fn backups_to_prune(copies: &[(String, u64)], now: u64) -> Vec<String> {
+    let mut sorted: Vec<&(String, u64)> = copies.iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.0.cmp(&a.0)));
+    let mut seen = std::collections::HashSet::new();
+    let mut remove = Vec::new();
+    for (index, (name, stamp)) in sorted.iter().enumerate() {
+        let age = now.saturating_sub(*stamp);
+        let day = stamp / DAY_MS;
+        let bucket = if index == 0 || age < DAY_MS {
+            continue;
+        } else if age < 30 * DAY_MS {
+            ("day", day)
+        } else if age < 26 * 7 * DAY_MS {
+            ("week", (day + 3) / 7)
+        } else {
+            ("month", month_of_day(day))
+        };
+        // Copies are visited newest first, so the first one in a bucket is kept.
+        if !seen.insert(bucket) {
+            remove.push(name.clone());
+        }
+    }
+    remove
+}
+
+/// Deletes thinned-out backup copies in `folder`. Image objects are left untouched.
+pub fn prune_backups(folder: &Path, now: u64) -> Result<usize> {
+    let mut copies = Vec::new();
+    for entry in fs::read_dir(folder)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if let Some(stamp) = backup_stamp(&name) {
+            copies.push((name, stamp));
+        }
+    }
+    let remove = backups_to_prune(&copies, now);
+    for name in &remove {
+        fs::remove_file(folder.join(name))?;
+    }
+    Ok(remove.len())
+}
+
+#[cfg(test)]
+mod pruning {
+    use super::*;
+
+    fn copy(stamp: u64) -> (String, u64) {
+        (format!("{stamp:016}-{}.sqlite", Uuid::new_v4()), stamp)
+    }
+
+    #[test]
+    fn keeps_recent_then_daily_weekly_and_monthly_copies() {
+        let now = 1_800_000_000_000u64; // 2027-01-15
+        let mut copies = Vec::new();
+        // One copy every 5 minutes for 400 days.
+        let mut t = now - 400 * DAY_MS;
+        while t <= now {
+            copies.push(copy(t));
+            t += 5 * 60_000;
+        }
+        let remove: std::collections::HashSet<_> = backups_to_prune(&copies, now).into_iter().collect();
+        let kept: Vec<u64> = copies.iter().filter(|c| !remove.contains(&c.0)).map(|c| c.1).collect();
+        let recent = kept.iter().filter(|s| now - **s < DAY_MS).count();
+        assert_eq!(recent, copies.iter().filter(|c| now - c.1 < DAY_MS).count(), "all of the last 24 hours");
+        let days: std::collections::HashSet<_> = kept.iter().filter(|s| (DAY_MS..30 * DAY_MS).contains(&(now - **s))).map(|s| s / DAY_MS).collect();
+        assert_eq!(days.len(), kept.iter().filter(|s| (DAY_MS..30 * DAY_MS).contains(&(now - **s))).count(), "one per day");
+        assert!(days.len() >= 29);
+        assert!(kept.len() < 24 * 12 + 30 + 26 + 14, "bounded: {} kept", kept.len());
+        assert!(kept.contains(&copies.iter().map(|c| c.1).max().unwrap()), "newest kept");
+    }
+
+    #[test]
+    fn only_backup_files_are_deleted() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = 1_800_000_000_000u64;
+        let old_a = copy(now - 100 * DAY_MS);
+        let old_b = copy(now - 100 * DAY_MS + 60_000);
+        let newest = copy(now - 1000);
+        for (name, _) in [&old_a, &old_b, &newest] {
+            fs::write(dir.path().join(name), b"x").unwrap();
+        }
+        fs::write(dir.path().join("notes.txt"), b"keep").unwrap();
+        fs::write(dir.path().join("0000000000000001-not-a-uuid.sqlite"), b"keep").unwrap();
+        fs::create_dir(dir.path().join("objects")).unwrap();
+        assert_eq!(prune_backups(dir.path(), now).unwrap(), 1);
+        assert!(!dir.path().join(&old_a.0).exists(), "older copy in the same week is removed");
+        assert!(dir.path().join(&old_b.0).exists() && dir.path().join(&newest.0).exists());
+        assert!(dir.path().join("notes.txt").exists() && dir.path().join("0000000000000001-not-a-uuid.sqlite").exists());
+        assert!(dir.path().join("objects").is_dir());
+    }
+
+    #[test]
+    fn month_buckets_follow_the_calendar() {
+        assert_eq!(month_of_day(0), 1970 * 12);           // 1970-01-01
+        assert_eq!(month_of_day(31), 1970 * 12 + 1);      // 1970-02-01
+        assert_eq!(month_of_day(20_454), 2026 * 12);      // 2026-01-01
+        assert_eq!(month_of_day(20_453), 2025 * 12 + 11); // 2025-12-31
+    }
 }
