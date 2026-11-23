@@ -80,8 +80,44 @@ jobs:
       - name: Prepare frontend directory
         shell: bash
         run: mkdir -p web
+      - name: Configure Windows code signing
+        # Windows only, and only when the signing secrets exist; other builds stay unsigned.
+        # Imports the certificate into the runner's user store and points Tauri at it, so
+        # the app, uninstaller and installer are signed with SHA-256 and timestamped.
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+        run: |
+          if ($env:RUNNER_OS -ne 'Windows') { Write-Output 'Not Windows: no signing.'; exit 0 }
+          if (-not $env:PFX_BASE64) { Write-Output '::notice::No signing certificate configured; the installer will be unsigned.'; exit 0 }
+          $pfx = Join-Path $env:RUNNER_TEMP 'ytnh-codesign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+          $password = ConvertTo-SecureString $env:PFX_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfx
+          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $windows = $config.bundle.windows
+          $windows | Add-Member -Force certificateThumbprint $cert.Thumbprint
+          $windows | Add-Member -Force digestAlgorithm 'sha256'
+          $windows | Add-Member -Force timestampUrl 'http://timestamp.digicert.com'
+          $config | ConvertTo-Json -Depth 32 | Set-Content src-tauri/tauri.conf.json -Encoding utf8
+          "SIGNING_THUMBPRINT=$($cert.Thumbprint)" | Add-Content $env:GITHUB_ENV
+          Write-Output "Signing with certificate $($cert.Subject)"
       - name: Package application
         run: cargo tauri build --bundles ${{ matrix.bundles }}
+      - name: Verify Windows signatures
+        # When signing is configured, the installer and app must carry this certificate's signature.
+        shell: pwsh
+        run: |
+          if ($env:RUNNER_OS -ne 'Windows' -or -not $env:SIGNING_THUMBPRINT) { Write-Output 'Unsigned build: nothing to verify.'; exit 0 }
+          $files = @(Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe) + @(Get-ChildItem src-tauri/target/release/*.exe)
+          foreach ($file in $files) {
+            $sig = Get-AuthenticodeSignature $file.FullName
+            if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -ne $env:SIGNING_THUMBPRINT) { throw "Not signed with the YTNH certificate: $($file.Name)" }
+            if (-not $sig.TimeStamperCertificate) { throw "Signature has no timestamp: $($file.Name)" }
+            Write-Output "Signed: $($file.Name) ($($sig.Status))"
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
