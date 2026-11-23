@@ -159,7 +159,7 @@ const DailyPlanner = (() => {
     if(b.meeting)return DailyMeetingEditor.menu(e,b);
     const item=itemById(db,b.item),list=[['Move session…',()=>form('Move session',[['date','Date','date',date],['start','Start','time',clock(b.start)]],v=>{const t=snap(parse(v.start));if(t+b.duration>1440)throw Error('Session extends beyond this day.');apply(b,{date:v.date,start:t},e.clientX,e.clientY)})],['Remove session',()=>apply(b,{removed:true},e.clientX,e.clientY)]];
     if(!b.origin&&isRecurringTodo(item||{}))list.unshift(['Repeat with Todo',()=>mutate(()=>M.repeat(db,b.key))]);
-    if(item&&!item.archiveFile)list.push(['Copy item code',()=>copyItemCode(item)]);popup(e.clientX,e.clientY,list);
+    popup(e.clientX,e.clientY,list);
   }
   function attach(node,b){
     node.tabIndex=0;node.setAttribute('role','button');node.dataset.identity=identity(b);
@@ -212,7 +212,7 @@ const DailyPlanner = (() => {
     const label=blockLabel(node,b,i);
     // Blocks tall enough for two lines show their time range under the title (42).
     if(bottom-top>=38){const time=document.createElement('span');time.className='planTime';time.textContent=clock(b.start)+' – '+clock(b.start+b.duration);node.append(time)}
-    node.title=(i&&!i.archiveFile?itemCode(db,i)+' · ':'')+label+' · '+clock(b.start)+'–'+clock(b.start+b.duration)+' · '+b.duration+' min';
+    node.title=label+' · '+clock(b.start)+'–'+clock(b.start+b.duration)+' · '+b.duration+' min';
     if(end===b.start+b.duration){const handle=document.createElement('span');handle.className='planHandle';node.append(handle)}attach(node,b);grid.append(node);
   }
   function drawTimeline(blocks){

@@ -925,7 +925,7 @@ function chooseReference(embed=false,onChoose=null,options={}){
  const all=options.code?[]:activeItems(db).filter(options.filter||(()=>true)).slice().sort((a,b)=>itemCode(db,a).localeCompare(itemCode(db,b)));
  $("modalTitle").textContent=options.title||(embed?"Embed item":"Link item");
  $("modalText").textContent=options.prompt||(embed?"Choose an item to embed.":"Choose an item to link.");
- $("modalExtra").innerHTML='<div class="refPicker"><input id="refSearch" class="field" placeholder="Search code or title…"><div id="refResults"></div></div>';
+ $("modalExtra").innerHTML='<div class="refPicker"><input id="refSearch" class="field" placeholder="Search titles…"><div id="refResults"></div></div>';
  $("modalOK").textContent="Close";$("modalCancel").classList.add("hidden");$("modalbg").classList.add("open");
  $("modalOK").onclick=()=>{$("modalbg").classList.remove("open");$("modalCancel").classList.remove("hidden")};
  let choice=0;

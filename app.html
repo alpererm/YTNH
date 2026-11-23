@@ -655,7 +655,7 @@ function pinContext(e){
  const row=e.target.closest('.row[data-id]');if(!row)return;
  const id=row.dataset.id,ids=pinnedIds(),pinned=ids.includes(id);e.preventDefault();
  const item=itemById(db,id);
- DailyPlanner.popup(e.clientX,e.clientY,item?.heading?[['Rename heading',()=>{selected=id;startInlineEdit(id)}],['Convert to parent',()=>convertHeadingToParent(item)],['Convert to Note',()=>convertHeadingToNote(item)]]:[['Copy item code',()=>copyItemCode(item,row.dataset.location)],[pinned?'Unpin':'Pin to top',()=>savePins(pinned?ids.filter(key=>key!==id):[...ids,id])],['Add heading below',()=>{selected=id;quickCreateRoot('Note',{heading:true})}]]);
+ DailyPlanner.popup(e.clientX,e.clientY,item?.heading?[['Rename heading',()=>{selected=id;startInlineEdit(id)}],['Convert to parent',()=>convertHeadingToParent(item)],['Convert to Note',()=>convertHeadingToNote(item)]]:[[pinned?'Unpin':'Pin to top',()=>savePins(pinned?ids.filter(key=>key!==id):[...ids,id])],['Add heading below',()=>{selected=id;quickCreateRoot('Note',{heading:true})}]]);
 }
 function disclosureIcon(open){return sidebarIcon(open?'<path d="m6 9 6 6 6-6"/>':'<path d="m9 18 6-6-6-6"/>')}
 function hasDisclosureChild(children){
@@ -1049,40 +1049,48 @@ $("exportFile").onclick=async()=>{try{await storage.export(db);toast("Backup exp
  resetModalShell();
  const renderArchiveList=()=>{
    const q=String($("archiveSearch")?.value||"").trim().toLowerCase(),roots=archivedRoots(db);
-   const filtered=roots.filter(i=>{
+   // Each archived branch keeps its parent; show that path so the hierarchy stays visible.
+   const pathOf=i=>{const names=[],seen=new Set();for(let p=i.parentId&&itemById(db,i.parentId);p&&!seen.has(p.id);p=p.parentId&&itemById(db,p.parentId)){seen.add(p.id);names.unshift(p.title||"(untitled)")}return names.join(" › ")};
+   const filtered=roots.map(i=>({item:i,path:pathOf(i)})).filter(({item:i,path})=>{
      const subtree=[i,...descendants(db,i.id,true)];
-     return !q||subtree.some(x=>(x.title+" "+x.content+" "+itemSearchCodes(db,x)+" "+(x.explicitTags||[]).join(" ")).toLowerCase().includes(q))
+     return !q||path.toLowerCase().includes(q)||subtree.some(x=>(x.title+" "+x.content+" "+itemSearchCodes(db,x)+" "+(x.explicitTags||[]).join(" ")).toLowerCase().includes(q))
    });
+   const groups=new Map();for(const row of filtered){if(!groups.has(row.path))groups.set(row.path,[]);groups.get(row.path).push(row)}
+   const order=[...groups.keys()].sort((a,b)=>!a?-1:!b?1:a.localeCompare(b));
    const list=$("archiveList");if(!list)return;
-   list.innerHTML=filtered.length?filtered.map(i=>{
+   list.innerHTML=filtered.length?order.map(path=>`<div class="archiveGroupTitle">${esc(path||"Top level")}</div>`+groups.get(path).map(({item:i})=>{
      const count=1+descendants(db,i.id,true).length;
-     return `<div class="archive-item"><span><strong>${esc(i.title||"(untitled)")}</strong><br><small>${itemMarker(i,{passive:true})} ${count} item${count===1?"":"s"} · archived ${new Date(i.updatedAt).toLocaleDateString('en-GB')}</small></span><span class="archiveActions"><button data-restore="${esc(i.id)}">Restore</button><button data-cold="${esc(i.id)}">Cold archive</button></span></div>`
-   }).join(""):`<div class="empty archive-empty">${q?"No in-file archived items match your search.":"In-file Archive is empty."}</div>`;
+     return `<div class="archive-item"><span><strong>${itemMarker(i,{passive:true})} ${esc(i.title||"(untitled)")}</strong><br><small>${count} item${count===1?"":"s"} · archived ${new Date(i.updatedAt).toLocaleDateString('en-GB')}</small></span><span class="archiveActions"><button data-restore="${esc(i.id)}">Restore</button><button data-cold="${esc(i.id)}">Cold archive</button></span></div>`
+   }).join("")).join(""):`<div class="empty archive-empty">${q?"No archived items match your search.":"Nothing is archived in this library."}</div>`;
    list.querySelectorAll("[data-restore]").forEach(b=>b.onclick=()=>{
-     checkpoint();if(archiveSubtree(db,b.dataset.restore,false)===false)return;render();renderArchiveList();toast("Restored archived subtree")
+     const restored=itemById(db,b.dataset.restore),parent=restored?.parentId&&itemById(db,restored.parentId);checkpoint();if(archiveSubtree(db,b.dataset.restore,false)===false)return;render();renderArchiveList();toast(parent?.archived?"Restored; its parent is still archived":parent?"Restored under “"+(parent.title||"(untitled)")+"”":"Restored at the top level")
    });
    list.querySelectorAll("[data-cold]").forEach(b=>b.onclick=async()=>{
      const i=itemById(db,b.dataset.cold);if(!i)return;
      const count=1+descendants(db,i.id,true).length;
-     if(!window.confirm(`Move ${count} archived item${count===1?"":"s"} into a separate cold archive file?\n\nThe active library will keep UUID, last code, title, and archive-file location. RootIDs are not released.`))return;
+     if(!await appConfirm('Move to cold archive?',`Move ${count} archived item${count===1?"":"s"} into a separate cold archive file? The library keeps a small index entry for each, so you can find and restore them later.`,'Move'))return;
      if(await coldArchiveRoots([i.id]))renderArchiveList()
    });
    const cold=$("coldArchiveIndex");if(cold){
      const entries=(db.archiveIndex||[]).filter(e=>!q||(`${e.title} ${e.code} ${(e.codeAliases||[]).join(" ")} ${(e.tags||[]).join(" ")} ${e.archiveFile}`).toLowerCase().includes(q)).sort((a,b)=>String(b.coldArchivedAt||"").localeCompare(String(a.coldArchivedAt||"")));
-     cold.innerHTML=entries.length?entries.slice(0,500).map(e=>`<div class="archive-item cold-index-item"><span><strong>${esc(e.title||"(untitled)")}</strong><br><small><span class="mono-code ${e.type==="Todo"?"todo-code":"note-code"}">${esc(e.code||"")}</span> · ${esc(e.archiveFile||"unknown archive file")}</small></span></div>`).join(""):`<div class="empty archive-empty">No cold-archive index entries${q?" match your search":""}.</div>`
+     cold.innerHTML=entries.length?entries.slice(0,500).map(e=>`<div class="archive-item cold-index-item"><span><strong>${esc(e.title||"(untitled)")}</strong><br><small>${esc(e.archiveFile||"unknown archive file")}</small></span></div>`).join(""):`<div class="empty archive-empty">No cold-archive index entries${q?" match your search":""}.</div>`
    }
  };
  $("modalTitle").textContent="Archive";
- $("modalText").textContent="Restore in-file archives, or move older archived subtrees into separate cold archive files. Cold archiving never releases RootIDs.";
+ $("modalText").textContent="Restore archived items, archive completed branches, or move older archived branches into separate cold archive files.";
  $("modalExtra").innerHTML=`<div class="archiveTools">
    <div class="coldArchiveToolbar">
      <label>Cold archive through <input id="coldArchiveThrough" class="field" type="date"></label>
      <button type="button" id="coldArchiveByDate">Move older archived subtrees</button>
      <button type="button" id="restoreColdArchiveFile">Restore cold archive file…</button>
+   </div>
+   <div class="coldArchiveToolbar">
+     <label>Archive completed not changed in <select id="archiveCompletedAge" class="field"><option value="0">any time</option><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></label>
+     <button type="button" id="archiveCompleted">Archive completed…</button>
      <input id="coldArchiveFileInput" type="file" accept=".json,application/json" hidden>
    </div>
    <input id="archiveSearch" class="field" placeholder="Search in-file and cold archive index…">
-   <div class="archiveSectionTitle">In this data file</div><div id="archiveList"></div>
+   <div class="archiveSectionTitle">In this library</div><div id="archiveList"></div>
    <div class="archiveSectionTitle">Cold archive index <span class="muted">(${(db.archiveIndex||[]).length})</span></div><div id="coldArchiveIndex"></div>
  </div>`;
  dayFirstField($('coldArchiveThrough'));
@@ -1090,12 +1098,21 @@ $("exportFile").onclick=async()=>{try{await storage.export(db);toast("Backup exp
  $("modalOK").onclick=()=>{$("modalbg").classList.remove("open");$("modalCancel").classList.remove("hidden")};
  $("archiveSearch").oninput=renderArchiveList;
  $("archiveSearch").onkeydown=e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();$("archiveSearch").value="";renderArchiveList()}};
+ $("archiveCompleted").onclick=async()=>{
+   const days=Number($("archiveCompletedAge").value)||0,roots=completedBranchRoots(db,{notChangedForDays:days});
+   if(!roots.length)return toast(days?`No completed branches unchanged for ${days} days.`:"No fully completed branches to archive.");
+   const items=roots.reduce((n,i)=>n+1+descendants(db,i.id,true).length,0);
+   const pathOf=i=>{const names=[];for(let p=i.parentId&&itemById(db,i.parentId);p;p=p.parentId&&itemById(db,p.parentId))names.unshift(p.title||"(untitled)");return names.join(" › ")};
+   const examples=roots.slice(0,6).map(i=>"• "+(pathOf(i)?pathOf(i)+" › ":"")+(i.title||"(untitled)")).join("\n")+(roots.length>6?`\n• …and ${roots.length-6} more`:"");
+   if(!await appConfirm("Archive completed?",`Archive ${roots.length} completed branch${roots.length===1?"":"es"} (${items} item${items===1?"":"s"}). Each stays under its parent and can be restored. Finished items with unfinished children are left active.\n\n${examples}`,"Archive"))return;
+   const archived=archiveCompletedBranches(roots);renderArchiveList();toast(`Archived ${archived} item${archived===1?"":"s"}`);
+ };
  $("coldArchiveByDate").onclick=async()=>{
    const cutoff=$("coldArchiveThrough").value;if(!cutoff)return toast("Choose a cutoff date first.");
    const roots=archivedRoots(db).filter(i=>String(i.updatedAt||"").slice(0,10)<=cutoff);
    if(!roots.length)return toast("No archived subtrees are old enough for that cutoff.");
    const count=roots.reduce((n,i)=>n+1+descendants(db,i.id,true).length,0);
-   if(!window.confirm(`Move ${count} archived item${count===1?"":"s"} (archived through ${cutoff}) into one separate cold archive file?\n\nTheir UUID/code/title/file locations remain in the active database index.`))return;
+   if(!await appConfirm('Move to cold archive?',`Move ${count} archived item${count===1?"":"s"} (archived through ${cutoff}) into one separate cold archive file? The library keeps a small index entry for each, so you can find and restore them later.`,'Move'))return;
    if(await coldArchiveRoots(roots.map(i=>i.id)))renderArchiveList()
  };
  $("restoreColdArchiveFile").onclick=()=>$("coldArchiveFileInput").click();
@@ -2569,7 +2586,7 @@ document.addEventListener('contextmenu',e=>{
  const marker=e.target.closest('.itemMarker:not([data-marker-passive])');if(!marker||marker.dataset.markerPlanner)return;
  const item=itemById(db,marker.dataset.markerId);if(!item)return;
  e.preventDefault();e.stopImmediatePropagation();
- const actions=[['Copy item code',()=>copyItemCode(item,marker.closest('.row')?.dataset.location)],['Unschedule explicit dates',()=>unscheduleExplicit(item)]];
+ const actions=[['Unschedule explicit dates',()=>unscheduleExplicit(item)]];
  if(item.type==='Todo')for(const status of TODO_STATUSES)actions.push([status,()=>{if(marker.dataset.markerDate&&isRecurringTodo(item)){setOccurrenceCalendarStatus(item,marker.dataset.markerDate,status);renderTree()}else setOutlineCompletion(item,status)}]);
  if(marker.closest('.row')){const ids=pinnedIds(),pinned=ids.includes(item.id);actions.push([pinned?'Unpin':'Pin to top',()=>savePins(pinned?ids.filter(id=>id!==item.id):[...ids,item.id])])}
  DailyPlanner.popup(e.clientX,e.clientY,actions);

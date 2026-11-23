@@ -94,7 +94,7 @@ function setMilestoneWeek(id,week){
 function milestoneStripHTML(week,items){
  if(!items.length)return '';
  return `<div class="milestoneStrip" aria-label="Milestones for ${week}">${items.map(item=>{
- const label=`${item.title||'(untitled)'} · ${itemCode(db,item)} · ${week} · ${item.status}${milestoneOverdue(item)?' · Overdue':''}`;
+ const label=`${item.title||'(untitled)'} · ${week} · ${item.status}${milestoneOverdue(item)?' · Overdue':''}`;
  return `<button type="button" draggable="true" class="milestoneChip ${statusClass(item.status)} ${milestoneOverdue(item)?'milestone-overdue':''}" data-milestone-id="${esc(item.id)}" aria-pressed="${item.id===milestoneSelection}" title="${esc(label)}" aria-label="${esc(label)}">${itemMarker(item)}<span class="milestoneTitle">${esc(item.title||'(untitled)')}</span></button>`
  }).join('')}</div>`;
 }
@@ -450,7 +450,7 @@ function restoreSnapshot(text){
 }
 function undo(){if(!undoStack.length||!db)return;redoStack.push(snapshot());trimHistory(redoStack);restoreSnapshot(undoStack.pop());toast("Undone")}
 function redo(){if(!redoStack.length||!db)return;undoStack.push(snapshot());trimHistory(undoStack);restoreSnapshot(redoStack.pop());toast("Redone")}
-function rememberCodeAlias(item,oldCode){if(!oldCode||!item)return;item.codeAliases=item.codeAliases||[];if(!item.codeAliases.includes(oldCode))item.codeAliases.push(oldCode);db.linkAliases=db.linkAliases||{};db.linkAliases[oldCode.toUpperCase()]=item.id}
+function rememberCodeAlias(item,oldCode){}
 function codeMapBefore(ids){const m=new Map();for(const id of ids){const i=itemById(db,id);if(i)m.set(id,itemCode(db,i))}return m}
 function rememberChangedCodes(before){for(const [id,oldCode] of before){const i=itemById(db,id);if(i&&itemCode(db,i)!==oldCode)rememberCodeAlias(i,oldCode)}}
 function refToken(id){return `@{${id}}`}
@@ -479,12 +479,10 @@ function canonicalizeReferences(text){return canonicalizeForDatabase(db,text)}
 function stabilizeReferences(database){
  for(const i of database.items){const next=canonicalizeForDatabase(database,i.content);if(next!==i.content){i.content=next;i.updatedAt=now()}}
 }
-function codeMapForDatabase(database){return new Map(database.items.map(i=>[i.id,itemCode(database,i)]))}
-function recordChangedCodes(database,before){
- for(const i of database.items){const old=before.get(i.id);if(old&&old!==itemCode(database,i)){
-   i.codeAliases=i.codeAliases||[];if(!i.codeAliases.includes(old))i.codeAliases.push(old);database.linkAliases[old.toUpperCase()]=i.id;
- }}
-}
+// Item codes are no longer shown (option C). Positional codes still resolve old typed
+// references and existing aliases stay readable, but changes no longer record new aliases.
+function codeMapForDatabase(database){return new Map()}
+function recordChangedCodes(database,before){}
 function displayReferenceToken(raw){
  const t=resolveReference(raw);if(t)return itemCode(db,t);
  const cold=coldArchiveReference(raw);return cold?.code||raw

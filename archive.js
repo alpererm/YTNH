@@ -102,3 +102,32 @@ async function restoreColdArchiveFile(file){
  recordChangedCodes(staged,previous);reconcileAllocator(staged);validateDatabase(staged);
  checkpoint();db=staged;db.updatedAt=now();markDirty();render();toast(`Restored ${incoming.length} items into the in-file Archive.`);return true;
 }
+// Archive completed: the largest branches whose every active item is finished.
+// A branch qualifies when its top item is a finished, non-recurring Todo and everything
+// under it is either a finished Todo or a Note. Unfinished children keep the parent active.
+// Branches with linked locations are skipped, as single archiving would refuse them.
+function completedBranchRoots(db,{notChangedForDays=0}={}){
+ const active=db.items.filter(i=>!i.archived),children=new Map();
+ for(const i of active){if(!children.has(i.parentId))children.set(i.parentId,[]);children.get(i.parentId).push(i)}
+ const finishedTodo=i=>i.type==='Todo'&&['Done','Cancelled'].includes(i.status)&&!isRecurringTodo(i);
+ const settled=new Map();
+ const allFinished=i=>{
+   if(settled.has(i.id))return settled.get(i.id);
+   settled.set(i.id,false);
+   const ok=(finishedTodo(i)||i.type==='Note')&&(children.get(i.id)||[]).every(allFinished);
+   settled.set(i.id,ok);return ok;
+ };
+ const cutoff=notChangedForDays?Date.now()-notChangedForDays*86400000:Infinity;
+ const linked=new Set();
+ if(db.locations){const g=new OutlineLocations(db);for(const i of active)if(g.byItem.get(i.id)?.length>1||i.locationParent)linked.add(i.id)}
+ const hasLinked=i=>linked.has(i.id)||(children.get(i.id)||[]).some(hasLinked);
+ return active.filter(i=>finishedTodo(i)&&allFinished(i)&&!hasLinked(i)
+   &&new Date(i.updatedAt||0).getTime()<=cutoff
+   &&!(i.parentId&&(()=>{const p=itemById(db,i.parentId);return p&&!p.archived&&finishedTodo(p)&&allFinished(p)&&!hasLinked(p)&&new Date(p.updatedAt||0).getTime()<=cutoff})()));
+}
+function archiveCompletedBranches(roots){
+ if(!roots.length)return 0;
+ checkpoint();let count=0;
+ for(const r of roots){const n=1+descendants(db,r.id,true).length;if(archiveSubtree(db,r.id,true)!==false)count+=n}
+ render();return count;
+}
