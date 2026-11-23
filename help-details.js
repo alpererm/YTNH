@@ -67,12 +67,11 @@ function renderItemDetails(host){
    :"—";
  const linkRef=`[[${refToken(i.id)}]]`,embedRef=`![[${refToken(i.id)}]]`;
  host.innerHTML=`
-   <div class="detailsGrid"><div><span>Code</span><strong class="mono-code ${i.type==="Todo"?"todo-code":"note-code"}">${esc(itemCode(db,i))}</strong></div>
-     <div><span>Type</span><strong>${esc(i.type)}</strong></div>
+   <div class="detailsGrid"><div><span>Type</span><strong>${esc(i.type)}</strong></div>
      <div><span>Status</span><strong>${esc(i.type==="Todo"?(i.status||"Todo"):"—")}</strong></div>
      <div><span>Created</span><strong>${esc(new Date(i.createdAt).toLocaleString('en-GB',{hourCycle:'h23'}))}</strong></div>
      <div><span>Updated</span><strong>${esc(new Date(i.updatedAt).toLocaleString('en-GB',{hourCycle:'h23'}))}</strong></div>
-     <div><span>Parent</span><strong>${parent?`<span class="mono-code ${parent.type==="Todo"?"todo-code":"note-code"}">${esc(itemCode(db,parent))}</span> · ${esc(parent.title||"(untitled)")}`:"Root"}</strong></div>
+     <div><span>Parent</span><strong>${parent?esc(parent.title||"(untitled)"):"Root"}</strong></div>
      <div><span>Direct children</span><strong>${childCount}</strong></div>
      <div><span>Backlinks</span><strong>${backlinksFor(i.id).length}</strong></div>
      <div><span>Recurrence</span><strong>${esc(recurrence)}</strong></div><div><span>Next occurrence</span><strong>${esc(nextOccurrence)}</strong></div>
