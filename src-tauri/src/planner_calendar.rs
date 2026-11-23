@@ -31,8 +31,15 @@ fn read(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
         Err(e) => return Err(e.into()),
     };
-    let path = if let Some(path) = previous.as_ref().filter(|p| reuse && p.is_file()) {
-        path.clone()
+    // Reimport follows the newest .ics export in the remembered folder, so a fresh
+    // Outlook export saved as "Calendar(1).ics" is picked up without a file dialog.
+    let latest = previous
+        .as_ref()
+        .filter(|_| reuse)
+        .and_then(|p| p.parent())
+        .and_then(newest_ics);
+    let path = if let Some(path) = latest.or_else(|| previous.clone().filter(|p| reuse && p.is_file())) {
+        path
     } else {
         let mut dialog = app.dialog().file().add_filter("Outlook Calendar", &["ics"]);
         if let Some(parent) = previous.as_ref().and_then(|p| p.parent()) {
@@ -72,4 +79,37 @@ fn read(
     Ok(Some(
         json!({"name":path.file_name().and_then(|p|p.to_str()),"modified":modified,"text":text}),
     ))
+}
+
+/// The most recently modified `.ics` file directly inside `folder`, if any.
+fn newest_ics(folder: &std::path::Path) -> Option<PathBuf> {
+    fs::read_dir(folder)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| {
+            p.is_file()
+                && p.extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("ics"))
+        })
+        .filter_map(|p| Some((fs::metadata(&p).ok()?.modified().ok()?, p)))
+        .max_by_key(|(modified, _)| *modified)
+        .map(|(_, p)| p)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::newest_ics;
+    use std::{fs, thread, time::Duration};
+
+    #[test]
+    fn reimport_prefers_the_newest_export_in_the_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("Calendar.ics"), "old").unwrap();
+        fs::write(dir.path().join("notes.txt"), "ignored").unwrap();
+        thread::sleep(Duration::from_millis(20));
+        fs::write(dir.path().join("Calendar(1).ics"), "new").unwrap();
+        assert_eq!(newest_ics(dir.path()).unwrap().file_name().unwrap(), "Calendar(1).ics");
+        assert!(newest_ics(&dir.path().join("missing")).is_none());
+    }
 }
