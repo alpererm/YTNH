@@ -442,7 +442,7 @@ function restoreSnapshot(text){
  closeDateSuggestions();
  const wasEditorOpen=editorIsOpen(),view=$('layout').dataset.view;
  historyLock=true;db=migrateDatabase(JSON.parse(text));historyLock=false;markDirty(false);
- selected=selected&&editorDocument()?selected:null;applyTheme();applySplitSetting();
+ selected=selected&&editorDocument()&&!itemById(db,selected)?.archived?selected:null;applyTheme();applySplitSetting();
  if(wasEditorOpen&&selected){edit(selected);restoreEditorSelection(editorSnapshotSelections.get(text));renderStatus()}
  else if(wasEditorOpen&&appearance.defaultView==='editor'){showEditorAfterDeletion(selected);render()}
  else{showCalendar({refresh:false});$('layout').dataset.view=view==='editor'?'calendar':view;render()}

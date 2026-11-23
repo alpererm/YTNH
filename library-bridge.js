@@ -275,6 +275,8 @@ function createDesktopLibraries(call) {
     remember:id=>action('remember',{id}),
     newLibrary:(model,name)=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_new',{model,name}))}).catch(report),
     exportModel,cleanImages:()=>exclusive(cleanImages).catch(report),
+    // Earlier versions of one item from this library's automatic backups (read-only).
+    itemHistory:item=>storage.handle?.sqlite?action('item_history',{id:storage.handle.id,item}):Promise.resolve([]),
     imageEditing: /* image-preview-build */ false,
     importReference:(id,reference)=>action('import_reference',{id,reference}),
     importImage:(id,data,confirmed)=>action('import_image',{id,data,confirmed}),

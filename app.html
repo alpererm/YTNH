@@ -432,7 +432,7 @@ function setOccurrenceStatus(item,date,status){
  item.occurrenceStates=item.occurrenceStates||{};const origins=occurrenceOrigins(item,date);
  const unfinished=origins.filter(origin=>!['Done','Cancelled'].includes(item.occurrenceStates[origin]));
  for(const origin of unfinished.length?unfinished:origins)item.occurrenceStates[origin]=status;touch(db,item);renderTree()}
-function archivedRoots(db){return db.items.filter(i=>i.archived && (!i.parentId || !itemById(db,i.parentId)?.archived)).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt))}
+function archivedRoots(db){return db.items.filter(i=>i.archived && !i.trashedAt && (!i.parentId || !itemById(db,i.parentId)?.archived)).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt))}
 
 const $=id=>document.getElementById(id), storage=new FileStorage();let db=null,selected=null,calendarMode="weeks",yearsPageStart=new Date().getFullYear(),weekAnchor=new Date(),calendarCursorDate=null,expandedWeeks=new Set(),toastTimer;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -495,7 +495,7 @@ function closeModalShell(){
 // Help (14): task-based sections for people using the app, a searchable shortcut list in the
 // platform's own notation, and no internal details (those live in docs/development/).
 const HELP_SHORTCUTS=[
- ['General',[['Mod+,','Settings'],['?','Help (outside text fields)'],['Mod+O','Open a library'],['Mod+S','Save'],['Mod+Shift+S','Save As'],['Mod+N','New Note'],['Mod+T','New Todo'],['Mod+Z','Undo'],['Mod+Shift+Z','Redo'],['Mod+Plus / Mod+Minus / Mod+0','Zoom in, out or reset'],['Ctrl+Shift+Space','Quick Open from any app (can be turned off in Settings)'],['Mod+Alt+D','Jump to a date']]],
+ ['General',[['Mod+,','Settings'],['?','Help (outside text fields)'],['Mod+O','Open a library'],['Mod+S','Save'],['Mod+Shift+S','Save As'],['Mod+N','New Note'],['Mod+T','New Todo'],['Mod+Z','Undo'],['Mod+Shift+Z','Redo'],['Mod+Plus / Mod+Minus / Mod+0','Zoom in, out or reset'],['Ctrl+Shift+Space','Quick Open from any app (can be turned off in Settings); type > for commands and settings'],['Mod+Alt+D','Jump to a date']]],
  ['Panes and views',[['Mod+1','Outline'],['Mod+2','Editor for the selected item'],['Mod+3','Calendar'],['Mod+4','Targets'],['Mod+Backslash','Show or hide the side panel'],['Mod+Shift+1','Side panel: Properties'],['Mod+Shift+2','Side panel: document outline'],['Mod+Shift+D','Daily Planner'],[IS_MAC?'F11 or Ctrl+Mod+F':'F11','Focus Mode'],['/ or Mod+Shift+F','Search the Outline'],['Alt+Shift+F','Filters'],['Alt+Shift+G','Group by'],[IS_MAC?'Alt+Tab':'Ctrl+Tab','Switch between the Outline and the right pane'],[IS_MAC?'Mod+[ / Mod+]':'Alt+Left / Alt+Right','Back or forward through items you opened'],['Escape','Close a dialog or the editor; clear Search']]],
  ['Outline',[['Up / Down','Move the selection'],['Left / Right','Collapse or expand'],['Shift+Left / Shift+Right','Promote or demote'],['Shift+Up / Shift+Down','Reorder among siblings'],['Mod+Up / Mod+Down','First or last item'],['Enter or F2','Rename the selected item'],['Shift+Enter','Open the editor'],['Space','Mark a Todo done or not done'],['Backspace or Delete','Delete (asks first)'],['N / T','New Note or Todo at the same level'],['Alt+N / Alt+T','New child Note or Todo'],['Mod+Enter','Show in Calendar'],['Mod+Shift+C','Also place the item under another parent (linked)'],['Mod+A','Select all visible items'],['Mod+Space','Add or remove an item from the selection'],['Mod+Right / Mod+Left','Zoom into a branch or back out; in a searched or filtered Outline, show the item\u2019s full path and children'],['Alt+Shift+T','Show today in the Outline and Calendar'],['Alt+Shift+N / R / D','Show or hide Notes, recurring items or finished items'],['Alt+Shift+C','Clear all filters and the search']]],
  ['Calendar and Targets',[['Left / Right','Previous or next day'],['Up / Down','Previous or next week'],['Home','Today, or the current years in Targets'],['Page Up / Page Down','Ten weeks back or forward (five years in Targets)']]],
@@ -1071,6 +1071,13 @@ $("exportFile").onclick=async()=>{try{await storage.export(db);toast("Backup exp
      if(!await appConfirm('Move to cold archive?',`Move ${count} archived item${count===1?"":"s"} into a separate cold archive file? The library keeps a small index entry for each, so you can find and restore them later.`,'Move'))return;
      if(await coldArchiveRoots([i.id]))renderArchiveList()
    });
+   const trash=$("trashList");if(trash){
+     const rows=trashedRoots(db).filter(i=>!q||(i.title+" "+pathOf(i)).toLowerCase().includes(q));
+     trash.innerHTML=rows.length?rows.map(i=>{const count=1+descendants(db,i.id,true).length,p=pathOf(i);
+       return `<div class="archive-item"><span><strong>${itemMarker(i,{passive:true})} ${esc(i.title||"(untitled)")}</strong><br><small>${p?esc(p)+" · ":""}${count} item${count===1?"":"s"} · deleted ${new Date(i.trashedAt).toLocaleDateString('en-GB')} · removed ${trashExpiry(i).toLocaleDateString('en-GB')}</small></span><span class="archiveActions"><button data-untrash="${esc(i.id)}">Restore</button><button data-purge="${esc(i.id)}">Delete now</button></span></div>`}).join(""):`<div class="empty archive-empty">Nothing was deleted in the last ${TRASH_DAYS} days.</div>`;
+     trash.querySelectorAll("[data-untrash]").forEach(b=>b.onclick=()=>{const it=itemById(db,b.dataset.untrash),parent=it?.parentId&&itemById(db,it.parentId);checkpoint();if(!restoreTrashed(db,b.dataset.untrash))return;render();renderArchiveList();toast(parent?.archived?"Restored; its parent is still archived":parent?"Restored under “"+(parent.title||"(untitled)")+"”":"Restored at the top level")});
+     trash.querySelectorAll("[data-purge]").forEach(b=>b.onclick=async()=>{const it=itemById(db,b.dataset.purge);if(!it)return;const count=1+descendants(db,it.id,true).length;if(!await appConfirm("Delete permanently?",`Delete ${count} item${count===1?"":"s"} permanently? This can be undone in this session only.`,"Delete"))return;checkpoint();deleteSubtree(db,it.id);render();renderArchiveList();toast("Deleted permanently")});
+   }
    const cold=$("coldArchiveIndex");if(cold){
      const entries=(db.archiveIndex||[]).filter(e=>!q||(`${e.title} ${e.code} ${(e.codeAliases||[]).join(" ")} ${(e.tags||[]).join(" ")} ${e.archiveFile}`).toLowerCase().includes(q)).sort((a,b)=>String(b.coldArchivedAt||"").localeCompare(String(a.coldArchivedAt||"")));
      cold.innerHTML=entries.length?entries.slice(0,500).map(e=>`<div class="archive-item cold-index-item"><span><strong>${esc(e.title||"(untitled)")}</strong><br><small>${esc(e.archiveFile||"unknown archive file")}</small></span></div>`).join(""):`<div class="empty archive-empty">No cold-archive index entries${q?" match your search":""}.</div>`
@@ -1091,6 +1098,7 @@ $("exportFile").onclick=async()=>{try{await storage.export(db);toast("Backup exp
    </div>
    <input id="archiveSearch" class="field" placeholder="Search in-file and cold archive index…">
    <div class="archiveSectionTitle">In this library</div><div id="archiveList"></div>
+   <div class="archiveSectionTitle">Recently deleted <span class="muted">(removed after ${TRASH_DAYS} days)</span></div><div id="trashList"></div>
    <div class="archiveSectionTitle">Cold archive index <span class="muted">(${(db.archiveIndex||[]).length})</span></div><div id="coldArchiveIndex"></div>
  </div>`;
  dayFirstField($('coldArchiveThrough'));
@@ -1882,9 +1890,10 @@ function deleteOutlineSelection(){
  const pivot=Math.max(0,before.findIndex(id=>removed.has(id)));
  const next=before.slice(pivot).find(id=>!removed.has(id))||before.slice(0,pivot).reverse().find(id=>!removed.has(id))||null;
  const finish=(id=next)=>{selected=id&&itemById(db,id)?id:null;multiSelected.clear();completeSearchAction(selected);if(appearance.defaultView==='editor')showEditorAfterDeletion(selected);else showCalendar({refresh:false});render();focusOutlineItem(selected)};
- const erase=()=>{checkpoint();closeModalShell();for(const i of items)deleteSubtree(db,i.id);finish()};
- resetModalShell();$('modalExtra').innerHTML='';$('modalTitle').textContent=ids.length>1?`Delete ${ids.length} selected items?`:'Delete permanently?';
- $('modalText').textContent=`Delete ${removed.size} item${removed.size===1?'':'s'} permanently${removed.size>ids.length?', including descendants':''}? This can be undone in this session.`;
+ const toTrash=items.every(i=>!branchHasLinkedLocations(db,i.id));
+ const erase=()=>{checkpoint();closeModalShell();for(const i of items){forgetPins(db,new Set([i.id,...descendants(db,i.id,true).map(x=>x.id)]));if(!toTrash||!trashSubtree(db,i.id))deleteSubtree(db,i.id)}finish();if(toTrash)toast('Moved to Recently deleted · ☰ → Archive… to restore')};
+ resetModalShell();$('modalExtra').innerHTML='';$('modalTitle').textContent=ids.length>1?`Delete ${ids.length} selected items?`:toTrash?'Delete item?':'Delete permanently?';
+ $('modalText').textContent=toTrash?`Move ${removed.size} item${removed.size===1?'':'s'}${removed.size>ids.length?', including descendants,':''} to Recently deleted? You can restore ${removed.size===1?'it':'them'} for ${TRASH_DAYS} days from ☰ → Archive….`:`Delete ${removed.size} item${removed.size===1?'':'s'} permanently${removed.size>ids.length?', including descendants':''}? Items with linked locations cannot go to Recently deleted. This can be undone in this session.`;
  const children=ids.length===1?childrenOf(db,ids[0],true):[];
  if(children.length){
    $('modalExtra').innerHTML='<div class="delete-choices"><button id="deleteTree" class="danger">Delete subtree</button><button id="promoteChildren">Promote children & delete item</button></div>';
@@ -1893,7 +1902,7 @@ function deleteOutlineSelection(){
      if(currentGroupBy())return;const i=items[0],parent=i.parentId;
      try{if(!parent)ensureRootCapacity(db,children.map(c=>c.type))}catch(e){toast(e.message);return}
      checkpoint();const codes=codeMapBefore(activeItems(db).map(x=>x.id));for(const c of children)moveItem(db,c.id,parent);
-     forgetPins(db,new Set([i.id]));db.items=db.items.filter(x=>x.id!==i.id);rememberChangedCodes(codes);markDirty();closeModalShell();finish(children[0]?.id||next);
+     forgetPins(db,new Set([i.id]));if(!trashSubtree(db,i.id))db.items=db.items.filter(x=>x.id!==i.id);rememberChangedCodes(codes);markDirty();closeModalShell();finish(children[0]?.id||next);
    };
  }else{$('modalOK').textContent='Delete';$('modalOK').onclick=erase}
  $('modalbg').classList.add('open');
@@ -2626,5 +2635,7 @@ render();
 restoreLastFile();
 
 
+
+{const install=installDatabase;installDatabase=function(...a){const r=install.apply(this,a);try{if(db&&purgeExpiredTrash(db))render()}catch(e){console.warn('Recently deleted cleanup failed',e)}return r}}
 {const tree=renderTree,calendar=renderCalendar;renderTree=function(...a){return withLookups(()=>tree.apply(this,a))};renderCalendar=function(...a){return withLookups(()=>calendar.apply(this,a))}}
 </script><script src="planner-ui.js"></script><script src="planner-meetings.js"></script><script src="vendor/icaljs/ical.js"></script><script src="planner-outlook.js"></script><script src="markdown-import.js"></script><script src="tour-library.js"></script></body></html>

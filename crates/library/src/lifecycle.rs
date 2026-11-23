@@ -167,6 +167,50 @@ pub fn prune_backups(folder: &Path, now: u64) -> Result<usize> {
     Ok(remove.len())
 }
 
+/// Earlier versions of one item, read from the automatic backups in `folder` (newest first).
+/// Each backup is opened read-only and queried for that item only; consecutive copies with
+/// the same title, text, status and archived state are reported once (the newest of them).
+pub fn item_history(folder: &Path, item: &str, limit: usize) -> Result<Vec<serde_json::Value>> {
+    use rusqlite::{Connection, OpenFlags, OptionalExtension};
+    let mut copies = Vec::new();
+    if folder.is_dir() {
+        for entry in fs::read_dir(folder)? {
+            let name = entry?.file_name().to_string_lossy().to_string();
+            if let Some(stamp) = backup_stamp(&name) {
+                copies.push((stamp, name));
+            }
+        }
+    }
+    copies.sort_by(|a, b| b.cmp(a));
+    let mut out: Vec<serde_json::Value> = Vec::new();
+    let mut last: Option<(String, String, String, bool)> = None;
+    for (stamp, name) in copies {
+        let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+        let Ok(conn) = Connection::open_with_flags(folder.join(&name), flags) else { continue };
+        let row = conn
+            .query_row(
+                "SELECT title,body,status,updated,archived FROM items WHERE id=?1",
+                [item],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?, r.get::<_, bool>(4)?)),
+            )
+            .optional();
+        let Ok(Some((title, content, status, updated, archived))) = row else { continue };
+        let key = (title.clone(), content.clone(), status.clone(), archived);
+        if last.as_ref() == Some(&key) {
+            continue;
+        }
+        last = Some(key);
+        out.push(serde_json::json!({
+            "backup": name, "savedAt": stamp, "title": title, "content": content,
+            "status": status, "updatedAt": updated, "archived": archived
+        }));
+        if out.len() >= limit {
+            break;
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod pruning {
     use super::*;
@@ -214,6 +258,27 @@ mod pruning {
         assert!(dir.path().join(&old_b.0).exists() && dir.path().join(&newest.0).exists());
         assert!(dir.path().join("notes.txt").exists() && dir.path().join("0000000000000001-not-a-uuid.sqlite").exists());
         assert!(dir.path().join("objects").is_dir());
+    }
+
+    #[test]
+    fn item_history_reads_versions_from_backups() {
+        let dir = tempfile::tempdir().unwrap();
+        let make = |stamp: u64, title: &str| {
+            let path = dir.path().join(format!("{stamp:016}-{}.sqlite", Uuid::new_v4()));
+            let c = rusqlite::Connection::open(&path).unwrap();
+            c.execute_batch("CREATE TABLE items(id TEXT PRIMARY KEY,kind TEXT,title TEXT,body TEXT,status TEXT,created TEXT,updated TEXT,archived INTEGER,sequence INTEGER,extras TEXT)").unwrap();
+            c.execute("INSERT INTO items VALUES('a','Note',?1,'text','Todo','c','u',0,1,'{}')", [title]).unwrap();
+        };
+        make(1_000, "First");
+        make(2_000, "Second");
+        make(3_000, "Second"); // unchanged: reported once
+        fs::write(dir.path().join("notes.txt"), b"x").unwrap();
+        let h = item_history(dir.path(), "a", 50).unwrap();
+        let titles: Vec<_> = h.iter().map(|v| v["title"].as_str().unwrap().to_owned()).collect();
+        assert_eq!(titles, ["Second", "First"]);
+        assert_eq!(h[0]["savedAt"], 3_000);
+        assert!(item_history(dir.path(), "missing", 50).unwrap().is_empty());
+        assert!(item_history(&dir.path().join("none"), "a", 50).unwrap().is_empty());
     }
 
     #[test]
