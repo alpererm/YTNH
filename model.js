@@ -297,6 +297,33 @@ function createItem(db,type,parentId=null,parentLocation=null){
    if(parent&&!parent.primary)i.locationParent=parent.id;i.order=g.appendOrder(parent?.id||null)}
  db.items.push(i);db.updatedAt=now();markDirty();return i;
 }
+// "Keep both" after another computer saved the same library while this one had unsaved changes.
+// The other copy's items that it changed since the two copies split (every item when the histories
+// are unrelated) and that differ here are copied, with new ids, into a "Conflicting changes" Note
+// at the top of the Outline, so nothing from either computer is lost. Returns how many were copied.
+function mergeConflictingCopy(db,other,changedIds,source){
+ const mark='Source: library file version '+String(source).slice(0,12);
+ if(db.items.some(i=>!i.parentId&&!i.archived&&String(i.content||'').includes(mark)))return 0;
+ const stable=v=>Array.isArray(v)?'['+v.map(stable).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}':JSON.stringify(v);
+ const content=({updatedAt,order,rootId,codeAliases,locationParent,collapsed,...rest})=>stable(rest);
+ const local=new Map(db.items.map(i=>[i.id,i])),changed=changedIds?new Set(changedIds):null,theirs=new Map(other.items.map(i=>[i.id,i]));
+ const depth=i=>{let d=0;for(let p=theirs.get(i.parentId);p&&d<256;p=theirs.get(p.parentId))d++;return d};
+ const picked=other.items.filter(o=>!o.archived&&(!changed||changed.has(o.id))&&!(local.has(o.id)&&content(local.get(o.id))===content(o))).sort((a,b)=>depth(a)-depth(b));
+ if(!picked.length)return 0;
+ checkpoint();
+ const root=createItem(db,'Note');
+ root.title='Conflicting changes from another computer';
+ root.content='These items were changed on another computer while this one had unsaved changes. Compare them with your versions, keep what you need and delete this branch.\n\n'+mark;
+ const clones=new Map();
+ for(const o of picked){
+   const copy=createItem(db,o.type,clones.get(o.parentId)?.id||root.id);
+   for(const key of ['title','content','status','explicitTags','tagExclusions','scheduledDates','heading'])if(o[key]!==undefined)copy[key]=structuredClone(o[key]);
+   if(local.has(o.id))copy.title=(o.title||'(untitled)')+' (other computer)';
+   clones.set(o.id,copy);
+   for(const [hash,asset] of Object.entries(other.imageAssets||{}))if(String(o.content||'').includes(hash)){db.imageAssets??={};db.imageAssets[hash]??=structuredClone(asset)}
+ }
+ return picked.length;
+}
 function isDescendant(db,candidateId,ancestorId){return descendants(db,ancestorId,true).some(x=>x.id===candidateId)}
 function moveItem(db,id,newParentId,newIndex=null,visibleOrders=null){
  if(db.locations){const g=new OutlineLocations(db),item=itemById(db,id),p=id===selected?g.selected(item):g.primary(item);

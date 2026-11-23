@@ -35,7 +35,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await p.evaluate(()=>new OutlineLocations(db).byItem.get(tid).length),1);
  await p.evaluate(()=>{undo();validateDatabase(db);jumpLocation(tid);removeLocation(new OutlineLocations(db).primary(itemById(db,tid)))});
  await p.locator('#modalOK').click();assert(await p.evaluate(()=>{validateDatabase(db);return new OutlineLocations(db).primary(itemById(db,tid)).id===clone&&itemById(db,kid)!=null}));
- await p.evaluate(()=>{const g=new OutlineLocations(db);removeLocation(g.nodes.get(clone),true)});await p.locator('#modalOK').click();assert(await p.evaluate(()=>!itemById(db,tid)&&!!itemById(db,kid)));
+ await p.evaluate(()=>{const g=new OutlineLocations(db);removeLocation(g.nodes.get(clone),true)});await p.locator('#modalOK').click();assert(await p.evaluate(()=>{const t=itemById(db,tid);validateDatabase(db);return t.archived&&!!t.trashedAt&&!new OutlineLocations(db).siblings(null).some(n=>n.item.id===tid)&&!!itemById(db,kid)}));
  await p.evaluate(()=>{
    installDatabase(createEmptyDatabase());db.settings.hideWeekends=false;const a=createItem(db,'Note'),b=createItem(db,'Note'),c=createItem(db,'Note'),t=createItem(db,'Todo',a.id);
    a.title='First';b.title='Second';c.title='Third';t.title='Job';t.content='A shared body';t.scheduledDates=[today()];t.explicitTags=['work'];

@@ -145,11 +145,36 @@ function trashSubtree(db,id){
  if(archiveSubtree(db,id,true)===false)return false;
  i.trashedAt=now();return true;
 }
+// Deleting linked items everywhere also goes to Recently deleted. Each item is archived under its
+// former primary parent (or at the root) and keeps where its links were (trashedLinks), so Restore
+// can put them back where those places still exist.
+function trashDeletedEverywhere(db,deleted,links=new Map()){
+ const at=now();
+ for(const i of db.items){
+   if(!deleted.has(i.id))continue;
+   delete i.locationId;delete i.locationParent;
+   if(i.parentId&&!itemById(db,i.parentId))i.parentId=null;
+   if(!i.parentId&&(!i.rootId||db.items.some(x=>x!==i&&!x.parentId&&x.rootId===i.rootId)))i.rootId=allocateRootId(db,i.type);
+   i.archived=true;touch(db,i);
+   if(!deleted.has(i.parentId)){i.trashedAt=at;const l=links.get(i.id);if(l?.length)i.trashedLinks=l;else delete i.trashedLinks}
+ }
+}
+function relinkRestored(db,i){
+ const links=i.trashedLinks;delete i.trashedLinks;if(!links?.length||!db.locations)return 0;
+ const g=new OutlineLocations(db);let added=0;
+ for(const {parent} of links){
+   const p=g.nodes.get(parent);
+   if(!p||p.item.archived||g.chain(p).some(n=>n.item.id===i.id)||g.siblings(parent).some(n=>n.item.id===i.id))continue;
+   g.add({id:uuid(),item:i,parent,order:g.appendOrder(parent),rootId:null,collapsed:true,primary:false});g.index();added++;
+ }
+ if(added)g.commit(false);
+ return added;
+}
 function trashedRoots(db){return db.items.filter(i=>i.trashedAt&&i.archived).sort((a,b)=>String(b.trashedAt).localeCompare(String(a.trashedAt)))}
 function restoreTrashed(db,id){
  const i=itemById(db,id);if(!i)return false;
  if(archiveSubtree(db,id,false)===false)return false;
- delete i.trashedAt;touch(db,i);return true;
+ delete i.trashedAt;relinkRestored(db,i);touch(db,i);return true;
 }
 function trashExpiry(i){return new Date(new Date(i.trashedAt).getTime()+TRASH_DAYS*86400000)}
 function purgeExpiredTrash(db,nowMs=Date.now()){

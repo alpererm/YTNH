@@ -13,6 +13,48 @@ struct Publication {
     revision: String,
 }
 impl WorkingStore {
+    /// "Keep both", step 1: reads the library file another computer changed after this copy was
+    /// opened. Its image and archive objects are copied into this working copy (content-addressed,
+    /// so no existing file changes); the items it changed since the shared revision are listed
+    /// (null when the histories are unrelated). Nothing else changes.
+    pub fn read_conflict(&self, library: &str) -> Result<V> {
+        self.reconcile_publication(library)?;
+        let working = self.recover(library)?.ok_or("Unknown portable library")?;
+        let verified = verify(&working.session.master, &self.root.join("staging"), self.limits)?;
+        if verified.manifest.state["library"].as_str() != Some(library) {
+            return Err("The library file now holds a different library; use Save As".into());
+        }
+        if verified.fingerprint == working.session.base_fingerprint {
+            return Err("The library file has not changed; save again".into());
+        }
+        let repo = Repository::open(&verified.database())?;
+        let changed = repo.items_changed_since(&working.session.base_revision)?;
+        let objects = working.objects();
+        fs::create_dir_all(&objects)?;
+        for entry in fs::read_dir(verified.objects())? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let Some(name) = name.to_str().filter(|n| valid_hash(n)) else { continue };
+            let target = objects.join(name);
+            if fs::symlink_metadata(&target).is_err() {
+                transfer::immutable(&target, &fs::read(entry.path())?)?;
+            }
+        }
+        sync_dir(&objects)?;
+        Ok(serde_json::json!({"model": repo.load()?, "changed": changed, "fingerprint": verified.fingerprint}))
+    }
+    /// "Keep both", step 2, after the other file's changes are saved in this copy: the next save
+    /// replaces that file. Refused if it changed again since it was read.
+    pub fn adopt_conflict(&self, library: &str, seen: &FileDigest) -> Result<WorkingCopy> {
+        self.reconcile_publication(library)?;
+        let mut working = self.recover(library)?.ok_or("Unknown portable library")?;
+        if fingerprint(&working.session.master, self.limits.bytes)? != *seen {
+            return Err("The library file changed again; choose Keep both again".into());
+        }
+        working.session.base_fingerprint = seen.clone();
+        self.write_session(&working.session)?;
+        Ok(working)
+    }
     pub fn session(&self, library: &str) -> Result<Option<Session>> {
         let bytes = match fs::read(self.record_path(library)?) {
             Ok(bytes) => bytes,

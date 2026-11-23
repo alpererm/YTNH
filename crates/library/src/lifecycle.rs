@@ -34,7 +34,8 @@ pub fn export_recovery(repo: &Repository, vault: &Path, destination: &Path) -> R
     Ok(path)
 }
 
-/// Recovery history is retained; there is no automatic snapshot deletion policy.
+/// Takes a backup copy (at most one per 5 minutes unless forced), then thins out old copies and
+/// the images only they needed.
 pub fn backup_retained(repo: &Repository, folder: &Path, vault: &Path, force: bool) -> Result<()> {
     fs::create_dir_all(folder)?;
     let mut copies = Vec::new();
@@ -80,7 +81,9 @@ pub fn backup_retained(repo: &Repository, folder: &Path, vault: &Path, force: bo
         .sync_all()?;
     fs::rename(snap, folder.join(name))?;
     // Thinning old copies must never block saving; a failure leaves extra copies behind.
-    let _ = prune_backups(folder, now_ms());
+    if prune_backups(folder, now_ms()).is_ok_and(|removed| removed > 0) {
+        let _ = prune_backup_objects(folder, Duration::from_secs(3600));
+    }
     Ok(())
 }
 
@@ -147,7 +150,8 @@ pub fn backups_to_prune(copies: &[(String, u64)], now: u64) -> Vec<String> {
     remove
 }
 
-/// Deletes thinned-out backup copies in `folder`. Image objects are left untouched.
+/// Deletes thinned-out backup copies in `folder`. Their image objects are removed separately
+/// by `prune_backup_objects`.
 pub fn prune_backups(folder: &Path, now: u64) -> Result<usize> {
     let mut copies = Vec::new();
     for entry in fs::read_dir(folder)? {
@@ -165,6 +169,44 @@ pub fn prune_backups(folder: &Path, now: u64) -> Result<usize> {
         fs::remove_file(folder.join(name))?;
     }
     Ok(remove.len())
+}
+
+/// Deletes image and archive files in `folder/objects` that no remaining backup copy needs.
+/// Nothing is deleted unless every `.sqlite` copy in `folder` can be read; only content-addressed
+/// names are considered, and files changed within `min_age` are kept (a backup may be in progress).
+/// Restoring a backup also looks in the library's own image store, so this never breaks a restore.
+pub fn prune_backup_objects(folder: &Path, min_age: Duration) -> Result<usize> {
+    let objects = folder.join("objects");
+    if !objects.is_dir() {
+        return Ok(0);
+    }
+    let mut needed = std::collections::HashSet::new();
+    for entry in fs::read_dir(folder)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !entry.file_type()?.is_file() || path.extension().and_then(|s| s.to_str()) != Some("sqlite") {
+            continue;
+        }
+        let repo = Repository::open(&path)?;
+        needed.extend(crate::images::required(&repo, &objects)?.into_keys());
+        needed.extend(repo.inventory()?.into_values().map(|(hash, _)| hash));
+    }
+    let mut removed = 0;
+    for entry in fs::read_dir(&objects)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        let content_addressed = name.len() == 64 && name.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+        if !content_addressed || needed.contains(&name) || !entry.file_type()?.is_file() {
+            continue;
+        }
+        let age = entry.metadata()?.modified()?.elapsed().unwrap_or_default();
+        if age < min_age {
+            continue;
+        }
+        fs::remove_file(entry.path())?;
+        removed += 1;
+    }
+    Ok(removed)
 }
 
 /// Earlier versions of one item, read from the automatic backups in `folder` (newest first).

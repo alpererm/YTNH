@@ -107,6 +107,23 @@ impl Repository {
             })
             .optional()?)
     }
+    /// Items written after `base`, or None when `base` is not part of this history.
+    pub fn items_changed_since(&self, base: &str) -> Result<Option<Vec<String>>> {
+        use rusqlite::OptionalExtension;
+        let generation: Option<i64> = self
+            .conn
+            .query_row("SELECT generation FROM commits WHERE id=?", [base], |r| r.get(0))
+            .optional()?;
+        let Some(generation) = generation else { return Ok(None) };
+        let mut stmt = self.conn.prepare(
+            "SELECT DISTINCT c.id FROM changes c JOIN commits m ON m.id=c.commit_id \
+             WHERE c.entity='item' AND c.deleted=0 AND m.generation>? ORDER BY c.id",
+        )?;
+        let ids = stmt
+            .query_map([generation], |r| r.get(0))?
+            .collect::<rusqlite::Result<Vec<String>>>()?;
+        Ok(Some(ids))
+    }
     pub fn archive_index(&self) -> Result<V> {
         read_archive_index(&self.conn)
     }

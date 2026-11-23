@@ -769,6 +769,10 @@ class OutlineLocations{
  remove(ids,erase){
    // Surviving children of a removed location move to the root. Their UUIDs
    // and subtrees survive even when they have no second location.
+   // Items deleted everywhere remember their links to places that stay, so Restore can relink them.
+   this.removedLinks=new Map();
+   if(erase)for(const p of this.nodes.values())if(erase.has(p.item.id)&&!p.primary&&p.parent&&!ids.has(p.parent)&&!erase.has(this.nodes.get(p.parent)?.item.id)){
+     if(!this.removedLinks.has(p.item.id))this.removedLinks.set(p.item.id,[]);this.removedLinks.get(p.item.id).push({parent:p.parent})}
    for(const id of ids)this.nodes.delete(id);
    for(const p of this.nodes.values())if(p.parent&&!this.nodes.has(p.parent)){p.parent=null;p.rootId=this.newRoot();p.order=this.appendOrder(null);this.index()}
    this.byItem.clear();for(const p of this.nodes.values()){if(!this.byItem.has(p.item.id))this.byItem.set(p.item.id,[]);this.byItem.get(p.item.id).push(p)}
@@ -787,7 +791,7 @@ class OutlineLocations{
        i.parentId=parent?.item.id||null;i.order=p.order;i.rootId=p.rootId;i.collapsed=p.collapsed;
      }else extra[p.id]={item:i.id,parent:p.parent,order:p.order,rootId:p.rootId,collapsed:p.collapsed};
    }
-   this.db.locations=extra;locationIndex=null;if(this.deleted){forgetPins(this.db,this.deleted);this.db.items=this.db.items.filter(i=>!this.deleted.has(i.id))}
+   this.db.locations=extra;locationIndex=null;if(this.deleted){forgetPins(this.db,this.deleted);trashDeletedEverywhere(this.db,this.deleted,this.removedLinks)}
    for(const p of aliases.nodes.values()){const current=this.nodes.get(p.id);if((current&&aliases.code(p)!==this.code(current))||(!current&&this.byItem.has(p.item.id)))rememberCodeAlias(p.item,aliases.code(p))}
    reconcileAllocator(this.db);this.db.updatedAt=now();markDirty();
  }
@@ -848,7 +852,7 @@ function removeLocation(p,all=false,items=new Set([p.item.id]),placementIds=[p.i
  }
  const children=[...graph.nodes.values()].filter(n=>ids.has(n.parent)&&!ids.has(n.id));
  const label=all?'Delete item everywhere':'Remove from this location';
- modal(label+'?',(all?'Delete the selected item(s) and all their locations?':'Remove this occurrence? Other locations keep the item.')+(children.length?' The remaining '+children.length+' child location(s) will move to the Outline root with their subtrees.':''),all?'Delete everywhere':'Remove location',()=>locationChange(g=>{
+ modal(label+'?',(all?`Move the selected item(s) to Recently deleted and remove all their locations? You can restore them for ${TRASH_DAYS} days from ☰ → Archive…; links are put back where those places still exist.`:'Remove this occurrence? Other locations keep the item.')+(children.length?' The remaining '+children.length+' child location(s) will move to the Outline root with their subtrees.':''),all?'Delete everywhere':'Remove location',()=>locationChange(g=>{
    g.remove(ids,all?items:null);return (g.byItem.get(p.item.id)||[])[0]?.id||g.nodes.values().next().value?.id;
  }));
 }
