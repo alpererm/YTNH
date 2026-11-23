@@ -2,6 +2,13 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
+## 11.7.0 — 2026-11-23
+
+- Keep Both: when another computer saved the library while this one had unsaved changes, the items it changed are copied into a "Conflicting changes from another computer" branch and then everything is saved, so nothing is lost.
+- Delete item everywhere moves linked items to Recently deleted; restoring puts their links back where those places still exist.
+- Images and archives that only thinned-out backups needed are cleaned up.
+- The Windows build is installed and started automatically in CI before release.
+
 ## 11.6.0 — 2026-11-23
 
 - Quick Open runs commands and changes settings: type `>` to list them.
