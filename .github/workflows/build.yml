@@ -111,7 +111,12 @@ jobs:
         shell: pwsh
         run: |
           if ($env:RUNNER_OS -ne 'Windows' -or -not $env:SIGNING_THUMBPRINT) { Write-Output 'Unsigned build: nothing to verify.'; exit 0 }
-          $files = @(Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe) + @(Get-ChildItem src-tauri/target/release/*.exe)
+          # Check the installer and the files it installs (app and uninstaller), unpacked with 7-Zip.
+          $installer = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe
+          $inside = Join-Path $env:RUNNER_TEMP 'installer-contents'
+          7z x $installer.FullName "-o$inside" -y | Out-Null
+          $files = @($installer) + @(Get-ChildItem $inside -Filter *.exe)
+          if ($files.Count -lt 3) { throw "Expected the installer, app and uninstaller; found $($files.Count) files" }
           foreach ($file in $files) {
             $sig = Get-AuthenticodeSignature $file.FullName
             if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -ne $env:SIGNING_THUMBPRINT) { throw "Not signed with the YTNH certificate: $($file.Name)" }
