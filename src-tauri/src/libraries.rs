@@ -460,8 +460,18 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
         return Err("Verify this library before editing".into());
     }
 
-    if matches!(op.as_str(), "portable_publish" | "portable_save_as") && !runtime.writable.contains(id) { return Err("Open and verify the library first".into()) }
+    if matches!(op.as_str(), "portable_publish" | "portable_save_as" | "portable_conflict_read" | "portable_conflict_adopt") && !runtime.writable.contains(id) { return Err("Open and verify the library first".into()) }
     match op.as_str() {
+        "portable_conflict_read" => {
+            if !store.entry(id)?.portable { return Err("This is not a portable library".into()) }
+            store.portable.read_conflict(id)
+        }
+        "portable_conflict_adopt" => {
+            if !store.entry(id)?.portable { return Err("This is not a portable library".into()) }
+            let seen: portable::FileDigest = serde_json::from_value(args["fingerprint"].clone())?;
+            let copy = store.portable.adopt_conflict(id, &seen)?;
+            store.attach_portable(copy)
+        }
         "legacy_review" => {
             let result = store.review_legacy(id)?;
             runtime.legacy_reviews.insert(id.into(), arg(&result,"revision")?.into());

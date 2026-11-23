@@ -725,3 +725,79 @@ fn damaged_session_recovery_does_not_choose_between_unpublished_copies() {
     assert!(store.adopt_recovery(&copy.session.copy).unwrap_err().to_string().contains("Another retained copy"));
     assert_eq!(fs::read(record).unwrap(),b"damaged");assert_eq!(repo.load().unwrap(),model);
 }
+#[test]
+fn keep_both_reads_the_other_computers_changes_and_then_replaces_the_file() {
+    let mut f = Fixture::new();
+    f.pack();
+    let store = f.store();
+    let copy = store.load(&f.master).unwrap();
+    let library = copy.session.library.clone();
+    edit(&copy.database());
+    // Another computer changes a different item and saves over the same library file.
+    let mut model = f.repo.load().unwrap();
+    let other = model["items"][1]["id"].as_str().unwrap().to_owned();
+    model["items"][1]["title"] = json!("Changed on the other computer");
+    f.repo
+        .save(&model, f.repo.identity().unwrap().1.as_deref(), "remote")
+        .unwrap();
+    fs::remove_file(&f.master).unwrap();
+    f.pack();
+    let local_head = Repository::open(&copy.database()).unwrap().identity().unwrap().1.unwrap();
+    let refused = store.publish(&library, &local_head, None).unwrap_err().to_string();
+    assert!(refused.contains("changed outside YTNH"), "{refused}");
+
+    let conflict = store.read_conflict(&library).unwrap();
+    assert_eq!(conflict["changed"], json!([other]));
+    assert_eq!(conflict["model"]["items"][1]["title"], "Changed on the other computer");
+    assert!(copy.objects().join(&f.image).exists());
+    let seen: portable::FileDigest = serde_json::from_value(conflict["fingerprint"].clone()).unwrap();
+
+    // A stale reading is refused; the current one lets the next save replace the file.
+    let stale = portable::FileDigest { sha256: "0".repeat(64), bytes: seen.bytes };
+    assert!(store.adopt_conflict(&library, &stale).unwrap_err().to_string().contains("changed again"));
+    store.adopt_conflict(&library, &seen).unwrap();
+    let published = store.publish(&library, &local_head, None).unwrap();
+    assert!(!published.unpublished);
+    let reopened = portable::verify(&f.master, &f.dir.path().join("check"), Limits::default()).unwrap();
+    let saved = Repository::open(&reopened.database()).unwrap().load().unwrap();
+    assert_eq!(saved["items"][0]["title"], "Unpublished local edit");
+}
+#[test]
+fn keep_both_lists_nothing_for_unrelated_histories() {
+    let f = Fixture::new();
+    let repo = Repository::create(&f.dir.path().join("x.sqlite"), &Uuid::new_v4().to_string(), None).unwrap();
+    assert_eq!(repo.items_changed_since("missing").unwrap(), None);
+}
+#[test]
+fn images_only_pruned_backups_needed_are_removed() {
+    use std::time::Duration;
+    use yutanohe_library::lifecycle::{backup_retained, prune_backup_objects};
+    let f = Fixture::new();
+    let folder = f.dir.path().join("thinned-backups");
+    backup_retained(&f.repo, &folder, &f.vault, true).unwrap();
+    let objects = folder.join("objects");
+    let kept: Vec<_> = fs::read_dir(&objects).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert!(kept.len() >= 2, "image and cold archive are backed up");
+    let orphan = "ab".repeat(32);
+    fs::write(objects.join(&orphan), b"only an old, pruned backup used this").unwrap();
+    fs::write(objects.join("notes.txt"), b"not content-addressed").unwrap();
+    // Recent files are kept while a backup may still be in progress.
+    assert_eq!(prune_backup_objects(&folder, Duration::from_secs(3600)).unwrap(), 0);
+    assert_eq!(prune_backup_objects(&folder, Duration::ZERO).unwrap(), 1);
+    assert!(!objects.join(&orphan).exists());
+    assert!(objects.join(&f.image).exists() && objects.join("notes.txt").exists());
+    // An unreadable copy stops the cleanup: nothing is deleted.
+    let unreadable = folder.join("0000000000000001-damaged.sqlite");
+    fs::write(&unreadable, b"not a database").unwrap();
+    fs::write(objects.join(&orphan), b"x").unwrap();
+    assert!(prune_backup_objects(&folder, Duration::ZERO).is_err());
+    assert!(objects.join(&orphan).exists() && objects.join(&f.image).exists());
+    fs::remove_file(&unreadable).unwrap();
+    // Once no backup copy is left, its images and archives can go.
+    for entry in fs::read_dir(&folder).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|x| x == "sqlite") { fs::remove_file(path).unwrap(); }
+    }
+    assert_eq!(prune_backup_objects(&folder, Duration::ZERO).unwrap(), kept.len() + 1);
+    assert!(objects.join("notes.txt").exists());
+}

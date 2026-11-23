@@ -131,11 +131,30 @@ function createDesktopLibraries(call) {
       }catch(error){
         handle.masterIssue=error.message;
         syncState(handle,/conflict|changed|divergent/i.test(error.message)?'Conflict detected':'Save failed',error.message+' '+portableDetail);
-        const reply=await question('Library file was not saved',error.message+(dirty?' Pending edits remain in the application. Retry the local save or cancel.':' Your local work is retained.'),[['retry','Retry'],...(!dirty?[['saveas','Save As…']]:[]),['cancel',closing?'Cancel Close':'Cancel']]);
+        const changedElsewhere=!asNew&&/changed outside YTNH/.test(error.message);
+        const reply=changedElsewhere
+          ?await question('Library changed on another computer','Another computer saved this library after you opened it here. Keep Both copies the items it changed into a “Conflicting changes” branch, then saves everything to the library file. Save As… keeps the two files apart.',[['keepboth','Keep Both'],['saveas','Save As…'],['cancel',closing?'Cancel Close':'Cancel']])
+          :await question('Library file was not saved',error.message+(dirty?' Pending edits remain in the application. Retry the local save or cancel.':' Your local work is retained.'),[['retry','Retry'],...(!dirty?[['saveas','Save As…']]:[]),['cancel',closing?'Cancel Close':'Cancel']]);
         if(reply.choice==='cancel')return false;
+        if(reply.choice==='keepboth'){
+          try{await keepBoth(handle)}catch(failure){if(failure.name==='AbortError')return false;toast(failure.message)}
+          continue;
+        }
         asNew=reply.choice==='saveas';
       }
     }
+  }
+  // Merge the other computer's changed items into this copy, save it locally, then let the next
+  // save replace the library file. The local save comes first, so a failure never loses either side.
+  async function keepBoth(handle){
+    syncState(handle,'Copying the other computer’s changes…',portableDetail);
+    const other=await action('portable_conflict_read',{id:handle.id});
+    if(storage.handle!==handle)throw cancel();
+    const copied=mergeConflictingCopy(db,other.model,other.changed,other.fingerprint.sha256);
+    if(copied)render();
+    await flush();
+    await action('portable_conflict_adopt',{id:handle.id,fingerprint:other.fingerprint});
+    toast(copied?`Copied ${copied} item${copied===1?'':'s'} changed on the other computer into “Conflicting changes from another computer”.`:'The other computer’s changes are already here.');
   }
   async function beforeSwitch(){
     if(storage.handle?.portable)return savePortable(storage.handle);
