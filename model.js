@@ -5,7 +5,7 @@
 const ROOT_NUM_MAX=999;
 const TOTAL_ROOT_IDS=998001;
 function rootIdFromOrdinal(n){
- if(!Number.isSafeInteger(n)||n<1||n>TOTAL_ROOT_IDS)throw new Error('RootID space exhausted or invalid ordinal (maximum 999.999).');
+ if(!Number.isSafeInteger(n)||n<1||n>TOTAL_ROOT_IDS)throw new Error('This library has reached the maximum of 998,001 items, or an item number is invalid.');
  return `${String(Math.floor((n-1)/999)+1).padStart(3,'0')}.${String((n-1)%999+1).padStart(3,'0')}`;
 }
 function rootOrdinalFromId(id){
@@ -26,7 +26,7 @@ function itemSearchCodes(database,item,locations=null){
 function numericCodeRoot(code){return String(code||'').match(/^(\d{3}\.\d{3})(?:\.[1-9]\d*)*$/)?.[1]||null}
 // Load the shared numeric RootID format without rewriting IDs or references.
 function migrateDatabase(input){
- if(!input||input.format!=='local-notes-todos')throw new Error('Not a YTNH data file.');
+ if(!input||input.format!=='local-notes-todos')throw new Error('This file is not a YTNH library.');
  if(![9,10,11].includes(input.schemaVersion))throw new Error('Unsupported library format. Open a YTNH library that uses data format 9, 10 or 11.');
  const next=JSON.parse(JSON.stringify(input));
  validateDatabase(next);reconcileAllocator(next);
@@ -247,7 +247,9 @@ function activeItems(db){return db.items.filter(x=>!x.archived)}
 function childrenOf(db,id,includeArchived=false){const L=readLookups(db);return (L?(L.children.get(id)||[]):db.items).filter(x=>x.parentId===id&&(includeArchived||!x.archived)).sort((a,b)=>a.order-b.order)}
 function rootOf(db,item){let x=item,seen=new Set();while(x?.parentId){if(seen.has(x.id))throw new Error("Hierarchy cycle detected");seen.add(x.id);const p=itemById(db,x.parentId);if(!p)break;x=p}return x}
 // One visual marker for each logical item. Dates supply occurrence-specific status.
-function itemMarker(item,{status=null,date=null,passive=false,code=false,planner=false,outline=false}={}){
+// Checklist checkboxes are named after their line, so screen readers say what is being ticked.
+function checkLabel(text){return String(text??'').replace(/[*_`~#<>\[\]]/g,'').replace(/\s+/g,' ').trim().slice(0,120)||'Checklist item'}
+function itemMarker(item,{status=null,date=null,passive=false,code=false,planner=false,outline=false,nested=false}={}){
  const state=status||(date&&isRecurringTodo(item)?occurrenceStatus(item,date):item.status)||'Todo';
  const kind=item.target?'Target':isMilestone(item)?'Milestone':isRecurringTodo(item)?'Recurring Todo':item.type;
  // In the Outline a recurring Todo uses the plain Todo circle; the repeat icon moves to the right-hand indicators.
@@ -257,7 +259,7 @@ function itemMarker(item,{status=null,date=null,passive=false,code=false,planner
  else if(item.type==='Todo'&&state==='Cancelled')shape+='<path d="m8 8 8 8m0-8-8 8"/>';
  else if(item.type==='Todo'&&state==='On hold')shape+='<path d="M7 12h10"/>';
  const label=kind+(item.type==='Todo'?' · '+state:'')+(!passive&&item.type==='Todo'?' · '+(state==='Done'?'Mark Todo':'Mark done'):'');
- return '<span class="itemMarker'+(code?' code':'')+'" data-marker-id="'+esc(item.id||'')+'" data-marker-type="'+esc(item.type)+'" data-marker-kind="'+kind+'" data-marker-status="'+esc(state)+'"'+(date?' data-marker-date="'+esc(date)+'"':'')+(code?' data-code="'+esc(item.id)+'"':'')+(planner?' data-marker-planner="true"':'')+(passive?' data-marker-passive="true" aria-label="'+esc(label)+'"':' role="button" tabindex="'+(outline?'-1':'0')+'" aria-label="'+esc(label)+'"')+' title="'+esc(label)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shape+'</svg></span>';
+ return '<span class="itemMarker'+(code?' code':'')+'" data-marker-id="'+esc(item.id||'')+'" data-marker-type="'+esc(item.type)+'" data-marker-kind="'+kind+'" data-marker-status="'+esc(state)+'"'+(date?' data-marker-date="'+esc(date)+'"':'')+(code?' data-code="'+esc(item.id)+'"':'')+(planner?' data-marker-planner="true"':'')+(passive?' data-marker-passive="true" aria-label="'+esc(label)+'"':nested?' aria-hidden="true"':' role="button" tabindex="'+(outline?'-1':'0')+'" aria-label="'+esc(label)+'"')+' title="'+esc(label)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shape+'</svg></span>';
 }
 function copyItemCode(item,location=null){
  const graph=db.locations?locationsForRead(db):null;
@@ -346,11 +348,11 @@ function inheritedTags(db,item){
  if(db.locations){
    const graph=locationsForRead(db),all=new Set();
    for(const p of graph.byItem.get(item.id)||[]){const tags=new Set();for(const n of graph.chain(p)){for(const t of n.item.tagExclusions||[])tags.delete(t);for(const t of ownTags(n.item))tags.add(t)}for(const t of tags)all.add(t)}
-   return [...all].sort();
+   return [...all].sort(compareTags);
  }
  const chain=[],seen=new Set();for(let x=item;x&&!seen.has(x.id);x=itemById(db,x.parentId)){chain.unshift(x);seen.add(x.id)}
  const tags=new Set();for(const x of chain){for(const tag of normalizeTagList(x.tagExclusions||[]))tags.delete(tag);ownTags(x).forEach(t=>tags.add(t))}
- return [...tags].sort();
+ return [...tags].sort(compareTags);
 }
 function archiveSubtree(db,id,value=true){
  if(db.locations){const g=new OutlineLocations(db),affected=[itemById(db,id),...descendants(db,id,true)].filter(Boolean);
@@ -674,7 +676,7 @@ function markdownToEditorHTML(text){
        if(heading){attrs+=' data-check-heading="h'+heading[1].length+'"';body=heading[2]}
        else if(body.startsWith('> ')){attrs+=' data-check-heading="quote"';body=body.slice(2)}
      }
-     if(type==='check')extra=`<input class="md-check" type="checkbox" contenteditable="false" ${m[3].toLowerCase()==='x'?'checked':''}>`;
+     if(type==='check')extra=`<input class="md-check" type="checkbox" contenteditable="false" aria-label="${esc(checkLabel(body))}" ${m[3].toLowerCase()==='x'?'checked':''}>`;
      if(type==='ol'){attrs+=` data-mdnum="${m[4]}"`;extra=`<span class="md-list-marker" contenteditable="false">${m[4]}.</span>`}
    }else{
      if(line.trim())indents=[];

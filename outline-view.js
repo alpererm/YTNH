@@ -292,7 +292,7 @@ function tagGroupTree(groups){
  }
  for(const g of groups){const node=nodes.get(g.key);if(node.tag===undefined)continue;const ids=new Set();
   for(const [tag,other] of byTag)if(tag===node.tag||tag.startsWith(node.tag+'/'))other.items.forEach(i=>ids.add(i.id));node.total=ids.size}
- const tagged=groups.filter(g=>tagOf(g)!==null).sort((a,b)=>{const x=tagOf(a).split('/'),y=tagOf(b).split('/');for(let i=0;i<Math.min(x.length,y.length);i++){const c=x[i].localeCompare(y[i]);if(c)return c}return x.length-y.length});
+ const tagged=groups.filter(g=>tagOf(g)!==null).sort((a,b)=>{const x=tagOf(a).split('/'),y=tagOf(b).split('/');for(let i=0;i<Math.min(x.length,y.length);i++){const c=compareTags(x[i],y[i]);if(c)return c}return x.length-y.length});
  return {nodes,order:[...tagged,...groups.filter(g=>tagOf(g)===null)]};
 }
 function outlineGroups(items,mode){

@@ -343,7 +343,7 @@ function initManagedImageImports(){
  function valid(dest){return available()&&db===dest.model&&selected===dest.id&&storage.handle.id===dest.lib&&dest.content===editorDocument().content&&rangeBelongsToRichEditor(dest.range)}
  async function readFileAsset(file,lib){
        const large=file.size>25*1024*1024;
-       if(large&&!window.confirm('Import '+file.name+' ('+(file.size/1048576).toFixed(1)+' MB)?'))return;
+       if(large&&!await appConfirm('Import a large file?','Import '+file.name+' ('+(file.size/1048576).toFixed(1)+' MB)? Large files make the library bigger and slower to save.','Import'))return;
        const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(reader.result.split(',')[1]);reader.readAsDataURL(file)});
        return api.importImage(lib,data,large);
  }

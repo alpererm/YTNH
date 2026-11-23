@@ -304,7 +304,7 @@ body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-ind
 
 /* Calendar titles wrap to two lines before shortening (R8). */
 :root body #calendarBody .chip,:root body #calendarBody .chip .cal-code{white-space:normal}
-:root body #calendarBody .chip .calendarItemTitle{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:1.25}
+:root body #calendarBody .chip .calendarItemTitle{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:break-word;line-height:1.25}
 
 /* Open Recent flyout while moved to the page top level. */
 :root body #recentFilesList.recentFilesFlyout{position:fixed;z-index:300}
@@ -338,3 +338,9 @@ body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-ind
 :root body .historyPreview h4{margin:0}
 :root body .historyPreview pre{flex:1;margin:0;white-space:pre-wrap;font:inherit;color:var(--ink)}
 :root body .historyPreview #historyRestore{align-self:flex-start}
+
+/* Targets at least 24 px (WCAG 2.5.8). Checkboxes and the date glyph keep their look; checklist lines are at least 25 px apart. */
+:root body #editor .richEditor input.md-check{z-index:1}
+:root body #editor #richEditor>[data-mdblock="check"]{min-height:25px;box-sizing:border-box} /* hit areas of neighbouring lines never overlap */
+:root body #editor .richEditor input.md-check::before{content:"";position:absolute;inset:min(-1.5px,calc((var(--check-size) - 24px) / 2 - 1.5px))} /* measured inside the 1.5px border */
+:root body .dayFirstField .dayPickerGlyph[role=button]{width:24px;height:24px;padding:4.5px;box-sizing:border-box;right:-.5px}

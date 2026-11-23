@@ -150,7 +150,7 @@ async function openItemHistory(id){
  versions=(versions||[]).filter(v=>!same(v));
  const when=v=>new Date(v.savedAt).toLocaleString('en-GB',{hourCycle:'h23',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
  resetModalShell();$('modalTitle').textContent='History';
- $('modalText').textContent=versions.length?`${versions.length} earlier version${versions.length===1?'':'s'} of “${item.title||'(untitled)'}” from this computer’s automatic backups.`:`No earlier versions of “${item.title||'(untitled)'}” in this computer’s backups yet. Backups are made while you work.`;
+ $('modalText').textContent=versions.length?`${versions.length} earlier version${versions.length===1?'':'s'} of “${item.title||'(untitled)'}” from this computer’s automatic backups. Versions saved on your other computers appear only there.`:`No earlier versions of “${item.title||'(untitled)'}” in this computer’s backups yet. Backups are made while you work, and each computer keeps its own.`;
  $('modalExtra').innerHTML=versions.length?`<div class="historyPicker"><div class="historyList" role="listbox" aria-label="Versions">${versions.map((v,n)=>`<button type="button" role="option" data-version="${n}"><strong>${esc(when(v))}</strong><small>${esc(v.title||'(untitled)')}${item.type==='Todo'?' · '+esc(v.status):''}${v.archived?' · archived':''}</small></button>`).join('')}</div><div class="historyPreview"><h4 id="historyTitle"></h4><pre id="historyText"></pre><button type="button" id="historyRestore" class="primary">Restore this version</button></div></div>`:'';
  $('modalOK').textContent='Close';$('modalOK').onclick=closeModalShell;$('modalCancel').classList.add('hidden');$('modalbg').classList.add('open');
  if(!versions.length)return;

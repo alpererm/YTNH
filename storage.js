@@ -15,7 +15,7 @@ function downloadText(name,text){if(!window.notesDesktop)throw new Error('Recove
 async function recentFileRecords(){return window.notesDesktop?window.notesDesktop.recentFiles():[]}
 async function openRecentFile(record){
  if((storage.handle?.portable||record.handle?.portable)&&window.notesDesktop?.sqlite?.openRecent)return window.notesDesktop.sqlite.openRecent(record);
- if(!allowDatabaseSwitch())return;if(!record.handle){$('openFile').click();return}
+ if(!await allowDatabaseSwitch())return;if(!record.handle){$('openFile').click();return}
  fileOperationBusy=true;const owner=db,revision=JSON.stringify(db);
  try{const handle=record.handle;if(await handle.requestPermission({mode:'readwrite'})!=='granted')throw new Error('File permission was not granted.');const file=await handle.getFile(),text=await file.text(),next=migrateDatabase(JSON.parse(text));if(db!==owner||JSON.stringify(db)!==revision)throw new Error('The library changed. Try again.');storage.handle=handle;storage.name=file.name;storage.lastLoadedText=text;installDatabase(next,!!next.__migratedFromSchema);await rememberLastFile();$('appMenu').open=false;toast('Opened '+file.name)}catch(e){toast('Could not open recent file: '+e.message)}finally{fileOperationBusy=false}
 }

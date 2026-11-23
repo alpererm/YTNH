@@ -345,7 +345,7 @@ function setBodyBlock(block,type,num=1,checked=false){
    marker.contentEditable="false";marker.textContent=num+".";block.prepend(marker);
  }
  if(type==="check"){
-   const c=document.createElement("input");c.type="checkbox";c.className="md-check";c.contentEditable="false";c.checked=checked;block.prepend(c);
+   const c=document.createElement("input");c.type="checkbox";c.className="md-check";c.contentEditable="false";c.checked=checked;c.setAttribute("aria-label",checkLabel(block.textContent));block.prepend(c);
  }
  if(!block.childNodes.length)block.append(document.createElement("br"));
 }

@@ -123,6 +123,23 @@ jobs:
             if (-not $sig.TimeStamperCertificate) { throw "Signature has no timestamp: $($file.Name)" }
             Write-Output "Signed: $($file.Name) ($($sig.Status))"
           }
+      - name: Smoke test the Windows installer
+        # Installs the built installer silently, starts the app and checks it is still running after 20 seconds.
+        shell: pwsh
+        run: |
+          if ($env:RUNNER_OS -ne 'Windows') { Write-Output 'Not Windows: nothing to smoke test.'; exit 0 }
+          $installer = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          $setup = Start-Process $installer.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($setup.ExitCode -ne 0) { throw "Installer exited with code $($setup.ExitCode)" }
+          $app = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'YTNH') -Filter local-notes-todos.exe -Recurse | Select-Object -First 1
+          if (-not $app) { throw 'Installed app not found under %LOCALAPPDATA%\YTNH' }
+          $process = Start-Process $app.FullName -PassThru
+          Start-Sleep -Seconds 20
+          if ($process.HasExited) { throw "App exited within 20 seconds with code $($process.ExitCode)" }
+          Write-Output "App started and kept running: $($app.FullName)"
+          Stop-Process -Id $process.Id -Force
+          $uninstaller = Get-ChildItem $app.DirectoryName -Filter uninstall.exe | Select-Object -First 1
+          if ($uninstaller) { Start-Process $uninstaller.FullName -ArgumentList '/S' -Wait }
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
