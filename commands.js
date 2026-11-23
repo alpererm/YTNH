@@ -1,0 +1,52 @@
+"use strict";
+// Quick Open commands: typing '>' in Quick Open lists commands and settings.
+// Menu commands use the same ids as the macOS menu bar (key:/click:/text:/fn:), so they run
+// exactly like their shortcut or ☰ entry. Simple settings change the Settings dialog's own
+// control, so they apply and save through the same code as the dialog.
+function quickOpenCommands(){
+ const mod=IS_MAC?'⌘':'Ctrl+',opt=IS_MAC?'⌥':'Alt+',shift=IS_MAC?'⇧':'Shift+';
+ const k=s=>s.replace('Mod+',mod).replace('Alt+',opt).replace('Shift+',shift);
+ const menu=(title,id,keys)=>({title,run:id,keys:keys?k(keys):''});
+ const setControl=(tab,id,value,label)=>({title:label,settings:true,run:()=>{
+   openSettings();const el=$(id);if(!el){closeModalShell();return}
+   if(el.type==='checkbox')el.checked=value;else el.value=value;
+   el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));
+   closeModalShell();toast(label)}});
+ const openTab=(tab,id,label)=>({title:label+'…',settings:true,run:()=>{openSettings();$('settingsTab-'+tab)?.click();
+   // The dialog places its own focus right after opening; move it to the setting afterwards.
+   setTimeout(()=>$(id)?.focus(),30)}});
+ const onOff=(tab,id,name)=>[setControl(tab,id,true,name+': On'),setControl(tab,id,false,name+': Off')];
+ const weekends=on=>({title:'Show weekends: '+(on?'On':'Off'),run:()=>{const box=$('showWeekends');if(!box)return;box.checked=on;box.dispatchEvent(new Event('change',{bubbles:true}));toast('Weekends '+(on?'shown':'hidden'))}});
+ return [
+  menu('New Note','key:Mod+N','Mod+N'),menu('New Todo','key:Mod+T','Mod+T'),
+  menu('Open Library…','click:openFile','Mod+O'),menu('New Library…','click:newFile'),menu('Save','click:saveFile','Mod+S'),
+  menu('Back Up Library…','click:exportFile'),menu('Restore Backup…','text:Restore Backup…'),
+  menu('Archive…','click:archiveBrowser'),{title:'Archive Completed…',run:()=>{$('archiveBrowser')?.click();setTimeout(()=>$('archiveCompleted')?.click(),0)}},
+  menu('Import Outlook Calendar…','text:Import Outlook Calendar…'),menu('Reimport Outlook Calendar…','text:Reimport Outlook Calendar…'),
+  menu('Import Markdown Folder…','click:importMarkdownFolder'),
+  menu('Show Outline','key:Mod+1','Mod+1'),menu('Show Editor','key:Mod+2','Mod+2'),menu('Show Calendar','key:Mod+3','Mod+3'),menu('Show Targets','key:Mod+4','Mod+4'),
+  menu('Toggle Daily Planner','key:Mod+Shift+D','Mod+Shift+D'),menu('Toggle Side Panel','key:Mod+Backslash'),menu('Focus Mode','key:Ctrl+Mod+F'),
+  menu('Search the Outline','key:Mod+Shift+F','Mod+Shift+F'),menu('Jump to Date…','key:Mod+Alt+D','Mod+Alt+D'),menu('Today','key:Alt+Shift+T','Alt+Shift+T'),
+  menu('Show or Hide Done Items','key:Alt+Shift+D','Alt+Shift+D'),menu('Show or Hide Notes','key:Alt+Shift+N','Alt+Shift+N'),menu('Show or Hide Recurring Items','key:Alt+Shift+R','Alt+Shift+R'),
+  menu('Clear All Filters','key:Alt+Shift+C','Alt+Shift+C'),weekends(true),weekends(false),
+  menu('Find in Document','key:Mod+F','Mod+F'),menu('Find and Replace','key:Mod+Alt+F'),
+  menu('Zoom In','key:Mod+Equal'),menu('Zoom Out','key:Mod+Minus'),menu('Actual Size','key:Mod+Digit0'),
+  menu('Settings…','fn:settings'),menu('Help','fn:help'),menu('Open the Tour…','fn:tour'),menu('About YTNH','click:aboutBtn'),
+  ...Object.entries(APP_THEMES).map(([value,label])=>setControl('appearance','settingsTheme',value,'Theme: '+label)),
+  setControl('general','settingsDefaultView','calendar','Default view: Calendar first'),setControl('general','settingsDefaultView','editor','Default view: Editor first'),
+  ...onOff('editor','settingsSpellcheck','Spell checking'),...onOff('editor','settingsLimitWidth','Limit editor width'),
+  ...onOff('editor','settingsScrollPastEnd','Scroll past end'),...onOff('general','settingsCompletionSound','Completion sound'),
+  openTab('appearance','settingsFont','Settings: Font'),openTab('appearance','settingsInterfaceSize','Settings: Interface size'),
+  openTab('editor','settingsEditorSize','Settings: Editor size'),openTab('editor','settingsLanguage','Settings: Spell-check language'),
+  openTab('calendar','plannerStart','Settings: Daily Planner hours'),openTab('general','settingsGlobalQuickOpen','Settings: Global Quick Open shortcut'),
+ ];
+}
+function quickOpenRenderCommands(query){
+ const terms=String(query||'').trim().toLowerCase().split(/\s+/).filter(Boolean);
+ const list=quickOpenCommands().filter(c=>terms.every(t=>fuzzyTextMatch(t,c.title.toLowerCase())));
+ $('refResults').innerHTML=list.length?list.map((c,i)=>`<button type="button" class="refResult commandResult" data-command="${i}"><span class="commandIcon" aria-hidden="true">${c.settings?'⚙':'›'}</span><span>${esc(c.title)}</span>${c.keys?`<kbd class="commandKeys">${esc(c.keys)}</kbd>`:''}</button>`).join(''):'<div class="empty">No matching commands.</div>';
+ $('refResults').querySelectorAll('[data-command]').forEach(b=>b.onclick=()=>{
+   const c=list[Number(b.dataset.command)];modalAfterClose=null;closeModalShell();
+   if(typeof c.run==='function')c.run();else window.dispatchEvent(new CustomEvent('ytnh-menu',{detail:c.run}));
+ });
+}
