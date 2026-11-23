@@ -3,6 +3,12 @@
 // Declarations only; loaded before the main script.
 // Typo tolerance: one typo in words of 5+ letters, two in words of 8+; swapping neighbouring letters is
 // one typo; a typo near the start of a longer word still matches ("progrm" → "programme").
+// Search compares folded text: lowercase without accents, and Turkish dotless/dotted i treated
+// as i, so "Işık", "ışık", "IŞIK" and "isik" match each other, as do "Şirket" and "sirket".
+function searchFold(text){return String(text??'').toLowerCase().normalize('NFD').replace(/\p{M}/gu,'').replace(/ı/g,'i')}
+// Tags sort in Turkish alphabetical order (ç after c, ı before i, ş after s), which keeps English order.
+const TAG_COLLATOR=new Intl.Collator('tr');
+function compareTags(a,b){return TAG_COLLATOR.compare(String(a),String(b))}
 function typoDistance(a,b,max){
  if(Math.abs(a.length-b.length)>max)return max+1;
  const d=Array.from({length:a.length+1},(_,i)=>{const r=new Array(b.length+1).fill(0);r[0]=i;return r});
@@ -15,7 +21,7 @@ function typoDistance(a,b,max){
  return d[a.length][b.length];
 }
 function fuzzyWordMatch(term,word){
- term=String(term||'').toLowerCase();word=String(word||'').toLowerCase();
+ term=searchFold(term);word=searchFold(word);
  if(!term||word.includes(term))return true;
  if(term.length<5||word.length<4)return false;
  const max=term.length>=8?2:1;
@@ -26,7 +32,7 @@ function fuzzyWordMatch(term,word){
 }
 const SEARCH_WORDS=/[^\p{L}\p{N}_.-]+/u;
 function fuzzyTextMatch(term,hay){
- term=String(term||"").trim().toLowerCase();hay=String(hay||"").toLowerCase();
+ term=searchFold(term).trim();hay=searchFold(hay);
  if(!term)return true;
  if(hay.includes(term))return true;
  return hay.split(SEARCH_WORDS).filter(Boolean).some(w=>fuzzyWordMatch(term,w));
@@ -37,7 +43,7 @@ function fuzzyTextMatch(term,hay){
 // 8 inside the text · 9 text with a typo. An exact title is 0; the whole title with a typo is 4.5. Title matches come before text-only matches;
 // within each, active items come before finished ones, then by the weakest word, the sum, the shorter title
 // and the most recent edit.
-function searchTerms(query){return String(query||'').trim().toLowerCase().split(/\s+/).filter(Boolean)}
+function searchTerms(query){return searchFold(query).trim().split(/\s+/).filter(Boolean)}
 function termTier(term,title,titleWords,body,bodyWords,codes){
  if(titleWords.includes(term))return 1;
  if(title.startsWith(term))return 2;
@@ -53,11 +59,11 @@ function termTier(term,title,titleWords,body,bodyWords,codes){
 function inactiveRank(item){return item?.type!=='Todo'?0:({'On hold':1,Done:2,Cancelled:3}[item.status]||0)}
 // stable: equally good results keep their given (Outline) order, so moving items in search results stays predictable.
 function rankItems(items,query,{title=i=>i.title,body=i=>descriptionSearchText(i.content),codes=i=>itemSearchCodes(db,i),item=i=>i,stable=false}={}){
- const terms=Array.isArray(query)?query.map(t=>String(t).toLowerCase()).filter(Boolean):searchTerms(query);
+ const terms=Array.isArray(query)?query.map(t=>searchFold(t)).filter(Boolean):searchTerms(query);
  if(!terms.length)return items;
  const whole=terms.join(' ');
  return items.map((entry,index)=>{
-   const t=String(title(entry)||'').toLowerCase().trim(),b=String(body(entry)||'').toLowerCase(),c=String(codes(entry)||'').toLowerCase().split(/\s+/).filter(Boolean);
+   const t=searchFold(title(entry)||'').trim(),b=searchFold(body(entry)||''),c=searchFold(codes(entry)||'').split(/\s+/).filter(Boolean);
    const tw=t.split(SEARCH_WORDS).filter(Boolean),bw=b.split(SEARCH_WORDS).filter(Boolean);
    const tiers=terms.map(term=>termTier(term,t,tw,b,bw,c));
    const target=item(entry);

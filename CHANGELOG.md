@@ -2,6 +2,23 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
+## 11.6.0 — 2026-11-23
+
+- Quick Open runs commands and changes settings: type `>` to list them.
+- Recently deleted: deleted branches stay in the Archive dialog for 30 days and can be restored under their parent.
+- Details → History… shows an item's earlier versions from this computer's automatic backups and restores one as an undoable change.
+- Archive completed… archives every finished branch in one step, with a preview and a single Undo; archived items are listed under their parent.
+- Dates in words in English and Turkish, with or without Turkish letters (yarın/yarin, haftaya cuma, 3 gün sonra).
+- Search treats ı, İ and I alike and ignores accents, so "isik" finds "Işık"; tags sort in Turkish alphabetical order.
+- Much faster large libraries: marking done, renaming and opening items update just the affected row (20,000 items: mark done 2.6 s → 0.8 s), and archiving 1,000 branches drops from 38 s to 1 s.
+- Item codes are hidden; links and search by code keep working.
+- Old automatic backups are thinned out (hourly for a day, then daily, weekly and monthly) instead of piling up.
+- Headings open in the editor like other items; nested tags form a collapsible tree in Group by Tag; Ctrl/Cmd+Right zooms into a branch.
+- Accessibility: Calendar items are no longer separate Tab stops, checklist checkboxes are named after their line, and small controls have 24 px targets.
+- Calendar titles break between words; "library" wording and the app's own dialogs everywhere.
+- Reimport picks up the newest Outlook export in the remembered folder; the Windows installer embeds the WebView2 bootstrapper.
+- Security updates for bundled SQLite and other dependencies.
+
 ## 11.5.0 — 2026-11-22
 
 - Renamed to YTNH, with "library" wording throughout and a standard About window.
