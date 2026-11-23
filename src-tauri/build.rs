@@ -28,6 +28,7 @@ fn main() {
         "help-details.js",
         "calendar.js",
         "ui-setup.js",
+        "commands.js",
         "layout.js",
         "settings.js",
         "outline-view.js",

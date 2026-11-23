@@ -131,3 +131,29 @@ function archiveCompletedBranches(roots){
  for(const r of roots){const n=1+descendants(db,r.id,true).length;if(archiveSubtree(db,r.id,true)!==false)count+=n}
  render();return count;
 }
+// Recently deleted: deleting a branch archives it in place with a trashedAt date, so it is hidden
+// everywhere but keeps its parent. It can be restored for 30 days, then it is removed for good.
+// Branches with linked locations cannot be archived and are still deleted permanently.
+const TRASH_DAYS=30;
+function branchHasLinkedLocations(db,id){
+ if(!db.locations)return false;
+ const g=new OutlineLocations(db),affected=[itemById(db,id),...descendants(db,id,true)].filter(Boolean);
+ return affected.some(i=>g.byItem.get(i.id)?.length>1||i.locationParent||g.siblings(g.primary(i).id).some(p=>!p.primary));
+}
+function trashSubtree(db,id){
+ const i=itemById(db,id);if(!i||branchHasLinkedLocations(db,id))return false;
+ if(archiveSubtree(db,id,true)===false)return false;
+ i.trashedAt=now();return true;
+}
+function trashedRoots(db){return db.items.filter(i=>i.trashedAt&&i.archived).sort((a,b)=>String(b.trashedAt).localeCompare(String(a.trashedAt)))}
+function restoreTrashed(db,id){
+ const i=itemById(db,id);if(!i)return false;
+ if(archiveSubtree(db,id,false)===false)return false;
+ delete i.trashedAt;touch(db,i);return true;
+}
+function trashExpiry(i){return new Date(new Date(i.trashedAt).getTime()+TRASH_DAYS*86400000)}
+function purgeExpiredTrash(db,nowMs=Date.now()){
+ let removed=0;
+ for(const i of trashedRoots(db))if(trashExpiry(i).getTime()<=nowMs){deleteSubtree(db,i.id);removed++}
+ return removed;
+}

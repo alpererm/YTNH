@@ -10,9 +10,9 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    for(let n=0;n<count;n++){const i=createItem(db,'Note');i.title='Note '+n;i.content='Body '+n}
    selected=db.items[0].id;render();edit(selected);$('layout').dataset.view='editor';
  },{mode,count})}
- async function state(){return p.evaluate(()=>({open:editorIsOpen(),view:$('layout').dataset.view,selected,title:editorDocument()?.title||null,empty:$('editor').classList.contains('editor-empty'),count:db.items.length}))}
+ async function state(){return p.evaluate(()=>({open:editorIsOpen(),view:$('layout').dataset.view,selected,title:editorDocument()?.title||null,empty:$('editor').classList.contains('editor-empty'),count:activeItems(db).length}))}
  await setup();await p.evaluate(()=>deleteOutlineSelection());await p.locator('#modalCancel').click();assert.equal((await state()).title,'Note 0');
- await p.evaluate(()=>deleteOutlineSelection());await p.locator('#modalOK').click();assert.deepEqual(await state(),{open:true,view:'editor',selected:await p.evaluate(()=>db.items[0].id),title:'Note 1',empty:false,count:1});
+ await p.evaluate(()=>deleteOutlineSelection());await p.locator('#modalOK').click();assert.deepEqual(await state(),{open:true,view:'editor',selected:await p.evaluate(()=>activeItems(db)[0].id),title:'Note 1',empty:false,count:1});
  await p.evaluate(()=>deleteOutlineSelection());await p.locator('#modalOK').click();assert.deepEqual(await state(),{open:true,view:'editor',selected:null,title:null,empty:true,count:0});assert(await p.locator('#emptyEditorMessage').isVisible());assert.equal(await p.locator('#editorWorkspace').isVisible(),false);
  await p.evaluate(()=>{setEditorFocus(true);edit(null)});assert.equal(await p.evaluate(()=>$('layout').classList.contains('editor-focus')),false);assert((await state()).empty);
  await p.evaluate(()=>undo());assert.equal((await state()).title,'Note 1');assert(!(await state()).empty);

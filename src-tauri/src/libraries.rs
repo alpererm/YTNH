@@ -786,6 +786,15 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
             names.reverse();
             Ok(json!(names))
         }
+        "item_history" => {
+            // Read-only: earlier versions of one item from this library's automatic backups.
+            store.entry(id)?;
+            let item = arg(&args, "item")?;
+            if item.is_empty() || item.len() > 100 {
+                return Err("Choose an item".into());
+            }
+            Ok(json!(lifecycle::item_history(&store.backups(id), item, 200)?))
+        }
         "restore_backup" => {
             let e = store.entry(id)?;
             if !e.portable || e.paused {

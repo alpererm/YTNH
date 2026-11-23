@@ -931,7 +931,9 @@ function chooseReference(embed=false,onChoose=null,options={}){
  let choice=0;
  const paint=()=>{const buttons=[...$("refResults").querySelectorAll("button")];buttons.forEach((b,i)=>b.classList.toggle("active",i===choice));buttons[choice]?.scrollIntoView({block:"nearest"})};
  const renderResults=()=>{
-   choice=0;const q=String($("refSearch").value||"").trim().toLowerCase();
+   choice=0;const raw=String($("refSearch").value||"");
+   if(options.commands&&raw.trimStart().startsWith('>')){quickOpenRenderCommands(raw.trimStart().slice(1));paint();return}
+   const q=raw.trim().toLowerCase();
    // Finished items stay findable but rank last and look dimmed. Without a search, recently edited items come first.
    const target=i=>i.markerItem||(options.resolve?options.resolve(i.id):i)||i;
    let matches=(options.items?options.items():all).filter(i=>{const item=options.resolve?options.resolve(i.id):i;return item&&!item.archived});
