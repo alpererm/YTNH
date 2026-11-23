@@ -189,7 +189,7 @@ function startInlineEdit(id){
         renderTree();focusOutlineItem(selected);return;
       }
     }
-    if(save){i.title=commitTags?commitTitleTags(i,input.value):input.value.trim()||i.title;touch(db,i)}else i.title=old;syncVisibleTitle(i);if(save)completeSearchAction(i.id);renderTree();if(commitTags)focusOutlineItem(i.id);};
+    const tagsBefore=JSON.stringify(i.explicitTags||[]);if(save){i.title=commitTags?commitTitleTags(i,input.value):input.value.trim()||i.title;touch(db,i)}else i.title=old;syncVisibleTitle(i);if(save)completeSearchAction(i.id);if(!(tagsBefore===JSON.stringify(i.explicitTags||[])&&!/#/.test(i.title)&&patchRender([i.id],{finishingEdit:true})))renderTree();if(commitTags)focusOutlineItem(i.id);};
   input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();e.stopPropagation();finish(true,true)}else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();finish(false)}});input.addEventListener("blur",()=>{if(!input.dateRefreshing)finish(true)});
 }
 function unscheduleExplicit(item,date=null){
