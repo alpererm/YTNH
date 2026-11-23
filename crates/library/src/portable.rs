@@ -96,7 +96,7 @@ fn copy_hash(reader: &mut impl Read, writer: &mut impl Write, limit: u64) -> Res
         hash.update(&buffer[..n]);
     }
     Ok(FileDigest {
-        sha256: format!("{:x}", hash.finalize()),
+        sha256: hash.finalize().iter().map(|b| format!("{b:02x}")).collect(),
         bytes,
     })
 }
