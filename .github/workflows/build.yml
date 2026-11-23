@@ -82,7 +82,7 @@ jobs:
         run: mkdir -p web
       - name: Package application
         run: cargo tauri build --bundles ${{ matrix.bundles }}
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           if-no-files-found: error
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo run --locked --manifest-path crates/library/Cargo.toml --example platform_portable -- send test-parcel
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: synthetic-mac-portable
           path: test-parcel
@@ -111,7 +111,7 @@ jobs:
           name: synthetic-mac-portable
           path: test-parcel
       - run: cargo run --locked --manifest-path crates/library/Cargo.toml --example platform_portable -- reply test-parcel
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: synthetic-windows-return
           path: test-parcel
