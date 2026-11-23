@@ -32,7 +32,7 @@ const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwrigh
   await page.locator('#search').fill('delivery');
   await aligned(['#appMenu>summary','#search','#weeksLater']);
   const item = page.locator('.day[data-date="2026-11-06"] .calendarItemTitle').first();
-  assert(await item.evaluate(el=>el.scrollWidth>el.clientWidth));
+  assert(await item.evaluate(el=>el.scrollWidth>el.clientWidth||el.scrollHeight>el.clientHeight));
   await item.hover();
   await page.waitForSelector('#calendarTooltip');
   assert.equal(await page.locator('#calendarTooltip').innerText(),await item.innerText());

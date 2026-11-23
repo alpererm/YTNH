@@ -1,0 +1,463 @@
+/* Workspace surfaces and interaction colors. */
+:root body{
+
+ --workspace-hover:color-mix(in srgb,var(--ink) 4%,transparent);
+
+ --workspace-grid:color-mix(in srgb,var(--line) 42%,transparent);
+
+ --workspace-entry:color-mix(in srgb,var(--accent) 7%,var(--bg));
+ --workspace-drop:color-mix(in srgb,var(--accent) 19%,var(--bg));
+}
+/* Stage 1: panes and Outline. Insets, dimensions and hierarchy remain intact. */
+:root body .panel{border-color:transparent;box-shadow:none;background:var(--bg)}
+:root body .treepanel{background:var(--bg)}
+:root body #layout>.panel{border-color:transparent;outline:none;box-shadow:none}
+
+:root body .splitter::after{width:1px;left:3px;background:var(--workspace-grid)}
+:root body .splitter:hover::after,:root body.resizing .splitter::after{background:var(--accent)}
+:root body :is(.head,.advancedFilters,.outlineGroup,.archivebar,.tree,.sidebarTabs){border-color:var(--workspace-grid)}
+:root body .head,:root body #statusFilterBox{background:transparent}
+:root body #tree .row{background:transparent;border-radius:3px;box-shadow:none}
+:root body #tree .row:hover:not(.sel){background:var(--workspace-hover)}
+:root body #tree .row.sel,:root body #tree .row.sel:hover{background:var(--soft);box-shadow:none}
+:root body #tree .outlineGroupHead{background:transparent}
+:root body #tree .outlineGroupHead:hover{background:var(--workspace-hover)}
+:root body #editor{background:var(--bg)}
+:root body #editorSidebar{background:var(--bg);border-color:var(--workspace-grid)}
+:root body :is(.formatCommands,.appMenuBody,.modal){box-shadow:none}
+/* Open calendar grid: plain dates, accented Today text and a selection top edge. */
+:root body #calendarBody .weekview{gap:0}
+:root body #calendarBody :is(.weekheader,.weekrow){column-gap:0}
+:root body #calendarBody .weekrow{border-top:1px solid var(--workspace-grid);background:transparent;box-shadow:none}
+:root body #calendarBody :is(.weekheader,.yearsMonths){background:var(--bg);box-shadow:0 1px 0 var(--workspace-grid)}
+:root body #calendarBody .weekrow>.day{background:transparent;border-color:transparent;border-left-color:var(--workspace-grid);border-radius:0;outline:none;box-shadow:none}
+/* Selected day: a thin accent outline drawn inside the cell (no layout shift); today keeps its tint and badge. */
+:root body #calendarBody .day.calendar-anchor{background:transparent;border-top-color:transparent;box-shadow:inset 0 0 0 1.5px var(--accent);border-radius:4px}
+:root body #calendarBody .weeknum{background:transparent;color:var(--muted)}
+:root body #calendarBody .current-week>.weeknum{background:transparent;color:var(--accent)}
+:root body #calendarBody .chip{background:transparent;border-color:var(--workspace-grid);border-radius:3px}
+:root body #calendarBody .chip.selected{background:transparent;box-shadow:inset 2px 0 0 var(--accent)}
+:root body #calendarBody .milestoneChip{background:transparent;border-color:transparent;outline:none}
+:root body #calendarBody .day.drop-target{background:var(--workspace-drop);outline:2px dashed var(--accent);outline-offset:-2px}
+:root body #calendarBody .weekrow.milestone-drop{background:var(--workspace-drop);outline:2px dashed var(--accent)}
+/* Stage 3: quiet target lanes with the existing status and overdue indicators. */
+:root body #calendarBody .targetYear{background:transparent;border-color:var(--workspace-grid)}
+:root body #calendarBody .targetLanes{background:repeating-linear-gradient(to right,transparent 0,transparent calc(100% / 12 - 1px),var(--workspace-grid) calc(100% / 12 - 1px),var(--workspace-grid) calc(100% / 12))}
+:root body #calendarBody .targetBar{background:var(--workspace-entry);border-top-color:var(--workspace-grid);border-right-color:var(--workspace-grid);border-bottom-color:var(--workspace-grid);border-radius:3px}
+:root body #calendarBody .targetBar:hover{background:var(--workspace-hover);outline:none}
+:root body #calendarBody .targetBar[data-selected="true"]{background:var(--soft)}
+:root body #calendarBody .targetBar:focus-visible{outline:1px solid var(--accent);outline-offset:1px}
+:root body #calendarBody .milestoneCount{background:transparent}
+
+
+/* Continuous workspace and focus-aware selection. */
+:root body #layout>.panel.mainpanel,:root body #layout>.panel.treepanel{background:var(--bg);border-color:transparent;box-shadow:none;outline:none}
+:root body #tree,:root body #calendarBody{outline:none;box-shadow:none}
+:root body #editor .sidebarPanel,:root body #layout>.panel>.head{background:var(--bg)}
+:root body #editor .writingArea :is(.editorPrimary,#richEditor,#content){background:transparent}
+:root body #tree .row{position:relative}
+
+:root body #editor #editCode{border-left:0;box-shadow:none}
+:root body #editor #editCode::before,:root body #editor .editmeta::before{display:none}
+:root body #editor.selected-context .editmeta{border-left:0;box-shadow:none}
+:root body #calendarControls button,:root body #editor .editmeta>button,:root body #editor #formatMenu>summary{border-color:transparent;background:transparent;box-shadow:none;outline:none;color:var(--muted)}
+:root body #calendarControls button.primary,:root body #editor .editmeta>button[aria-pressed="true"],:root body #editor .editmeta>button[aria-expanded="true"],:root body #editor #formatMenu[open]>summary{background:var(--soft);color:var(--ink);border-color:transparent;box-shadow:none}
+:root body #calendarControls button:hover,:root body #editor .editmeta>button:hover,:root body #editor #formatMenu>summary:hover{background:var(--workspace-hover)}
+:root body #calendarBody .weekrow>.day .daynum{font-weight:400;color:var(--muted)}
+:root body #calendarBody .weekrow>.day .daynum span{font:inherit;color:inherit;background:transparent;padding:0;margin:0}
+:root body #calendarBody .weekrow>.day.today .daynum{font-weight:700;color:var(--accent)}
+:root body #calendarBody .milestoneChip[aria-pressed="true"]{outline:none;color:var(--accent)}
+:root body #calendarBody .milestoneChip.milestone-overdue{color:var(--danger)}
+:root body #editorSidebar .detailsGrid{gap:2px;margin:3px 0 7px}
+:root body #editorSidebar .detailsGrid>div{display:grid;grid-template-columns:minmax(65px,.8fr) minmax(0,1.2fr);gap:6px;padding:3px 0;border:0;border-radius:0;background:transparent}
+:root body #editorSidebar .detailsGrid strong{font-size:11px;font-weight:500}
+:root body #editorSidebar .detailsSection,:root body #editorSidebar .referenceCopies{margin-top:7px;margin-bottom:5px}
+:root body #sidebar-details :is(.detailChip,input,button){border:0;background:transparent;box-shadow:none}
+:root body #sidebar-details .detailChip{padding:1px 0}
+:root body #sidebar-details input,:root body #sidebar-details button{padding:3px 2px}
+:root body #sidebar-details button:hover{background:var(--workspace-hover)}
+
+:root body #calendarControls button:focus-visible,:root body #editor .editmeta>button:focus-visible,:root body #editor #formatMenu>summary:focus-visible{background:var(--soft);color:var(--ink)}
+
+
+/* Quieter forms and a consistent accent vocabulary. */
+:root body input[type="checkbox"]{accent-color:var(--accent)}
+:root body #sidebar-properties :is(input,select){background:transparent;border-color:var(--workspace-grid)}
+:root body #sidebar-properties :is(input,select):focus-visible{border-color:var(--accent);outline:1px solid var(--accent);outline-offset:1px}
+:root body #editorSidebar .editorOptions{gap:8px}
+:root body #editorSidebar .targetToggle{margin:3px 0;font-weight:500}
+:root body #editor #editCode{background:transparent}
+:root body #editorSidebar #backlinksBox{background:transparent;border:0;border-top:1px solid var(--workspace-grid);border-radius:0;padding:7px 0 0}
+:root body #calendarBody .weekrow>.day .daynum{font-size:10px}
+:root body #tree .outlineMetadata,:root body #tree .outlineMetadata .tags{font-size:11px}
+:root body #filtersContent legend{font-weight:500;text-transform:none;letter-spacing:normal;margin-bottom:4px}
+:root body #filtersContent :is(.filterStatuses,.filterRecurrenceSection){border-top:0;margin-top:9px;padding-top:0}
+:root body #calendarBody .targetBar{border-color:transparent;box-shadow:inset 2px 0 0 var(--status-todo)}
+:root body #calendarBody .targetBar.status-done{box-shadow:inset 2px 0 0 var(--status-done)}
+:root body #calendarBody .targetBar.status-cancelled{box-shadow:inset 2px 0 0 var(--status-cancelled)}
+:root body #calendarBody .targetBar.status-waiting-for{box-shadow:inset 2px 0 0 var(--status-waiting)}
+:root body #calendarBody .targetBar.status-on-hold{box-shadow:inset 2px 0 0 var(--status-hold)}
+:root body #calendarBody .targetBar[data-selected="true"]{box-shadow:inset 3px 0 0 var(--accent)}
+
+/* Shared hairlines and full-width header alignment. */
+:root body #layout{padding:4.4px;gap:4.4px}
+:root body #tree{border-top:0;padding-bottom:3.2px}
+:root body #layout{--divider-inset:3.2px}
+:root body .splitter::after{top:var(--divider-inset);bottom:var(--divider-inset);border-radius:0}
+:root body .outlineActionsHead{padding:3.2px 6px 2.4px;border-bottom:0}
+:root body .outlineHeaderLeft{width:100%}
+:root body .outlineSearch{flex:1;max-width:none}
+:root body #appMenu>summary{border:0;background:transparent;box-shadow:none}
+:root body #groupBySelect,
+:root body #search,
+:root body #jumpDate{background:transparent;box-shadow:none}
+:root body #search:focus{background:var(--soft);border-color:var(--accent)}
+:root body .treepanel #statusFilterBox{border-bottom:0}
+:root body #mainPaneHead{padding:4.8px 12px;border-bottom:0}
+:root body #editor{padding-top:4.8px;padding-bottom:4.8px;gap:4.8px}
+:root body #editor .editmeta{border-bottom:0;padding-bottom:4.8px}
+:root body #calendarBody{padding-bottom:4.8px}
+:root body #calendarBody :is(.chip,.targetBar,.milestoneChip){font-size:var(--interface-size,14px)}
+:root body #calendarBody .targetBar{border-left-width:1px}
+:root body :is(input,select,textarea,.field,.modal,.appMenuBody,.tagSuggestions,.linkContextMenu,.settingsPreview,.editorTable td,.editorTable th){border-color:var(--workspace-grid)}
+:root body #editorWorkspace .writingArea{border-color:var(--workspace-grid)}
+:root body #calendarBody :is(.day.drop-target,.weekrow.milestone-drop,.milestone-related){outline-width:1px}
+:root body #search:focus-visible{outline:1px solid var(--accent);outline-offset:-1px}
+
+/* Codes and Outline titles share the device interface size on every platform. */
+#tree .row .code,#tree .row .title,#calendarBody .cal-code{font-size:var(--interface-size,14px)}
+
+/* One stationary icon toolbar, with optional useful rows below. */
+:root body .outlineHeaderLeft{gap:6px}
+:root body .outlineMenuSlot{flex:none}
+:root body .outlineSearchSlot{display:flex;align-items:center;justify-content:flex-end;flex:1;min-width:0;position:relative;height:34px}
+:root body .outlineIconActions{display:flex;align-items:center;gap:12px;flex:none}
+:root body .outlineSearchButton,
+:root body #filtersToggle,
+:root body #outlineGroupButton{display:flex;align-items:center;justify-content:center;width:30px;height:30px;padding:7px;flex:none;border:0;border-radius:50%;background:transparent;color:var(--muted);box-shadow:none}
+:root body :is(.outlineSearchButton,#filtersToggle,#outlineGroupButton) svg{width:16px;height:16px;flex:none}
+:root body :is(.outlineSearchButton,#filtersToggle,#outlineGroupButton):hover{background:var(--outline-hover)}
+:root body :is(.outlineSearchButton,#filtersToggle,#outlineGroupButton):focus-visible{outline:1px solid var(--accent);outline-offset:1px}
+:root body :is(.outlineSearchButton,#filtersToggle,#outlineGroupButton)[data-active="true"]{background:var(--soft);color:var(--ink)}
+:root body #search{flex:none;width:0;max-width:100%;min-width:0;padding-inline:0;border-width:0;opacity:0;visibility:hidden;transition:width 180ms ease,opacity 180ms ease,padding 180ms ease}
+:root body .search-expanded #search{width:100%;padding-inline:9px;border-width:1px;opacity:1;visibility:visible}
+:root body .search-expanded .outlineSearchButton{display:none}
+:root body .treepanel #statusFilterBox{padding:0 6px;border:0}
+:root body #statusFilterBox .filtersHeading{display:none}
+:root body #statusFilterBox.has-filter .filtersHeading{display:block;padding:2px 0 4px}
+:root body #filtersContent:not([hidden]){padding-top:5px;padding-bottom:6px}
+:root body #groupByBox.outlineGroupPopup{position:fixed;z-index:35;margin:0;padding:4px;border:1px solid var(--workspace-grid);border-radius:7px;background:var(--panel);box-shadow:none}
+:root body #groupByBox.outlineGroupPopup[hidden]{display:none}
+@media(prefers-reduced-motion:reduce){:root body #search{transition:none}}
+
+/* Readable light surfaces, with unchanged background palettes. */
+body[data-theme="light"]{
+ --bg:#f8f8f7;--panel:#ffffff;--editor-surface:var(--bg);--ink:#202124;--muted:#555b61;
+ --accent:#355f78;--accent-ink:#fff;--line:#c5c8ca;--soft:#e7eaec;--selection-bg:#dde5ea;
+ --note-code:#34636b;--todo-code:#794d60;--editor-secondary:var(--ink);--scheme:light
+}
+body[data-theme="dark"]{
+ --bg:#202123;--panel:#292a2d;--editor-surface:var(--bg);--ink:#f0f0ee;--muted:#b7b9bd;
+ --accent:#a0bbce;--accent-ink:#202123;--line:#55585d;--soft:#36393d;--selection-bg:#39434b;
+ --note-code:#a1bec4;--todo-code:#ceb0bd;--editor-secondary:var(--ink);--scheme:dark
+}
+body:is([data-theme="light"],[data-theme="dark"]){
+ color-scheme:var(--scheme);--selection-line:var(--accent);--outline-hover:var(--workspace-hover);
+ --outline-note-ink:var(--note-code);--outline-todo-ink:var(--todo-code);background:var(--bg);color:var(--ink)
+}
+body:is([data-theme="light"],[data-theme="dark"]) :is(.modal,.appMenuBody,.formatCommands,.tagSuggestions,.linkContextMenu,.selectPopover,.settingsPreview,.advancedFilters){background-color:var(--panel);color:var(--ink);border-color:var(--line)}
+body:is([data-theme="light"],[data-theme="dark"]) :is(input,textarea,select,button){color-scheme:var(--scheme)}
+body:is([data-theme="light"],[data-theme="dark"]) :is(.mdref,a[href]){color:var(--accent)}
+body:is([data-theme="light"],[data-theme="dark"]) .formatTooltip{background:var(--ink);color:var(--bg)}
+
+body[data-theme="light"] :is(.row.status-done,.row.status-cancelled,.chip.status-done,.chip.status-cancelled,.milestoneChip.status-done,.milestoneChip.status-cancelled,.targetBar.status-done,.targetBar.status-cancelled,.title.done){opacity:1}
+body[data-theme="light"] :is(.title.done,.title.cancelled){color:var(--muted)}
+body[data-theme="light"] :is(.tagbadge,.outlineMilestone,.outlineTarget,.dateJumpBtn){color:var(--muted)}
+body[data-theme="light"] #calendarBody :is(.day.today .daynum,.current-week>.weeknum){color:var(--todo-code)}
+body[data-theme="light"] #editorSidebar .documentHeading button.current{color:var(--todo-code)}
+#outlineGroupChoices[hidden]{display:none}
+#outlineGroupChoices{min-width:170px;max-width:calc(100vw - 24px)}
+#outlineGroupChoices button{display:block;width:100%;border:0;border-radius:3px;padding:6px 9px;background:transparent;color:var(--ink);font-size:12px;text-align:left;box-shadow:none}
+#outlineGroupChoices button[aria-selected="true"]{background:var(--soft);color:var(--ink)}
+#outlineGroupChoices button:hover{background:var(--outline-hover)}
+#outlineGroupChoices button:focus-visible{background:var(--soft);outline:1px solid var(--accent);outline-offset:-1px}
+
+/* Top controls share a centerline and retain their native hit areas. */
+:root body{--toolbar-height:42px;--week-divider:color-mix(in srgb,var(--line) 32%,transparent);--weekday-divider:color-mix(in srgb,var(--line) 16%,transparent)}
+:root body #layout .outlineActionsHead,:root body #mainPaneHead{min-height:var(--toolbar-height);padding-block:2px;align-items:center}
+:root body #editor{padding-top:0}
+/* Wrapped titles extend into the second grid row; controls stay on the first. */
+:root body #editor .editmeta{display:grid;grid-auto-flow:column;grid-template-columns:auto minmax(0,1fr) repeat(4,auto);grid-template-rows:var(--toolbar-height) auto;row-gap:0;min-height:var(--toolbar-height);padding-block:0;align-items:center}
+:root body #editor .editmeta>*{grid-row:1}
+:root body #editor .editmeta:has(#refHealth:not(:empty)){grid-template-columns:auto minmax(0,1fr) repeat(5,auto)}
+:root body #editor .editmeta #editorTitle{grid-column:2;grid-row:1 / span 2;align-self:start;width:100%;margin-block-start:max(0px,calc((var(--toolbar-height) - 1.4em - 7px)/2))}
+:root body #editor #editCode{align-self:center;margin-top:0}
+:root body #search,:root body #search:focus,:root body #outlineSearchButton:is(:hover,:active,:focus-visible),:root body #outlineSearchButton{background:transparent;box-shadow:none}
+:root body #calendarBody .weekview.hide-weekends{min-width:484px}
+:root body #calendarBody .weekrow{border-top-color:var(--week-divider)}
+:root body #calendarBody .weekrow>.day{border-left-color:var(--weekday-divider)}
+:root body #calendarBody .cal-code{display:flex;align-items:baseline;gap:4px;min-width:0}
+:root body #calendarBody .calendarItemCode{flex:0 1 auto;max-width:55%;overflow:hidden;text-overflow:ellipsis}
+:root body #calendarBody .calendarItemTitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-family:var(--app-font,system-ui);font-weight:400}
+:root body #tree .code,:root body #calendarBody .calendarItemCode{font-weight:550}
+:root body #tree .note-code,:root body .cal-code[data-cal-type="Note"] .calendarItemCode{color:color-mix(in srgb,var(--note-code) 86%,var(--muted))!important}
+:root body #tree .todo-code,:root body .cal-code[data-cal-type="Todo"] .calendarItemCode{color:color-mix(in srgb,var(--todo-code) 86%,var(--muted))!important}
+:root body #calendarBody .targetBar{display:flex;align-items:center;gap:4px;padding-inline:4px;background:color-mix(in srgb,var(--accent) 14%,var(--bg));color:var(--ink)}
+:root body #calendarBody .targetBar:hover{background:color-mix(in srgb,var(--accent) 21%,var(--bg))}
+:root body #calendarBody .targetBar[data-selected="true"]{background:color-mix(in srgb,var(--accent) 25%,var(--bg))}
+.targetBar>span:first-child{flex:1;min-width:0}.targetBar .milestoneCount{flex:none}
+:root body #calendarBody .targetBar.continues-in{margin-left:0;border-top-left-radius:0;border-bottom-left-radius:0}
+:root body #calendarBody .targetBar.continues-out{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
+/* Anchor the header marker to the pane and both dividers to the layout row. */
+:root body #layout>.mainpanel{position:relative}
+:root body #editor{position:relative;--sidebar-width:240px;--editor-gutter:10px}
+:root body #editorSidebar{
+ position:absolute;inset-block:calc(var(--divider-inset) - 1px);inset-inline-end:12px;
+ width:var(--sidebar-width);border:0;border-inline-start:1px solid var(--workspace-grid);border-radius:0;
+}
+:root body #editorWorkspace:not(.sidebar-hidden)::after{content:"";flex:0 0 var(--sidebar-width)}
+:root body #editor .editmeta{
+ width:min(var(--writing-width,100%),calc(100% - var(--sidebar-width) - var(--editor-gutter)));
+ max-width:100%;align-self:flex-start;box-sizing:border-box;
+}
+:root body #layout.editor-focus #editorSidebar{
+ inset-inline-end:max(12px, calc((100% - var(--writing-width) - var(--sidebar-width) - var(--editor-gutter)) / 2));
+}
+:root body #layout.editor-focus #editor .editmeta{
+ width:min(calc(100% - var(--sidebar-width) - var(--editor-gutter)),calc((100% + var(--writing-width) - var(--sidebar-width) - var(--editor-gutter)) / 2));
+}
+:root body #layout #editor:has(.sidebar-hidden) .editmeta{width:min(100%,calc((100% + var(--writing-width,100%)) / 2))}
+:root body #editorSidebar .sidebarTabs{
+ justify-content:flex-start;align-items:center;gap:4px;margin-inline:var(--editor-gutter);
+ height:calc(var(--toolbar-height) - var(--divider-inset) + 1px);padding:0;border-bottom:0;
+}
+:root body #editorSidebar .sidebarPanel{padding:4px var(--editor-gutter) 10px}
+@container editorPane (max-width:650px){
+ #editorWorkspace{--sidebar-drawer:1}
+ :root body #editorWorkspace:not(.sidebar-hidden)::after{display:none}
+ :root body #layout #editorSidebar{width:min(240px,40%);inset-inline-end:12px;z-index:14}
+ :root body #layout #editor:has(#editorWorkspace:not(.sidebar-hidden)) .editmeta{width:calc(100% - min(240px,calc(40cqi + 10px)) - var(--editor-gutter))}
+}
+@container editorPane (max-width:440px){
+ :root body #editor:has(#editorWorkspace:not(.sidebar-hidden)) .editmeta{grid-auto-flow:row;grid-template-columns:auto repeat(4,minmax(0,1fr));grid-template-rows:auto auto;justify-items:start}
+ :root body #editor:has(#editorWorkspace:not(.sidebar-hidden)) .editmeta #editorTitle{grid-column:1 / -1;grid-row:2;margin:0}
+}
+:root body #editorSidebar .editorOptions{gap:11px}
+:root body #editorSidebar #backlinksBox{border-top:0;padding-top:0}
+
+/* Codes share a size and palette across Outline rows and calendar entries. */
+body{
+ --item-code-size:calc(var(--interface-size,14px) - 2px);
+ --outline-note-ink:color-mix(in srgb,var(--note-code) 86%,var(--muted));
+ --outline-todo-ink:color-mix(in srgb,var(--todo-code) 86%,var(--muted));
+}
+:root body #tree .row .code,:root body #calendarBody .calendarItemCode,:root body #calendarBody .milestoneCode{font-size:var(--item-code-size)}
+:root body #tree .note-code,:root body .cal-code[data-cal-type="Note"] .calendarItemCode{color:var(--outline-note-ink)!important}
+:root body #tree .todo-code,:root body .cal-code[data-cal-type="Todo"] .calendarItemCode,:root body #calendarBody .milestoneCode{color:var(--outline-todo-ink)!important}
+.selectPopover{position:fixed;z-index:1100;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:3px;background:var(--panel);color:var(--ink)}
+.selectPopover button{display:block;width:100%;border:0;background:transparent;color:inherit;text-align:left;padding:5px 8px;border-radius:3px}
+.selectPopover button:is(:hover,:focus-visible,[aria-selected="true"]){background:var(--soft);color:var(--ink)}
+
+/* Compact application menu: plain actions, with section dividers retained. */
+body #appMenu .appMenuBody{padding:5px}
+body #appMenu .appMenuSection{gap:1px;padding:3px 0}
+body #appMenu .appMenuSection+.appMenuSection{margin-top:3px;padding-top:5px;border-top:1px solid var(--line)}
+body #appMenu .appMenuBody button,body #appMenu .recentFilesMenu>summary{padding:4px 8px;border:0;border-radius:3px;background:transparent;color:var(--ink);box-shadow:none;font-size:12px;line-height:1.5}
+body #appMenu .appMenuBody button:hover,body #appMenu .recentFilesMenu>summary:hover{background:var(--outline-hover)}
+body #appMenu .appMenuBody button.primary{color:var(--accent);font-weight:600}
+body #appMenu .menuStatus{padding:5px 8px 2px}
+.libraryDialog{max-width:min(440px,90vw);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:18px}.libraryDialog p{white-space:pre-line;overflow-wrap:anywhere}.libraryDialog .modalactions{margin-top:12px}.libraryDialog::backdrop{background:#1116}#mainPaneHead{position:relative}
+:root body #tree .row.paneMarker::before,
+:root body #layout .mainpanel::before{
+ content:"";display:block;position:absolute;pointer-events:none;left:0;top:50%;transform:translateY(-50%);
+ width:3px;height:22px;max-height:100%;border:0;border-radius:0;background:var(--accent);opacity:0
+}
+:root body #layout .mainpanel::before{left:1px;top:calc(var(--toolbar-height) / 2);z-index:3}
+:root body .treepanel.active-panel #tree .paneMarker{background:transparent}
+:root body .treepanel.active-panel #tree .paneMarker::before,
+:root body #layout .mainpanel.active-panel::before{opacity:1;transition:opacity 120ms ease}
+@media(prefers-reduced-motion:reduce){:root body #layout .panel ::before,:root body #layout .mainpanel::before{transition:none!important}}
+#documentFindBar{flex:none;box-sizing:border-box;width:100%;min-width:0;max-width:100%;padding:6px 8px;container-type:inline-size}
+#documentFindBar>div:not([hidden]){display:grid;align-items:center;grid-template-columns:22px minmax(0,1fr) 160px;column-gap:5px}
+#documentFindBar>div+div{margin-top:4px}
+#documentFindBar input{grid-column:2;width:100%;min-width:0;height:28px;box-sizing:border-box;margin:0;padding:3px 8px;color:var(--ink);border:1px solid var(--line);border-radius:5px;background:var(--panel);font:inherit}
+#documentFindBar input:focus{outline:1px solid var(--accent);outline-offset:-1px}
+#documentFindBar .findActions{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:2px}
+#documentFindBar button{box-sizing:border-box;min-width:19px;height:25px;margin:0;padding:2px 4px;line-height:1;border:0;border-radius:4px;background:transparent;color:var(--muted);white-space:nowrap}
+#documentFindBar button:is(:hover,:focus-visible,[aria-pressed=true]){background:var(--soft);color:var(--ink)}
+#documentFindBar button:focus-visible{outline:1px solid var(--accent);outline-offset:-1px}
+#documentFindBar output{font-size:.85em;font-variant-numeric:tabular-nums;color:var(--muted)}
+@container(max-width:340px){#documentFindBar>div:not([hidden]){grid-template-columns:22px minmax(0,1fr)}#documentFindBar .findActions{grid-column:2;justify-content:flex-start;flex-wrap:wrap}}
+:root body #editor .editmeta{column-gap:4px}
+:root body #editor #formatMenu{width:30px;margin:0;padding:0;align-self:center}
+:root body #editor #formatMenu>summary{width:30px;height:30px;display:grid;place-items:center;box-sizing:border-box;padding:0;margin:0;border-radius:50%}
+#formatMenu>summary svg{display:block;width:16px;height:16px}
+#editor .richEditor input.md-check{appearance:none;-webkit-appearance:none;box-sizing:border-box;width:1em;height:1em;padding:0;border:1px solid var(--muted);border-radius:3px;background:transparent}
+#editor .richEditor input.md-check:checked{background:var(--accent);border-color:var(--accent)}
+#editor .richEditor input.md-check:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+:root body #tree .row.paneMarker::before{top:var(--code-center,50%)}
+.imageSearchHit{display:block;text-align:left;padding:0;color:var(--muted);font-size:.85em;background:none;border:0}.imageSearchCurrent .imageSurface{outline:1px solid var(--accent)}
+#richEditor .managedFigure{display:block;width:fit-content;max-width:100%;margin:0}
+.inlineKindIcon::before{content:attr(data-icon);margin-inline-start:.25em}
+#richEditor .imageSelected .imageSurface{outline:1px dashed var(--accent);outline-offset:-1px}
+#richEditor .imageSurface{user-select:none;-webkit-user-select:none}
+#richEditor [data-mdblock=hr] hr{margin-block:.2em}
+#richEditor [data-align=center] .managedFigure{margin-inline:auto}
+.imageSurface{position:relative;max-width:100%;line-height:0}
+.imagePixels{display:block;line-height:normal}.managedFigure[style] .imagePixels img{width:100%}
+.managedFigure figcaption{font-size:.9em;color:var(--muted);min-height:1.2em;line-height:1.3;outline:none}
+.imageCorner,.imageGrip{display:none;position:absolute;z-index:1}
+.imageCorner{touch-action:none;user-select:none;-webkit-user-select:none;width:9px;height:9px;border:1px solid var(--accent);background:var(--panel)}
+.imageSelected .imageCorner{display:block}
+.imageCorner.nw,.imageCorner.ne{top:0}.imageCorner.sw,.imageCorner.se{bottom:0}
+.imageCorner.nw,.imageCorner.sw{left:0}.imageCorner.ne,.imageCorner.se{right:0}
+.imageCorner.nw,.imageCorner.se{cursor:nwse-resize}.imageCorner.ne,.imageCorner.sw{cursor:nesw-resize}
+.imageGrip{top:4px;left:50%;padding:2px 5px;line-height:1;transform:translateX(-50%);cursor:grab;color:var(--ink);background:var(--panel)}
+.managedFigure:hover .imageGrip{display:block}
+[data-image-drop=before]{box-shadow:0 -2px var(--accent)}[data-image-drop=after]{box-shadow:0 2px var(--accent)}
+#richEditor [data-mdblock=image] img{max-width:100%;height:auto;display:block}
+::highlight(doc-matches){background-color:color-mix(in srgb,var(--accent) 32%,transparent)}
+::highlight(doc-current){background-color:var(--accent);color:var(--bg)}
+.sourceFindMirror{position:absolute;pointer-events:none;color:transparent;white-space:pre-wrap;overflow:hidden;border:0;overflow-wrap:break-word}
+.sourceFindMirror mark{color:transparent;background:color-mix(in srgb,var(--accent) 32%,transparent)}
+.sourceFindMirror mark.current{background:color-mix(in srgb,var(--accent) 68%,transparent)}
+.locationButton{margin-inline-start:auto;align-self:center;flex:none;padding:2px;border:0;background:transparent;color:var(--muted)}
+.locationButton svg{display:block;width:15px;height:15px}
+#locationMenu{display:grid;max-height:55vh;max-width:min(380px,90vw);overflow:auto}
+#locationMenu button{text-align:left;color:var(--ink);background:transparent;border:0}
+#locationMenu button:is(:hover,:focus-visible){background:var(--soft)}
+
+.dayFirstField{display:inline-flex;align-items:center;position:relative;min-width:0;max-width:100%}
+.dayFirstField:has(>input.hidden){display:none}
+.dayFirstField .dayFirstText{box-sizing:border-box;width:100%;min-width:0;padding-inline-end:24px!important}
+.dayFirstField>input[type=date]{position:absolute;inset:0;width:100%!important;height:100%;opacity:0;clip-path:inset(0 0 0 calc(100% - 24px));z-index:1;cursor:pointer}
+.dayPickerGlyph{width:15px;height:15px;position:absolute;right:4px;color:var(--ink);pointer-events:none}
+.dayPickerGlyph svg{display:block;width:100%;height:100%}
+
+#pinnedOutline{flex:0 1 auto;max-height:30%;overflow:auto;min-height:0;border-bottom:1px solid var(--workspace-grid)}
+#pinnedOutline[hidden]{display:none}
+.pinHeading{background:transparent;border:0;color:var(--muted);padding:2px 4px}
+.pinHeading{display:flex;align-items:center;gap:4px}.pinHeading svg{width:13px;height:13px}
+.hierarchyContext .title{color:var(--muted)}
+.pinEntry{position:relative;display:grid;grid-template-columns:20px minmax(0,1fr);column-gap:4px;padding-inline-start:calc(var(--pin-depth)*8px)}
+#pinnedOutline .pinEntry>.row{grid-column:2;grid-row:1;min-width:0}
+.titleCalGrid.withWeeks{grid-template-columns:repeat(8,minmax(1.6em,1fr))}.toolbarDatePopup .weekLabel{color:var(--muted);align-self:center}.dayPickerGlyph[role=button]{cursor:pointer}
+.outlineChevron,.chevronSpace{width:15px;min-width:15px;height:17px;flex:0 0 15px;box-sizing:border-box;align-self:flex-start}
+button.outlineChevron{border:0;background:transparent;color:var(--muted);padding:1px;display:inline-grid;place-items:center}
+button.outlineChevron svg{width:13px;height:13px;display:block}
+
+/* Shared item identification; content-editor list markers are independent. */
+.itemMarker{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;min-width:24px;box-sizing:border-box;vertical-align:middle;color:var(--outline-todo-ink,var(--todo-code));cursor:pointer;border:0;background:none;padding:0;line-height:1}
+.itemMarker[data-marker-type="Note"]{color:var(--outline-todo-ink,var(--todo-code))}
+.itemMarker svg{display:block;width:15px;height:15px;flex:none;overflow:visible}
+.itemMarker:focus-visible{outline:1px solid var(--accent);outline-offset:-2px;border-radius:3px}
+.itemMarker:hover{background:var(--soft);border-radius:3px}
+.itemMarker[data-marker-passive]{cursor:inherit}
+:root body #tree .itemMarker,:root body #pinnedOutline .itemMarker{margin-top:0;color:var(--outline-todo-ink,var(--todo-code))!important}
+:root body #tree .itemMarker[data-marker-type="Note"],:root body #pinnedOutline .itemMarker[data-marker-type="Note"]{color:var(--outline-todo-ink,var(--todo-code))!important}
+:root body #calendarBody .cal-code{align-items:center;gap:2px}
+:root body #editor #editCode{border:0;padding:0;min-width:24px;background:transparent}
+.planBlock .itemMarker{flex:0 0 20px;width:20px;min-width:20px;height:var(--plan-title-lh,17px);align-self:flex-start}
+
+.modal.jumpDateModal{width:min(390px,calc(100vw - 32px))}
+.jumpDateCalendar.tagSuggestions{position:static;display:block;min-width:0;width:100%;max-height:none;border:0;box-shadow:none;padding:0;margin-top:8px;background:transparent}
+.jumpDateCalendar .titleCalGrid{gap:3px}.jumpDateCalendar .titleCalGrid button{min-height:28px}
+#jumpDateResolved{display:block;min-height:1.4em;margin-top:5px;font-size:.9em;color:var(--muted)}
+
+.outlineNavigation{display:inline-flex;flex:0 0 auto;align-self:flex-start;gap:0;margin-left:auto}
+:root body .outlineNavigation button{display:inline-flex;align-items:center;justify-content:center;width:24px;min-width:24px;height:24px;padding:0;margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--muted);cursor:pointer}
+:root body .outlineNavigation button:hover{background:transparent;box-shadow:none;color:var(--ink)}
+.outlineNavigation svg{width:13px;height:13px}
+.outlineNavigation button:focus-visible{outline:1px solid var(--accent);outline-offset:-2px}
+.navigationFlash{animation:navigationFlash 2s ease-out}
+@keyframes navigationFlash{0%,40%{box-shadow:inset 0 0 0 2px var(--accent)}100%{box-shadow:inset 0 0 0 0 transparent}}
+@media(prefers-reduced-motion:reduce){.navigationFlash{animation:none;outline:1px solid var(--accent)}}
+.refLocationDescription{display:block}
+#editorSidebar #repeatInterval{max-width:90px}
+
+/* Application menu and reference dialogs. */
+#appMenu .menuGroup{border-bottom:1px solid var(--line);padding:3px 0}
+#appMenu .menuGroup>summary{cursor:pointer;padding:7px 9px;font-weight:600;list-style:revert}
+#appMenu .menuGroup>.appMenuSection{padding-left:12px}
+.helpContent{gap:0;padding:0 8px 0 0}
+.helpContent details{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent}
+.helpContent summary{padding:13px 4px;font-weight:600}
+.helpContent .helpText,.helpContent details>p{padding:0 4px 14px;margin:0;line-height:1.7;font-size:13px}
+.helpContent .helpGrid{padding:0 4px 14px;gap:10px 20px;line-height:1.6}
+.helpGrid>span:nth-child(odd){color:var(--ink);font-weight:600}
+.aboutContent{padding:8px 0;line-height:1.6}.aboutVersion{font-weight:600;color:var(--accent)}
+.aboutContent dl{display:grid;grid-template-columns:100px 1fr;gap:12px 18px;padding:18px 0;border-block:1px solid var(--line)}
+.aboutContent dt,.aboutFootnote{color:var(--muted)}.aboutContent dd{margin:0}.aboutFootnote{font-size:12px;line-height:1.6}
+
+/* Keep row controls centered on the first title line, including wrapped titles. */
+:root body :is(#tree,#pinnedOutline) .row{align-items:flex-start;--title-line-height:calc(var(--interface-size,14px)*1.35)}
+:root body :is(#tree,#pinnedOutline) .row .title{font-size:var(--interface-size,14px);line-height:1.35}
+:root body :is(#tree,#pinnedOutline) .row>.itemMarker,
+:root body :is(#tree,#pinnedOutline) .row>.outlineNavigation,
+:root body :is(#tree,#pinnedOutline) .row>.locationButton{align-self:flex-start;margin-top:calc((var(--title-line-height) - 24px)/2)}
+:root body :is(#tree,#pinnedOutline) .row>.locationButton{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;box-sizing:border-box;padding:0}
+:root body :is(#tree,#pinnedOutline) .row>.outlineChevron{margin-top:calc((var(--title-line-height) - 17px)/2)}
+.itemMarker[data-marker-kind="Recurring Todo"] svg{width:13.5px;height:13.5px}
+
+:root body .weekcontrol button[data-expand-week]{border:0;background:transparent;box-shadow:none;outline:0;color:var(--muted);width:28px;height:28px;padding:0;display:block;margin:2px auto 0}
+.hiddenDayItems{display:block;color:var(--muted);font-size:12px;line-height:1.2;pointer-events:none}
+
+:root body :is(.outlineChevron,.pinHeading,.pinExpand,.targetGroupCount,.outlineGroupHead>span:last-child),
+:root body :is(.outlineChevron,.pinHeading,.pinExpand):is(:hover,:focus,:active){background:transparent!important;box-shadow:none!important}
+
+:root body #layout.editor-focus :is(.treepanel,#splitter,#editorSidebar,#dailyPlanner){display:none!important}
+:root body #layout.editor-focus #editorWorkspace::after{display:none!important}
+/* Pinned entries are flat shortcuts, independent of Outline expansion. */
+:root body #pinnedOutline .pinEntry{display:block;padding:0}
+:root body #pinnedOutline .pinHeading{display:flex;align-items:center;gap:5px;color:var(--muted);border:0;box-shadow:none;outline:none;background:transparent}
+:root body #pinnedOutline .pinHeading svg{width:13px;height:13px}
+
+.richEditor [data-text-size="8"]{font-size:8px}.richEditor [data-text-size="9"]{font-size:9px}.richEditor [data-text-size="10"]{font-size:10px}.richEditor [data-text-size="11"]{font-size:11px}.richEditor [data-text-size="12"]{font-size:12px}.richEditor [data-text-size="13"]{font-size:13px}.richEditor [data-text-size="14"]{font-size:14px}.richEditor [data-text-size="15"]{font-size:15px}.richEditor [data-text-size="16"]{font-size:16px}.richEditor [data-text-size="17"]{font-size:17px}.richEditor [data-text-size="18"]{font-size:18px}.richEditor [data-text-size="19"]{font-size:19px}.richEditor [data-text-size="20"]{font-size:20px}.richEditor [data-text-size="21"]{font-size:21px}.richEditor [data-text-size="22"]{font-size:22px}.richEditor [data-text-size="23"]{font-size:23px}.richEditor [data-text-size="24"]{font-size:24px}.richEditor [data-text-size="25"]{font-size:25px}.richEditor [data-text-size="26"]{font-size:26px}.richEditor [data-text-size="27"]{font-size:27px}.richEditor [data-text-size="28"]{font-size:28px}.richEditor [data-text-size="29"]{font-size:29px}.richEditor [data-text-size="30"]{font-size:30px}.richEditor [data-text-size="31"]{font-size:31px}.richEditor [data-text-size="32"]{font-size:32px}.richEditor [data-text-size="33"]{font-size:33px}.richEditor [data-text-size="34"]{font-size:34px}.richEditor [data-text-size="35"]{font-size:35px}.richEditor [data-text-size="36"]{font-size:36px}.richEditor [data-text-size="37"]{font-size:37px}.richEditor [data-text-size="38"]{font-size:38px}.richEditor [data-text-size="39"]{font-size:39px}.richEditor [data-text-size="40"]{font-size:40px}.richEditor [data-text-size="41"]{font-size:41px}.richEditor [data-text-size="42"]{font-size:42px}.richEditor [data-text-size="43"]{font-size:43px}.richEditor [data-text-size="44"]{font-size:44px}.richEditor [data-text-size="45"]{font-size:45px}.richEditor [data-text-size="46"]{font-size:46px}.richEditor [data-text-size="47"]{font-size:47px}.richEditor [data-text-size="48"]{font-size:48px}.richEditor [data-text-size="49"]{font-size:49px}.richEditor [data-text-size="50"]{font-size:50px}.richEditor [data-text-size="51"]{font-size:51px}.richEditor [data-text-size="52"]{font-size:52px}.richEditor [data-text-size="53"]{font-size:53px}.richEditor [data-text-size="54"]{font-size:54px}.richEditor [data-text-size="55"]{font-size:55px}.richEditor [data-text-size="56"]{font-size:56px}.richEditor [data-text-size="57"]{font-size:57px}.richEditor [data-text-size="58"]{font-size:58px}.richEditor [data-text-size="59"]{font-size:59px}.richEditor [data-text-size="60"]{font-size:60px}.richEditor [data-text-size="61"]{font-size:61px}.richEditor [data-text-size="62"]{font-size:62px}.richEditor [data-text-size="63"]{font-size:63px}.richEditor [data-text-size="64"]{font-size:64px}.richEditor [data-text-size="65"]{font-size:65px}.richEditor [data-text-size="66"]{font-size:66px}.richEditor [data-text-size="67"]{font-size:67px}.richEditor [data-text-size="68"]{font-size:68px}.richEditor [data-text-size="69"]{font-size:69px}.richEditor [data-text-size="70"]{font-size:70px}.richEditor [data-text-size="71"]{font-size:71px}.richEditor [data-text-size="72"]{font-size:72px}.richEditor [data-text-size="73"]{font-size:73px}.richEditor [data-text-size="74"]{font-size:74px}.richEditor [data-text-size="75"]{font-size:75px}.richEditor [data-text-size="76"]{font-size:76px}.richEditor [data-text-size="77"]{font-size:77px}.richEditor [data-text-size="78"]{font-size:78px}.richEditor [data-text-size="79"]{font-size:79px}.richEditor [data-text-size="80"]{font-size:80px}.richEditor [data-text-size="81"]{font-size:81px}.richEditor [data-text-size="82"]{font-size:82px}.richEditor [data-text-size="83"]{font-size:83px}.richEditor [data-text-size="84"]{font-size:84px}.richEditor [data-text-size="85"]{font-size:85px}.richEditor [data-text-size="86"]{font-size:86px}.richEditor [data-text-size="87"]{font-size:87px}.richEditor [data-text-size="88"]{font-size:88px}.richEditor [data-text-size="89"]{font-size:89px}.richEditor [data-text-size="90"]{font-size:90px}.richEditor [data-text-size="91"]{font-size:91px}.richEditor [data-text-size="92"]{font-size:92px}.richEditor [data-text-size="93"]{font-size:93px}.richEditor [data-text-size="94"]{font-size:94px}.richEditor [data-text-size="95"]{font-size:95px}.richEditor [data-text-size="96"]{font-size:96px}
+
+:root body #editorWorkspace{justify-content:flex-start}
+:root body #editorWorkspace .editorDocument{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1;max-width:none;margin-inline:auto}
+:root body #editor.limit-editor-width .editorDocument{max-width:900px}
+:root body #layout #editor .editorDocument .editmeta{width:100%;max-width:none;align-self:stretch;padding-inline:16px;box-sizing:border-box;grid-template-columns:minmax(0,1fr) repeat(4,auto)}
+:root body #layout #editor .editorDocument .editmeta #editorTitle{grid-column:1;grid-row:1 / span 2}
+:root body #editor .editorDocument #editCode{position:absolute;inset-inline-start:-12px;top:0;height:var(--toolbar-height);margin-top:0;display:flex;align-items:center}
+:root body #editorWorkspace .editorDocument .writingArea{flex:1;min-height:0;width:100%;max-width:none;border:0;outline:0;box-shadow:none;background:transparent}
+:root body #editor .writingArea :is(#richEditor,#content){outline:none;box-shadow:none}
+:root body #tree .outlineChevron,:root body #tree .chevronSpace{width:20px;min-width:20px;flex-basis:20px;height:24px;padding:4px;color:var(--muted);border:0;outline:0;box-shadow:none;background:transparent;margin-top:calc((var(--title-line-height) - 24px)/2)}
+:root body #tree .outlineChevron svg{width:12px;height:12px}
+
+.fontActions{display:flex;gap:8px}.fontActions button{border:0;background:transparent;color:var(--muted);padding:2px 0}
+#fontPickerResults{max-height:220px;overflow:auto;display:flex;flex-direction:column;margin-top:6px}
+#fontPickerResults button{background:transparent;border:0;text-align:left;color:var(--ink);padding:5px 8px}
+#fontPickerResults button:hover,#fontPickerResults button:focus-visible{background:var(--soft)}
+
+
+@container editorPane (max-width:650px){
+ :root body #editorWorkspace:not(.sidebar-hidden)::after{display:block;flex:0 0 min(240px,40%)}
+}
+@container editorPane (max-width:440px){
+ :root body #layout #editor .editorDocument .editmeta{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:var(--toolbar-height) auto}
+ :root body #layout #editor .editorDocument .editmeta #editorTitle{grid-column:1 / -1;grid-row:2}
+}
+
+/* The editor identity row belongs to the document, not the window edge. */
+:root body #layout #editor .editorDocument .editmeta{
+ --title-first-line:calc(var(--editor-size,14px) * 1.3 * 1.4 + 6px);
+ width:100%!important;
+ grid-template-columns:24px minmax(0,1fr) repeat(4,auto);grid-template-rows:var(--toolbar-height) auto;row-gap:16px;
+}
+:root body #layout #editor .editorDocument .editmeta #formatMenu{grid-column:3;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #documentFindButton{grid-column:4;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #sidebarToggle{grid-column:6;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #editorFocusToggle{grid-column:5;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #editorTitle{grid-column:2 / -1;grid-row:2;margin:0;padding:3px 0;align-self:start}
+:root body #layout #editor .editorDocument .editmeta #editCode{position:static;grid-column:1;grid-row:2;width:24px;height:24px;align-self:start;margin-top:calc((var(--title-first-line) - 24px) / 2)}
+:root body #layout .mainpanel:has(#editor:not(.hidden))::before{opacity:0}
+:root body #editor .editmeta::after{content:"";position:absolute;left:3px;top:calc(var(--toolbar-height) + 16px + (var(--title-first-line) - 22px) / 2);width:3px;height:22px;background:var(--accent);pointer-events:none;opacity:0;transition:opacity 120ms ease}
+:root body #layout .mainpanel.active-panel #editor .editmeta::after{opacity:1}
+:root body #editorWorkspace .writingArea :is(#richEditor,#content){padding-inline-start:44px!important}
+@media(prefers-reduced-motion:reduce){:root body #editor .editmeta::after{transition:none}}
+
+#emptyEditorMessage{display:none}#editor.editor-empty #editorWorkspace{display:none}#editor.editor-empty #emptyEditorMessage{display:block}
+/* Graphite Dark editor headings: presentation only, never document formatting. */
+:root body[data-theme="dark"] #editor #editorTitle,
+:root body[data-theme="dark"] #editor #richEditor :is(h1,h2,h3,h4,h5,h6,[data-mdblock="h1"],[data-mdblock="h2"],[data-mdblock="h3"],[data-mdblock="h4"],[data-mdblock="h5"],[data-mdblock="h6"]){color:#CCDBE5}

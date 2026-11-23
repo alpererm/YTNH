@@ -20,6 +20,18 @@ fn main() {
     let mut html = html;
     for name in [
         "planner-model.js",
+        "model.js",
+        "editor-markdown.js",
+        "storage.js",
+        "search.js",
+        "archive.js",
+        "help-details.js",
+        "calendar.js",
+        "ui-setup.js",
+        "layout.js",
+        "settings.js",
+        "outline-view.js",
+        "date-suggestions.js",
         "planner-ui.js",
         "planner-meetings.js",
         "vendor/icaljs/ical.js",
@@ -33,6 +45,19 @@ fn main() {
             &format!(r#"<script src="{name}"></script>"#),
             &format!("<script>{script}</script>"),
         );
+    }
+    for name in [
+        "styles/base.css",
+        "styles/layers-v2-v7.css",
+        "styles/workspace.css",
+        "styles/stages.css",
+        "styles/review-2026-11.css",
+    ] {
+        println!("cargo:rerun-if-changed=../{name}");
+        let css = fs::read_to_string(root.join(name)).expect("Missing app stylesheet");
+        let link = format!(r#"<link rel="stylesheet" href="{name}">"#);
+        assert!(html.contains(&link), "Missing stylesheet link for {name}");
+        html = html.replace(&link, &format!("<style>{css}</style>"));
     }
     println!("cargo:rerun-if-changed=../planner.css");
     let css = fs::read_to_string(root.join("planner.css")).expect("Missing planner stylesheet");

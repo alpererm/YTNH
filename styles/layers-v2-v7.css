@@ -1,0 +1,498 @@
+/* v2.3: working UI stays clean; interaction guidance lives in Help. */
+.queryHelp,.archivebar,.editorhint,.contextHint{display:none!important}
+.wideModal{width:min(760px,100%);max-height:90vh;overflow:auto}
+.helpContent{display:flex;flex-direction:column;gap:8px;max-height:67vh;overflow:auto;padding-right:3px}
+.helpContent details{border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+.helpContent summary{cursor:pointer;padding:9px 10px;font-weight:750}
+.helpGrid{display:grid;grid-template-columns:minmax(130px,.8fr) minmax(220px,2fr);gap:7px 12px;padding:2px 10px 11px;font-size:12px;line-height:1.45}
+.helpGrid>span:nth-child(odd){font-weight:700;color:var(--accent)}
+.helpText{padding:2px 10px 11px;font-size:12px;line-height:1.55}
+.helpText code{background:var(--soft);padding:1px 4px;border-radius:4px}
+.editmeta .spacer{flex:1}
+.detailsGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin:8px 0 12px}
+.detailsGrid>div{display:flex;flex-direction:column;gap:2px;padding:7px 8px;background:#fafaf8;border:1px solid var(--line);border-radius:7px}
+.detailsGrid span,.detailsSection>strong,.referenceCopies label{font-size:10px;color:var(--muted)}
+.detailsGrid strong{font-size:12px;word-break:break-word}
+.detailsSection{margin:9px 0}
+.detailsSection>div{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.detailChip{font-size:10px;background:#eef1ed;border-radius:6px;padding:4px 6px}
+.referenceCopies{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.copyRow{display:flex;gap:5px;margin-top:4px}.copyRow .field{min-width:0}
+@media(max-width:700px){.helpGrid,.detailsGrid,.referenceCopies{grid-template-columns:1fr}}
+
+.calendarCheck{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:#fff;white-space:nowrap}
+.calendarCheck input{margin:0}
+.calendarCheck:has(input:disabled){opacity:.5}
+
+.day.out-of-range{background:#f4f3ef;opacity:.45;pointer-events:none}
+.richEditor [data-mdblock=ul]::before,.richEditor [data-mdblock=li]::before{content:"•";display:inline-block;width:1.25em;color:var(--muted);font-weight:800}
+.richEditor [data-mdblock=ol] .md-list-marker{display:inline-block;min-width:1.55em;color:var(--muted);font-weight:700}
+.richEditor [data-mdblock=quote]{border-left:3px solid #cfd5ce;padding-left:10px;color:#505750}
+.richEditor [data-mdblock=check]{display:flex;align-items:flex-start;gap:7px}
+.richEditor .md-check{margin-top:.42em;flex:0 0 auto}
+
+.datechip{display:inline-flex;align-items:center;gap:3px}
+.dateJumpBtn,.dateRemoveBtn{border:0;background:transparent;padding:1px 3px;font:inherit;color:inherit}
+.dateJumpBtn{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.dateJumpBtn:hover{color:var(--accent)}
+.dateRemoveBtn{cursor:pointer;font-weight:800;opacity:.6}
+.dateRemoveBtn:hover{opacity:1;color:var(--danger)}
+
+:root{--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+.mono-code,.code,.cal-code,.pill,.internal-link,.refResult .code,.backlinkItem .code,#detailLinkRef,#detailEmbedRef{
+  font-family:var(--mono);font-variant-ligatures:none;letter-spacing:-.015em
+}
+.code,.cal-code,.pill{font-weight:700}
+.calendarCheck{transition:border-color .12s ease,background .12s ease}
+.calendarCheck:hover{border-color:#b8c2b8;background:#fafcf9}
+.calendarCheck input{accent-color:var(--accent)}
+
+
+/* v3.1 interface cleanup */
+:root{
+  --note-code:#3f6f82;
+  --todo-code:#8b6532;
+  --selection-bg:#edf3ee;
+  --selection-line:#6f8d78;
+  --status-todo:#8b6a2d;
+  --status-done:#5e7b65;
+  --status-cancelled:#8b5d5d;
+  --status-waiting:#596c91;
+  --status-hold:#776684;
+}
+
+/* Quieter top bar */
+.topActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.actionCluster,.secondaryActions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.fileMenu{position:relative}
+.fileMenu>summary{list-style:none;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:700}
+.fileMenu>summary::-webkit-details-marker{display:none}
+.fileMenu>summary::after{content:" ▾";color:var(--muted)}
+.fileMenu[open]>summary::after{content:" ▴"}
+.fileMenuBody{position:absolute;right:0;top:calc(100% + 5px);z-index:40;min-width:150px;padding:6px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px #2527221f;display:grid;gap:4px}
+.fileMenuBody button{width:100%;text-align:left;padding:7px 9px}
+.secondaryActions button{padding:6px 8px;background:transparent;border-color:transparent;color:#4f554e}
+.secondaryActions button:hover{background:#f3f4ef;border-color:#e5e5dd}
+
+/* Less boxy outline: hierarchy gets visual priority */
+.treepanel .head{border-bottom:0;padding-bottom:8px}
+.treepanel .head small{display:none}
+.treepanel .head .btns button{border-color:transparent;background:transparent;color:var(--accent);padding:5px 7px;font-weight:700}
+.treepanel .head .btns button:hover{background:#f1f5f1}
+.treepanel .tools{border-bottom:0;padding:0 10px 6px}
+.treepanel .filterbar{border-bottom:0;padding:0 10px 4px}
+.treepanel .advancedFilters{border-bottom:0;padding:4px 10px 8px}
+.treepanel .statusFilterBox{border:0;background:#f7f7f3}
+.treepanel .statusFilterBox summary{padding:6px 8px}
+.treepanel #clear{border-color:transparent;background:transparent;color:var(--muted);padding:6px 7px}
+.treepanel #clear:hover{background:#f3f4ef;color:var(--ink)}
+.tree{border-top:1px solid #efede7;padding:5px 6px 8px}
+.row{min-height:31px;padding-top:4px!important;padding-bottom:4px!important;border-radius:6px}
+.row:hover{background:#f7f8f5}
+
+/* Type distinction lives in codes only */
+.note-code,.row[data-item-type="Note"] .code,.cal-code[data-cal-type="Note"]{color:var(--note-code)!important}
+.todo-code,.row[data-item-type="Todo"] .code,.cal-code[data-cal-type="Todo"]{color:var(--todo-code)!important}
+
+/* Consistent selection cue */
+.row.sel{background:var(--selection-bg);box-shadow:inset 3px 0 0 var(--selection-line)}
+.chip.selected{box-shadow:inset 0 0 0 1px var(--selection-line),0 0 0 1px #fff}
+.editor.selected-context .editmeta{border-left:3px solid var(--selection-line);padding-left:8px}
+.editor.selected-context #editCode{background:var(--selection-bg)}
+
+/* Calendar controls grouped by purpose */
+.mainpanel>.head{align-items:flex-start}
+.calendarControls{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.calendarControlGroup{display:flex;align-items:center;gap:4px}
+.calendarControlGroup+.calendarControlGroup{padding-left:7px;border-left:1px solid var(--line)}
+.viewControls button,#today{padding:6px 9px}
+.dateControls button{padding:6px 8px}
+.displayControls{gap:5px}
+.calendarCheck{padding:5px 7px;border-color:transparent;background:#f6f7f3}
+.calendarCheck:hover{border-color:#dfe4dc;background:#f9faf7}
+
+/* Status palette: subtle and consistent */
+.row.status-done .title{color:var(--status-done);opacity:.72;text-decoration:line-through}
+.row.status-cancelled .title{color:var(--status-cancelled);text-decoration:line-through}
+.row.status-waiting-for .title{color:var(--status-waiting)}
+.row.status-on-hold .title{color:var(--status-hold)}
+.chip.status-todo{background:#f7f2e7}
+.chip.status-done{background:#edf3ee;color:var(--status-done);opacity:.72;text-decoration:line-through}
+.chip.status-cancelled{background:#f6eded;color:var(--status-cancelled);opacity:.78;text-decoration:line-through}
+.chip.status-waiting-for{background:#eef1f7;color:var(--status-waiting)}
+.chip.status-on-hold{background:#f2eef5;color:var(--status-hold)}
+.status-field{border-left-width:3px}
+.status-field.status-todo{border-left-color:var(--status-todo)}
+.status-field.status-done{border-left-color:var(--status-done)}
+.status-field.status-cancelled{border-left-color:var(--status-cancelled)}
+.status-field.status-waiting-for{border-left-color:var(--status-waiting)}
+.status-field.status-on-hold{border-left-color:var(--status-hold)}
+.status-choice.status-todo{border-left:3px solid var(--status-todo)}
+.status-choice.status-done{border-left:3px solid var(--status-done)}
+.status-choice.status-cancelled{border-left:3px solid var(--status-cancelled)}
+.status-choice.status-waiting-for{border-left:3px solid var(--status-waiting)}
+.status-choice.status-on-hold{border-left:3px solid var(--status-hold)}
+
+/* Editor: less metadata chrome, more writing room */
+.editor{gap:8px}
+.editmeta{gap:5px;min-height:28px}
+.editmeta .pill{padding:3px 6px;font-size:10px}
+#editType{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+#itemDetails{color:var(--ink)}
+
+.editorFooter{padding-top:7px;border-top:0;margin-top:2px}
+.editorFooter button{padding:6px 8px}
+.detailsActions{border-top:1px solid var(--line);padding-top:10px}
+.detailActionGrid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px!important}
+.detailActionGrid button{text-align:left}
+.detailActionGrid .danger{border-color:#ead1d1;background:#fffafa}
+
+/* Keep the monospaced code system explicit */
+.mono-code,.code,.cal-code,.pill,.internal-link,.refResult .code,.backlinkItem .code,#detailLinkRef,#detailEmbedRef{
+  font-family:var(--mono);font-variant-ligatures:none
+}
+
+@media(max-width:900px){
+  .calendarControlGroup+.calendarControlGroup{border-left:0;padding-left:0}
+}
+@media(max-width:700px){
+  .topActions{width:100%;justify-content:space-between}
+  .calendarControls{width:100%;justify-content:flex-start}
+  .detailActionGrid{grid-template-columns:1fr}
+}
+
+.morechip{font-size:9px;color:var(--muted);padding:2px 3px;font-weight:700}
+.statusFilterActions{gap:5px}
+.statusFilterActions button{font-size:10px;white-space:nowrap}
+.weekcontrol button[data-expand-week]{font-family:var(--mono);font-weight:800;min-width:28px}
+
+.statusSection{border-bottom:1px solid var(--line);padding:7px 9px}
+.statusSection>summary{cursor:pointer;color:var(--muted);font-size:11px;list-style:revert}
+.statusSection .statusChecks{padding:8px 0 2px;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.statusSection .statusChecks label{font-size:11px;display:flex;align-items:center;gap:5px}
+.statusSection .statusFilterActions{grid-column:1/-1;display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.statusSection.has-filter>summary{color:var(--ink);font-weight:700}
+
+.statusSection>summary{display:flex;align-items:center;gap:6px}
+.statusActiveIndicator{
+  display:none;min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+  align-items:center;justify-content:center;background:var(--selection-bg);
+  color:var(--selection-line);font-size:9px;font-weight:800;line-height:16px
+}
+.statusActiveIndicator.visible{display:inline-flex}
+.statusFilterActions button.selected-filter,
+.statusFilterActions button[aria-pressed="true"]{
+  background:var(--selection-bg);
+  border-color:var(--selection-line);
+  color:var(--ink);
+  box-shadow:inset 0 0 0 1px #ffffff80;
+  font-weight:800
+}
+
+/* v3.8 filter/navigation feedback */
+.filterStateBar{
+  margin:2px 9px 7px;padding:5px 7px;border-radius:7px;background:#f5f7f3;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  color:var(--muted);font-size:10px
+}
+.filterStateBar.hidden{display:none}
+.filterStateBar button{
+  border-color:transparent;background:transparent;color:var(--accent);
+  padding:3px 5px;font-size:10px;font-weight:800
+}
+.filterStateBar button:hover{background:#eaf0ea}
+.day.calendar-anchor{
+  box-shadow:inset 0 0 0 2px #9aad9d;
+}
+.day.calendar-anchor .daynum{font-weight:800}
+.day.today.calendar-anchor{
+  box-shadow:inset 0 0 0 2px var(--selection-line);
+}
+
+/* v3.9 date-filter safety */
+.datefilters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dateFilterPair{border:1px solid #ecece5;border-radius:8px;padding:7px;background:#fafaf7;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dateFilterPairHead{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dateFilterPairHead strong{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.dateFilterPairHead button{border-color:transparent;background:transparent;color:var(--accent);padding:2px 4px;font-size:9px;font-weight:800}
+.dateFilterPair label{font-size:10px;color:var(--muted)}
+.dateFilterPair .field{margin-top:3px}
+.dateFilterError{grid-column:1/-1;padding:6px 7px;border-radius:7px;background:#fff2f2;color:#8a4545;font-size:10px;font-weight:700}
+.field[aria-invalid="true"]{border-color:#c77f7f;box-shadow:0 0 0 1px #c77f7f33}
+.filterError{color:#8a4545}
+@media(max-width:700px){.datefilters{grid-template-columns:1fr}}
+
+/* v4.0 disclosure + top-button consistency */
+.statusSection>summary{display:list-item}
+.statusSection>summary #statusActiveIndicator{vertical-align:middle;margin-left:5px}
+
+.fileMenu>summary,
+.secondaryActions button{
+  font-family:inherit;
+  font-size:12px;
+  line-height:1.2;
+  font-weight:700;
+  padding:6px 8px;
+}
+
+
+
+/* v4.2 filter-section state */
+.dateFilterSection>summary{display:list-item}
+.dateFilterSection>summary #dateActiveIndicator{vertical-align:middle;margin-left:5px}
+.dateFilterSection.has-filter>summary{color:var(--ink);font-weight:700}
+
+/* v4.3 compact top navigation */
+.topNav{
+  position:sticky;top:0;z-index:55;
+  display:flex!important;align-items:center;justify-content:space-between;gap:10px;
+  padding:8px 11px;border-bottom:1px solid var(--line);background:#fbfaf7;
+}
+.viewTabs{display:flex;align-items:center;gap:5px;min-width:0}
+.viewTabs button{
+  border-color:transparent;background:transparent;padding:7px 11px;
+  font-size:13px;font-weight:750;border-radius:8px
+}
+.viewTabs button:hover{background:#f0f2ed;border-color:transparent}
+.appMenu{position:relative;margin-left:auto}
+.appMenu>summary{
+  list-style:none;width:38px;height:34px;display:grid;place-items:center;
+  border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;
+  font-size:18px;line-height:1;font-weight:800
+}
+.appMenu>summary::-webkit-details-marker{display:none}
+.appMenu[open]>summary{background:var(--selection-bg);border-color:var(--selection-line)}
+.appMenuBody{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:70;
+  width:190px;padding:7px;background:#fff;border:1px solid var(--line);
+  border-radius:11px;box-shadow:0 12px 32px #25272224
+}
+.appMenuSection{display:grid;gap:3px;padding:4px 0}
+.appMenuSection+.appMenuSection{border-top:1px solid #efede7;margin-top:3px;padding-top:7px}
+.appMenuBody button{width:100%;text-align:left;padding:7px 8px;border-color:transparent;background:transparent}
+.appMenuBody button:hover{background:#f3f5f1}
+.appMenuBody button.primary{background:var(--accent);color:#fff}
+.menuStatus{
+  display:block;border-top:1px solid #efede7;margin-top:4px;padding:7px 7px 3px;
+  font-size:9px;line-height:1.35;color:var(--muted);overflow-wrap:anywhere
+}
+.outlineActionsHead{justify-content:flex-end;padding-top:8px;padding-bottom:6px}
+.calendarHead{justify-content:flex-end;padding-top:8px;padding-bottom:8px}
+
+/* Outline titles stay one line when they fit and may grow to at most three lines. */
+.tree .row{align-items:flex-start}
+.tree .row .title{
+  flex:1;min-width:0;white-space:normal;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;
+  line-clamp:3;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.35;max-height:4.05em
+}
+.tree .row .twisty,.tree .row .code,.tree .row .tags{margin-top:1px}
+
+.layout{height:calc(100vh - 52px)}
+
+
+/* v4.4 no global top bar */
+.topNav,.viewTabs{display:none!important}
+.outlineActionsHead{
+  justify-content:space-between;
+  align-items:center;
+  padding-top:8px;
+  padding-bottom:6px;
+}
+.outlineMenuSlot{display:flex;align-items:center;min-width:38px}
+.outlineMenuSlot .appMenu{margin-left:0}
+.outlineMenuSlot .appMenuBody{
+  left:0;
+  right:auto;
+  top:calc(100% + 6px);
+}
+
+/* Reclaim the vertical space from the removed top bar. */
+.layout{
+  height:100vh;
+  min-height:0;
+}
+.notice:not(.hidden)+.layout{
+  height:calc(100vh - 50px);
+}
+@supports(height:100dvh){
+  .layout{height:100dvh}
+  .notice:not(.hidden)+.layout{height:calc(100dvh - 50px)}
+}
+
+
+
+/* v4.5 Filters + Group by */
+.statusSection .statusChecks{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.filterSubsection{grid-column:1/-1;min-width:0;margin-top:7px;padding-top:8px;border-top:1px solid #eceae3}
+.filterSubsectionTitle{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.statusSection .datefilters{display:grid;grid-template-columns:minmax(0,1fr);gap:7px;width:100%;min-width:0}
+.statusSection .dateFilterPair{min-width:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:6px}
+.statusSection .dateFilterPair label,.statusSection .dateFilterPair .field{min-width:0;width:100%}
+.statusSection .dateFilterPairHead{min-width:0}
+.groupByOptions{padding:8px 0 2px;display:grid;grid-template-columns:1fr;gap:6px}
+.groupByOptions label{font-size:11px;display:flex;align-items:center;gap:6px}
+
+.outlineGroup{padding:2px 0 7px}
+.outlineGroup+.outlineGroup{border-top:1px solid #efede7;padding-top:7px}
+.outlineGroupHead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 8px 5px;font-size:10px;font-weight:800;color:var(--muted);text-transform:none}
+.outlineGroupHead span:last-child{font-size:9px;font-weight:700;background:#f1f2ed;border-radius:999px;padding:1px 5px}
+
+
+/* v4.5 first-line title editor */
+.editorPrimary{order:0}
+.editorTitleLine{
+  min-height:1.5em!important;
+  font-size:22px;
+  line-height:1.35;
+  font-weight:750;
+  padding-bottom:8px;
+  margin-bottom:7px;
+  border-bottom:1px solid #efede7;
+}
+.editorTitleLine:empty::before{content:"Untitled";color:#a2a59d}
+.editorOptions{order:1;display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+.editorOptionBlock{min-width:0}
+.editor .editmeta{order:-1}
+.editor .editorFooter{order:2}
+.editor .legacyItemActions{order:3}
+.richEditor{min-height:330px}
+@media(max-width:420px){
+  .statusSection .statusChecks{grid-template-columns:1fr}
+  .statusSection .statusFilterActions,.statusSection .filterSubsection{grid-column:1}
+  .statusSection .dateFilterPair{grid-template-columns:1fr}
+}
+
+/* v4.6 Outline header search */
+.outlineHeaderLeft{
+  display:flex;align-items:center;gap:7px;min-width:0;flex:1
+}
+.outlineSearch{
+  min-width:0;max-width:330px;padding:7px 9px
+}
+.outlineActionsHead .btns{flex:0 0 auto}
+
+/* v4.6 display filters */
+.displayFilterChecks{display:grid;grid-template-columns:1fr;gap:6px}
+.displayFilterChecks label{font-size:11px;display:flex;align-items:center;gap:6px}
+.themeMenuSection label{display:flex;align-items:center;gap:7px;padding:5px 7px;font-size:11px;cursor:pointer}
+
+/* v4.6 dark theme */
+body[data-theme="dark"]{
+  --bg:#171a17;
+  --panel:#20241f;
+  --line:#3b4239;
+  --ink:#edf0ea;
+  --muted:#a8aea4;
+  --accent:#8fb49a;
+  --soft:#2b372e;
+  --danger:#e28d8d;
+  --warn:#3a3423;
+  --selection-bg:#2a362d;
+  --selection-line:#86a58d;
+  --note-code:#82b8ca;
+  --todo-code:#d2a05d;
+  --status-todo:#c89b51;
+  --status-done:#91b39a;
+  --status-cancelled:#cc8b8b;
+  --status-waiting:#9caed7;
+  --status-hold:#b0a0c5;
+}
+body[data-theme="dark"] button,
+body[data-theme="dark"] input,
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] select,
+body[data-theme="dark"] .field,
+body[data-theme="dark"] .richEditor,
+body[data-theme="dark"] .modal,
+body[data-theme="dark"] .appMenuBody,
+body[data-theme="dark"] .appMenu>summary,
+body[data-theme="dark"] .editorbar,
+body[data-theme="dark"] .preview,
+body[data-theme="dark"] .dateFilterPair{
+  background:var(--panel);
+  color:var(--ink);
+}
+body[data-theme="dark"] .panel,
+body[data-theme="dark"] .day{
+  background:var(--panel);
+}
+body[data-theme="dark"] .day.past,
+body[data-theme="dark"] .weeknum,
+body[data-theme="dark"] .calendarCheck,
+body[data-theme="dark"] .filterStateBar{
+  background:#1b1f1b;
+}
+body[data-theme="dark"] .row:hover,
+body[data-theme="dark"] .appMenuBody button:hover,
+body[data-theme="dark"] .treepanel .head .btns button:hover,
+body[data-theme="dark"] .treepanel #clear:hover{
+  background:#293029;
+}
+body[data-theme="dark"] .dateFilterPair,
+body[data-theme="dark"] .editorbar,
+body[data-theme="dark"] .richEditor,
+body[data-theme="dark"] .panel,
+body[data-theme="dark"] .day,
+body[data-theme="dark"] .appMenuBody,
+body[data-theme="dark"] .appMenu>summary{
+  border-color:var(--line);
+}
+body[data-theme="dark"] .appMenuSection+.appMenuSection,
+body[data-theme="dark"] .menuStatus,
+body[data-theme="dark"] .outlineGroup+.outlineGroup,
+body[data-theme="dark"] .tree,
+body[data-theme="dark"] .filterSubsection,
+body[data-theme="dark"] .editorOptions,
+body[data-theme="dark"] .editorTitleLine{
+  border-color:#343b33;
+}
+body[data-theme="dark"] .chip.status-todo{background:#3a3122}
+body[data-theme="dark"] .chip.status-done{background:#253429}
+body[data-theme="dark"] .chip.status-cancelled{background:#3a2929}
+body[data-theme="dark"] .chip.status-waiting-for{background:#293243}
+body[data-theme="dark"] .chip.status-on-hold{background:#332d3b}
+body[data-theme="dark"] .notice{background:var(--warn);color:#d9ca94}
+
+/* v4.7 grouped-view usability */
+button.outlineGroupHead{
+  width:100%;border:0;background:transparent;border-radius:6px;
+  text-align:left;cursor:pointer
+}
+button.outlineGroupHead:hover{background:#f5f6f2}
+.outlineGroupHead>span:first-child{display:flex;align-items:center;gap:5px;min-width:0}
+.groupTwisty{display:inline-block;width:11px;color:var(--muted);font-size:10px}
+
+/* First editor line is title-only, not rich formatting. */
+.editorTitleLine{cursor:text}
+
+body[data-theme="dark"] button.outlineGroupHead:hover{background:#293029}
+
+/* v4.8 title/body boundary */
+.editorTitleLine{outline:none}
+.editorTitleLine + div{margin-top:2px}
+
+/* v5.2 details UUID */
+.detailUuid{font-size:10px;min-width:0}
+
+/* v6.0 cold archives */
+.coldArchiveToolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:end}
+.coldArchiveToolbar label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.archiveSectionTitle{margin-top:5px;padding-top:7px;border-top:1px solid var(--line);font-size:11px;font-weight:750}
+.archiveActions{display:flex;gap:5px;flex-wrap:wrap}
+#coldArchiveIndex{max-height:22vh;overflow:auto}
+.cold-index-item{opacity:.86}
+.coldref{background:#f3f1ea!important;border:1px dashed #b9b39e!important;color:var(--muted)!important;cursor:default!important}
+body[data-theme="dark"] .coldref{background:#292820!important;border-color:#67624f!important}
+@media(max-width:700px){.coldArchiveToolbar{grid-template-columns:1fr}.coldArchiveToolbar button{width:100%}}
+
+
+/* v6.1 compact disclosure hit areas + wider search */
+.outlineSearch{
+  flex:1 1 auto;
+  width:100%;
+  max-width:none;
+}
+
+
