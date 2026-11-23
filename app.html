@@ -187,7 +187,7 @@ function paintOutlineSelection(){
  paintTargetSelection();
  rememberFocusedItem();
  const activeLocation=locationRow(selected)?.dataset.location;
- $("tree").querySelectorAll(".row[data-id]").forEach(r=>{const current=r.dataset.id===selected&&(!db?.locations||r.dataset.location===activeLocation);r.classList.toggle("sel",current||(db?.locations&&multiLocations.size?multiLocations.has(r.dataset.location):multiSelected.size>1&&multiSelected.has(r.dataset.id)));r.classList.toggle("currentItem",current);r.setAttribute("aria-selected",current?"true":"false")});updateOutlinePaneMarker();
+ $("tree").querySelectorAll(".row[data-id]").forEach(r=>{const current=r.dataset.id===selected&&(!db?.locations||r.dataset.location===activeLocation);r.classList.toggle("sel",current||(db?.locations&&multiLocations.size?multiLocations.has(r.dataset.location):multiSelected.size>1&&multiSelected.has(r.dataset.id)));r.classList.toggle("currentItem",current);{const v=current?"true":"false";if(r.getAttribute("aria-selected")!==v)r.setAttribute("aria-selected",v)}});updateOutlinePaneMarker();
 }
 function openSelectedInFullEditor(id){
  if(!id)return;selected=id;clearTimeout(codeSingleClickTimer);clearTimeout(calendarSingleClickTimer);

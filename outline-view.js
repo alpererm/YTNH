@@ -475,11 +475,11 @@ function mondayOf(date){
 // linked items, pins and any change in the number of rows all fall back to a full redraw.
 let outlineRowContext=null;
 function outlineFilterKey(){return JSON.stringify([$('search').value,selectedStatusFilters(),selectedItemTypes(),statusRecurringOnly(),statusNotRecurring(),showDoneItems(),['createdFrom','createdTo','scheduledFrom','scheduledTo'].map(id=>$(id).value),currentGroupBy(),outlineDayFilter,branchZoomRoot,db?.settings?.hideWeekends,db?.settings?.hideRecurring])}
-function outlinePatchable(){
+function outlinePatchable({finishingEdit=false}={}){
  const c=outlineRowContext;
  return !!(c&&db&&c.db===db&&!c.searching&&!c.mode&&!db.locations&&!hierarchyViews.outline&&!branchZoomRoot
    &&!$('search').value&&!selectedStatusFilters().length&&!selectedItemTypes().length
-   &&c.filtersKey===outlineFilterKey()&&!$('tree').querySelector('.inlineEdit'));
+   &&c.filtersKey===outlineFilterKey()&&(finishingEdit||!$('tree').querySelector('.inlineEdit')));
 }
 function outlineRowDepth(r){return Number(r.dataset.hierarchyDepth)}
 function patchOutlineRow(id){
@@ -492,12 +492,14 @@ function patchOutlineRow(id){
  if(shown!==tpl.content.querySelectorAll('.row').length-1)return false;
  fresh.style.paddingLeft=fresh.dataset.indent+'px';old.replaceWith(fresh);return true;
 }
-function patchRenderFinish(){window.dailyPlanner?.refresh();if(!editorIsOpen())renderCalendar();renderStatus();refreshInlineTodos();paintOutlineSelection()}
-function patchRender(ids){
- if(!outlinePatchable())return false;
+// The Calendar only shows items with dates, recurrence, a target or a milestone.
+function onCalendar(item){return !!(item&&((item.scheduledDates||[]).length||isRecurringTodo(item)||item.target||isMilestone(item)))}
+function patchRenderFinish(ids){window.dailyPlanner?.refresh();if(!editorIsOpen()&&ids.some(id=>onCalendar(itemById(db,id))))renderCalendar();renderStatus();refreshInlineTodos();paintOutlineSelection()}
+function patchRender(ids,options={}){
+ if(!outlinePatchable(options))return false;
  const pins=new Set(pinnedIds());if(ids.some(id=>pins.has(id)))return false;
  for(const id of ids)if(!patchOutlineRow(id))return false;
- patchRenderFinish();return true;
+ patchRenderFinish(ids);return true;
 }
 // A finished Todo leaving the Outline: remove its row when nothing else can change shape.
 function patchRemoveOutlineRow(id){
@@ -510,7 +512,7 @@ function patchRemoveOutlineRow(id){
  const sibling=step=>{for(let r=row[step];r?.matches?.('.row')&&outlineRowDepth(r)>=d;r=r[step])if(outlineRowDepth(r)===d)return true;return false};
  if(d>0&&!sibling('previousElementSibling')&&!sibling('nextElementSibling'))return false;
  outlineRowContext.args.delete(row.dataset.location);row.remove();
- patchRenderFinish();return true;
+ patchRenderFinish([id]);return true;
 }
 // Selection-only change: repaint the highlight and do the same scroll and focus follow-up
 // that a full redraw schedules.
