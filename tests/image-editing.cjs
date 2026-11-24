@@ -20,7 +20,7 @@ const {webkit,chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await command('Align center');
   await command('Add caption');
   await block.locator('figcaption').fill('Map legend');
-  await command('Edit Alt text');
+  await command('Edit alt text');
   await page.locator('#modalExtra input').fill('Site plan');
   await page.locator('#modalOK').click();
   const current=()=>page.evaluate(()=>itemById(db,selected).content);

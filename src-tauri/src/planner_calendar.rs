@@ -1,6 +1,5 @@
 use serde_json::{json, Value};
 use std::{fs, io::Read, path::PathBuf, time::UNIX_EPOCH};
-use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
@@ -22,7 +21,7 @@ fn read(
     reuse: bool,
     source: String,
 ) -> Result<Option<Value>, Box<dyn std::error::Error + Send + Sync>> {
-    let folder = app.path().app_config_dir()?.join("planner-calendars");
+    let folder = crate::portable::config_dir(&app)?.join("planner-calendars");
     uuid::Uuid::parse_str(&source)?;
     let key = yutanohe_library::digest(format!("{library}/{source}").as_bytes());
     let grant = folder.join(key);

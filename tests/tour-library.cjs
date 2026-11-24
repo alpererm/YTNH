@@ -10,7 +10,7 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
  await p.clock.setFixedTime(new Date(2026,10,22,10,30));// a Sunday
  await p.goto(pathToFileURL(path.resolve(__dirname,'../app.html')).href);
  assert.equal(await p.locator('#tree [data-welcome="tour"]').isVisible(),true,'welcome screen offers the Tour');
- assert.equal(await p.locator('#tourBtn').count(),1,'☰ menu has Open the Tour…');
+ assert.equal(await p.locator('#tourBtn').count(),1,'☰ menu has Open the Tour');
  await p.locator('#tree [data-welcome="tour"]').click();
  await p.waitForFunction(()=>db&&db.items.length>20);
  const r=await p.evaluate(()=>{

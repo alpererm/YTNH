@@ -45,7 +45,7 @@ function editorHTMLToMarkdown(e=$("richEditor")){
 function editEmbeddedSource(id){
  resetModalShell();
  const target=itemById(db,id);if(!target)return toast("Embedded source no longer exists.");
- $("modalTitle").textContent="Edit embedded source";
+ $("modalTitle").textContent="Edit Embedded Source";
  $("modalText").innerHTML=`${itemMarker(target,{passive:true})} ${esc(target.title||"(untitled)")}`;
  $("modalExtra").innerHTML=`<div class="embedEdit"><input id="embedTitle" class="field" value="${esc(target.title||"")}"><textarea id="embedBody" class="field content">${esc(target.content||"")}</textarea></div>`;
  $("modalOK").textContent="Save source";$("modalCancel").classList.remove("hidden");$("modalbg").classList.add("open");
@@ -68,10 +68,8 @@ function openRichReference(el){
  const id=el?.dataset?.refId;if(!id)return;
  syncModelFromRich();
  const target=itemById(db,id);if(!target)return toast("Referenced item no longer exists.");
- selected=id;
- edit(id);
- setView("editor");
- toast(el.classList.contains("embedref")?"Opened embedded source":"Opened linked item");
+ rememberEditorLocation();selected=id;
+ edit(id);setView("editor");revealOutlineItem(id);
 }
 
 
@@ -930,7 +928,7 @@ function chooseReference(embed=false,onChoose=null,options={}){
  $("modalTitle").textContent=options.title||(embed?"Embed item":"Link item");
  $("modalText").textContent=options.prompt||(embed?"Choose an item to embed.":"Choose an item to link.");
  $("modalExtra").innerHTML='<div class="refPicker"><input id="refSearch" class="field" placeholder="Search titles…"><div id="refResults"></div></div>';
- $("modalOK").textContent="Close";$("modalCancel").classList.add("hidden");$("modalbg").classList.add("open");
+ $("modalOK").textContent="Cancel";$("modalCancel").classList.add("hidden");$("modalbg").classList.add("open");
  $("modalOK").onclick=()=>{$("modalbg").classList.remove("open");$("modalCancel").classList.remove("hidden")};
  let choice=0;
  const paint=()=>{const buttons=[...$("refResults").querySelectorAll("button")];buttons.forEach((b,i)=>b.classList.toggle("active",i===choice));buttons[choice]?.scrollIntoView({block:"nearest"})};
@@ -944,12 +942,14 @@ function chooseReference(embed=false,onChoose=null,options={}){
    if(q)matches=rankItems(matches,q,{codes:i=>options.code?.(i)||itemSearchCodes(db,i),body:i=>options.describe?i.content:descriptionSearchText(i.content),item:target});
    else if(!options.items)matches=matches.slice().sort((a,b)=>inactiveRank(a)-inactiveRank(b)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
    matches=matches.slice(0,options.limit?options.limit():80);
-   $("refResults").innerHTML=matches.length?matches.map(i=>`<button type="button" class="refResult${inactiveRank(target(i))>0?' inactiveResult':''}" data-ref-pick="${esc(i.id)}">${itemMarker(i.markerItem||i)}<span>${esc(i.title||"(untitled)")}${options.describe?.(i)?`<small class="refLocationDescription">${esc(options.describe(i))}</small>`:""}</span></button>`).join(""):'<div class="empty">No matching items.</div>';
-   $("refResults").querySelectorAll("[data-ref-pick]").forEach(b=>b.onclick=()=>{
+   $("refResults").innerHTML=matches.length?matches.map(i=>`<button type="button" class="refResult${inactiveRank(target(i))>0?' inactiveResult':''}" data-ref-pick="${esc(i.id)}">${itemMarker(i.markerItem||i)}<span>${esc(i.title||"(untitled)")}${options.describe?.(i)?`<small class="refLocationDescription">${esc(options.describe(i))}</small>`:itemPathText(target(i))?`<small class="refLocationDescription refPath">${esc(itemPathText(target(i)))}</small>`:""}</span></button>`).join(""):'<div class="empty">No matching items.</div>';
+   $("refResults").querySelectorAll("[data-ref-pick]").forEach((b,index)=>{b.onclick=e=>{
      const target=options.resolve?options.resolve(b.dataset.refPick):itemById(db,b.dataset.refPick);if(!target)return;
      $("modalbg").classList.remove("open");$("modalCancel").classList.remove("hidden");
-     modalAfterClose=null;if(onChoose)onChoose(target);
-   });
+     modalAfterClose=null;if(e?.shiftKey&&options.onShiftChoose)options.onShiftChoose(target);else if(onChoose)onChoose(target);
+   };
+   // The pointer and the keyboard share one highlight, so Enter picks the row under the mouse.
+   b.onmousemove=()=>{if(choice!==index){choice=index;paint()}}});
    if(options.allowCreate&&q&&!all.some(i=>String(i.title||'').trim().toLowerCase()===q)){
      for(const type of ['Note','Todo']){const button=document.createElement('button');button.type='button';button.className='refResult';button.dataset.createReference=type;button.textContent=`Create ${type}: “${$('refSearch').value.trim()}”`;
        button.onclick=()=>{const title=$('refSearch').value.trim();if(!title)return;const original=snapshot(),previousUndo=undoStack.slice(),previousRedo=redoStack.slice();checkpoint();resetEditorHistoryGroup();
@@ -961,7 +961,15 @@ function chooseReference(embed=false,onChoose=null,options={}){
    paint();
  };
  $("refSearch").oninput=renderResults;
- $('modalExtra').onkeydown=e=>{if(!['ArrowDown','ArrowUp','Enter','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();const buttons=[...$('refResults').querySelectorAll('button')];if(e.key==='Escape')closeModalShell();else if(e.key==='Enter'){const direct=e.target.closest?.('button');if(direct&&!$('refResults').contains(direct))direct.click();else buttons[choice]?.click()}else if(buttons.length){choice=(choice+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;paint()}};
+ // Up/Down move one row, Page Up/Down ten, Mod+Up/Down to the first or last; Enter picks, Shift+Enter picks the
+ // alternative action where the picker has one (Quick Open: show in the Outline).
+ $('modalExtra').onkeydown=e=>{if(!['ArrowDown','ArrowUp','PageDown','PageUp','Enter','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();const buttons=[...$('refResults').querySelectorAll('button')];
+   if(e.key==='Escape')closeModalShell();
+   else if(e.key==='Enter'){const direct=e.target.closest?.('button');if(direct&&!$('refResults').contains(direct))direct.click();else{const b=buttons[choice];if(!b)return;if(e.shiftKey&&b.dataset.refPick)b.onclick({shiftKey:true});else b.click()}}
+   else if(buttons.length){const mod=e.ctrlKey||e.metaKey,down=e.key==='ArrowDown'||e.key==='PageDown';
+     if(mod)choice=down?buttons.length-1:0;
+     else if(e.key.startsWith('Page'))choice=Math.max(0,Math.min(buttons.length-1,choice+(down?10:-10)));
+     else choice=(choice+(down?1:-1)+buttons.length)%buttons.length;paint()}};
   // Right after the picker opens, focus can briefly sit on Close; forward picker keys so a quick Enter still chooses the highlighted result.
   $('modalOK').onkeydown=e=>{if(!$('refResults'))return;if(e.key==='Enter'){const pick=$('refResults').querySelector('.active')||$('refResults').querySelector('button');if(pick){e.preventDefault();e.stopPropagation();pick.click()}}else if(['ArrowDown','ArrowUp'].includes(e.key)){$('modalExtra').onkeydown(e);$('refSearch')?.focus()}};
 

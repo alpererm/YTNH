@@ -227,7 +227,7 @@ function createDesktopLibraries(call) {
     }
     const args={id:handle.id,undo:[...hashes]};
     const summary=await action('clean_images',args);
-    if(!summary.count){toast('No unused image files to clean');return}
+    if(!summary.count){toast('No unused images to clean up.');return}
     const answer=await question('Clean unused images',summary.count+' files · '+(summary.bytes/1048576).toFixed(2)+' MB recoverable.',[['cancel','Cancel'],['clean','Delete files']]);
     if(answer.choice==='clean'){await action('clean_images',{...args,confirm:summary.token});toast('Unused images cleaned')}
   }

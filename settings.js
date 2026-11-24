@@ -14,7 +14,7 @@ function applyAppearance(){
 function openSettings(){
  resetModalShell();$('appMenu').open=false;
  $('modalTitle').textContent='Settings';$('modalText').textContent='Changes apply immediately and are saved on this device.';
- $('modalExtra').innerHTML=`<div class="settingsForm"><label>Default View<select id="settingsDefaultView" class="field"><option value="calendar">Calendar First</option><option value="editor">Editor First</option></select></label><label>Theme<select id="settingsTheme" class="field">${Object.entries(APP_THEMES).map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label><label>Font<select id="settingsFont" class="field">${availableFontOptions()}</select></label><div class="fontActions"><button type="button" id="addInstalledFont">+ Add font</button><button type="button" id="removeInstalledFont" hidden>Remove font</button></div><div id="fontPicker" hidden><input id="fontPickerSearch" class="field" aria-label="Search installed fonts" placeholder="Search installed fonts"><div id="fontPickerResults"></div></div><div class="settingsSizes"><label>Interface size<select id="settingsInterfaceSize" class="field">${Array.from({length:11},(_,i)=>`<option value="${i+8}">${i+8} px</option>`).join('')}</select></label><label>Editor size<select id="settingsEditorSize" class="field">${Array.from({length:17},(_,i)=>`<option value="${i+8}">${i+8} px</option>`).join('')}</select></label></div><label><span><input id="settingsLimitWidth" type="checkbox"> Limit editor width</span></label><label><span><input id="settingsSpellcheck" type="checkbox"> Spell checking</span></label><label>Spellcheck language<select id="settingsLanguage" class="field">${[["","System default"],["en-US","English (US)"],["en-GB","English (UK)"],["tr","Turkish"],["nl","Dutch"],["de","German"],["fr","French"],["es","Spanish"],["it","Italian"]].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label><small>Language support depends on the dictionaries enabled in your browser or operating system.</small><div class="settingsPreview" id="settingsPreview"><strong>A little room to think</strong>Notes, plans, and the next thing to do.</div><button type="button" id="settingsDefaults" class="settingsDefaults">Restore defaults</button></div>`;
+ $('modalExtra').innerHTML=`<div class="settingsForm"><label>Default view<select id="settingsDefaultView" class="field"><option value="calendar">Calendar first</option><option value="editor">Editor first</option></select></label><label>Theme<select id="settingsTheme" class="field">${Object.entries(APP_THEMES).map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label><label>Font<select id="settingsFont" class="field">${availableFontOptions()}</select></label><div class="fontActions"><button type="button" id="addInstalledFont">+ Add font</button><button type="button" id="removeInstalledFont" hidden>Remove font</button></div><div id="fontPicker" hidden><input id="fontPickerSearch" class="field" aria-label="Search installed fonts…" placeholder="Search installed fonts…"><div id="fontPickerResults"></div></div><div class="settingsSizes"><label>Interface size<select id="settingsInterfaceSize" class="field">${Array.from({length:11},(_,i)=>`<option value="${i+8}">${i+8} px</option>`).join('')}</select></label><label>Editor size<select id="settingsEditorSize" class="field">${Array.from({length:17},(_,i)=>`<option value="${i+8}">${i+8} px</option>`).join('')}</select></label></div><label><span><input id="settingsLimitWidth" type="checkbox"> Limit editor width</span></label><label><span><input id="settingsSpellcheck" type="checkbox"> Spell checking</span></label><label>Spell-check language<select id="settingsLanguage" class="field">${[["","System default"],["en-US","English (US)"],["en-GB","English (UK)"],["tr","Turkish"],["nl","Dutch"],["de","German"],["fr","French"],["es","Spanish"],["it","Italian"]].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label><small>Language support depends on the dictionaries enabled in your browser or operating system.</small><div class="settingsPreview" id="settingsPreview"><strong>A little room to think</strong>Notes, plans, and the next thing to do.</div><button type="button" id="settingsDefaults" class="settingsDefaults">Restore defaults</button></div>`;
  const hours=db&&window.dailyPlanner?db.planner?.settings||{}:null;
  if(hours){const fields=document.createElement('div');fields.className='settingsSizes';fields.innerHTML='<label>Planner start<input class="field" type="text" placeholder="HH:MM" maxlength="5" id="plannerStart"></label><label>Planner end<input class="field" type="text" placeholder="HH:MM" maxlength="5" id="plannerEnd"></label><small id="plannerHoursError" class="settingsError" role="alert" hidden>Planner end must be after the start.</small>';
  $('settingsPreview').before(fields);$('plannerStart').value=DailyPlanner.clock(hours.start??420);$('plannerEnd').value=DailyPlanner.clock(hours.end??1140)}
@@ -64,9 +64,23 @@ function openSettings(){
  // Footer stays visible while the settings list scrolls: Restore defaults on the left, Done on the right.
  document.querySelector('.modal')?.classList.add('settingsModal');
  document.querySelector('.modalactions')?.prepend($('settingsDefaults'));
- $('modalCancel').classList.add('hidden');$('modalOK').textContent='Done';
+ $('modalCancel').classList.add('hidden');$('modalOK').textContent='Close';
  $('modalOK').onclick=()=>{if(commitHours())closeModalShell();else $('plannerEnd').focus()};
  modalAfterClose=()=>{commitHours()};
  arrangeSettingsTabs();
  $('modalbg').classList.add('open');
+}
+
+// Ctrl/Cmd + and − step the Interface and Editor sizes together; Ctrl/Cmd+0 restores the defaults.
+// One saved setting instead of a separate, forgotten window zoom.
+function stepAppearanceSize(direction){
+ const clamp=(x,min,max)=>Math.max(min,Math.min(max,x));
+ const next=normalizeAppearance({...appearance,
+   interfaceSize:direction?clamp(appearance.interfaceSize+direction,8,18):14,
+   editorSize:direction?clamp(appearance.editorSize+direction,8,24):14});
+ if(next.interfaceSize===appearance.interfaceSize&&next.editorSize===appearance.editorSize&&direction){toast(direction>0?'Largest size':'Smallest size');return}
+ appearance=next;applyAppearance();
+ try{localStorage.setItem(APPEARANCE_KEY,JSON.stringify(next))}catch{}
+ for(const [id,value] of [['settingsInterfaceSize',next.interfaceSize],['settingsEditorSize',next.editorSize]])if($(id))$(id).value=value;
+ toast(`Interface ${next.interfaceSize} px · Editor ${next.editorSize} px`);
 }

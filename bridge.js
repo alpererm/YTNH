@@ -26,15 +26,7 @@
   window.notesGlobalQuickOpen={get enabled(){try{return localStorage.getItem('ytnh-global-quick-open')!=='off'}catch{return true}},async set(on){try{localStorage.setItem('ytnh-global-quick-open',on?'on':'off')}catch{}await applyCapturePreference();await reportCaptureStatus()}};
   window.addEventListener('DOMContentLoaded',()=>applyCapturePreference().then(reportCaptureStatus));
   window.addEventListener('focus',reportCaptureStatus);
-  let zoom=1;
-  window.addEventListener('keydown',e=>{
-    const mac=/mac/i.test(navigator.userAgentData?.platform||navigator.platform);
-    if(!(mac?e.metaKey:e.ctrlKey)||e.altKey)return;
-    const direction=['Equal','NumpadAdd'].includes(e.code)||e.key==='+'?1:['Minus','NumpadSubtract'].includes(e.code)||e.key==='-'?-1:0;
-    if(!direction&&e.code!=='Digit0')return;
-    e.preventDefault();e.stopImmediatePropagation();zoom=direction?Math.max(.5,Math.min(2.5,Math.round((zoom+direction*.1)*10)/10)):1;
-    call('set_zoom',{factor:zoom}).catch(e=>toast(e.message));
-  },true);
+  // Ctrl/Cmd +/−/0 change the saved Interface and Editor sizes (see stepAppearanceSize); window zoom stays at 100%.
   window.addEventListener('DOMContentLoaded',()=>{
     if(!/win/i.test(navigator.userAgentData?.platform||navigator.platform))return;
     document.body.classList.add('windows-desktop');const timers=new WeakMap();

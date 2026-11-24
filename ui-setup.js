@@ -508,7 +508,7 @@ function initManagedImageImports(){
    case 'caption':{const updated=data.caption==null?change(block,{caption:''}):block;updated.querySelector('figcaption').focus();break}
    case 'no-caption':change(block,{caption:null});break;
    case 'alt':{
-     resetModalShell();$('modalTitle').textContent='Edit Alt text';const input=document.createElement('input');input.className='field';input.value=data.alt;
+     resetModalShell();$('modalTitle').textContent='Edit Alt Text';const input=document.createElement('input');input.className='field';input.value=data.alt;
      $('modalExtra').replaceChildren(input);$('modalOK').onclick=()=>{closeModalShell();if(block.isConnected)change(block,{alt:input.value})};$('modalbg').classList.add('open');input.focus();input.select();break;
    }
    case 'replace':replaceTarget=block;replacePicker.value='';replacePicker.click();break;
@@ -521,7 +521,7 @@ function initManagedImageImports(){
    const block=e.target.closest('[data-mdblock=image]');if(!block)return;
    e.preventDefault();e.stopImmediatePropagation();select(block);context.replaceChildren();
    const caption=info(block).caption!=null;
-   for(const [id,label] of [['left','Align left'],['center','Align center'],['caption',caption?'Edit caption':'Add caption'],...(caption?[['no-caption','Remove caption']]:[]),['alt','Edit Alt text'],['replace','Replace image'],['copy','Copy'],['cut','Cut'],['open','Open original externally'],['remove','Remove from note']]){
+   for(const [id,label] of [['left','Align left'],['center','Align center'],['caption',caption?'Edit caption':'Add caption'],...(caption?[['no-caption','Remove caption']]:[]),['alt','Edit alt text'],['replace','Replace image'],['copy','Copy'],['cut','Cut'],['open','Open original externally'],['remove','Remove from note']]){
      const b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('role','menuitem');
      b.onclick=()=>{context.classList.add('hidden');action(block,id)};context.append(b);
    }

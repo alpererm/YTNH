@@ -68,8 +68,11 @@ def verify(workflow)
   upload = build.fetch('steps').find { |step| step['uses'] == 'actions/upload-artifact@v7' }
   check(upload && upload['with'] == {
     'name'=>'${{ matrix.name }}', 'if-no-files-found'=>'error',
-    'path'=>"src-tauri/target/release/bundle/nsis/*-setup.exe\nsrc-tauri/target/release/bundle/dmg/*.dmg\n"
-  }, 'Both installer artifact paths and names must remain unchanged')
+    'path'=>"src-tauri/target/release/bundle/nsis/*-setup.exe\nsrc-tauri/target/release/bundle/dmg/*.dmg\nsrc-tauri/target/release/bundle/*-portable.zip\n"
+  }, 'Installer and portable artifact paths and names must remain unchanged')
+  portable = build.fetch('steps').find { |step| step['name'] == 'Package and test the Windows portable version' }
+  check(portable && portable['run'].include?('YTNH-data/webview') && portable['run'].include?('SIGNING_THUMBPRINT'), 'The Windows portable version must be smoke-tested and signature-checked')
+  check(build['steps'].index(upload) > build['steps'].index(portable), 'Upload must follow the portable package')
   check(build['steps'].index(upload) > build['steps'].index(package), 'Upload must follow packaging')
   # Only the guarded build job may upload distributables; portable fixtures are test data.
   jobs.each do |id, job|
