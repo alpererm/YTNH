@@ -71,7 +71,7 @@ def verify(workflow)
     'path'=>"src-tauri/target/release/bundle/nsis/*-setup.exe\nsrc-tauri/target/release/bundle/dmg/*.dmg\nsrc-tauri/target/release/bundle/*-portable.zip\n"
   }, 'Installer and portable artifact paths and names must remain unchanged')
   portable = build.fetch('steps').find { |step| step['name'] == 'Package and test the Windows portable version' }
-  check(portable && portable['run'].include?('YTNH-data/webview') && portable['run'].include?('SIGNING_THUMBPRINT'), 'The Windows portable version must be smoke-tested and signature-checked')
+  check(portable && portable['run'].include?('YTNH-data/webview') && portable['run'].include?('SIGNING_THUMBPRINT') && portable['run'].include?('must contain only README.txt'), 'The Windows portable version must be smoke-tested, signature-checked and shipped with an empty data folder')
   check(build['steps'].index(upload) > build['steps'].index(portable), 'Upload must follow the portable package')
   check(build['steps'].index(upload) > build['steps'].index(package), 'Upload must follow packaging')
   # Only the guarded build job may upload distributables; portable fixtures are test data.

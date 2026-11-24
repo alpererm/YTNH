@@ -167,7 +167,10 @@ jobs:
           Stop-Process -Id $process.Id -Force
           Start-Sleep -Seconds 2
           if (-not (Test-Path (Join-Path $folder 'YTNH-data/webview'))) { throw 'Portable app did not keep its WebView data in YTNH-data' }
-          Remove-Item -Recurse -Force (Join-Path $folder 'YTNH-data/webview')
+          # Ship an empty data folder: drop everything the test run created except the README.
+          Get-ChildItem (Join-Path $folder 'YTNH-data') -Force | Where-Object Name -ne 'README.txt' | Remove-Item -Recurse -Force
+          $left = @(Get-ChildItem (Join-Path $folder 'YTNH-data') -Recurse -Force)
+          if ($left.Count -ne 1) { throw "YTNH-data must contain only README.txt; found: $($left.Name -join ', ')" }
           $zip = "src-tauri/target/release/bundle/YTNH_${version}_x64-portable.zip"
           Compress-Archive -Path (Join-Path $folder '*') -DestinationPath $zip -Force
           Write-Output "Portable version: $zip"
