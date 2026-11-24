@@ -35,7 +35,8 @@ const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwrigh
       openQuickOpen();
     });
     assert.equal(await page.locator('.refResult').count(), 2);
-    assert.equal(await page.locator('.refResult small').count(), 0);
+    assert.equal(await page.locator('.refResult small:not(.refPath)').count(), 0);
+    assert.equal(await page.locator('.refResult small.refPath').count(), 1, 'the child shows its parent path');
     assert.doesNotMatch(await page.locator('#refResults').innerText(), /target|milestone/i);
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(() => JSON.stringify(db)), await page.evaluate(() => beforePicker));

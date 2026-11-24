@@ -90,28 +90,8 @@ function bindCalendarTooltip(element,label){
 function bindCalendarInteractions(w){
  w.querySelectorAll('.chip[data-cal-drag-item]').forEach(chip=>bindCalendarTooltip(chip,()=>itemById(db,chip.dataset.calDragItem)?.title||''));
  w.querySelectorAll("[data-cal-item]").forEach(el=>{
-   el.onclick=ev=>{
-     ev.stopPropagation();
-     const item=itemById(db,el.dataset.calItem);if(!item)return;
-
-     if(item.type==="Todo"){
-       selected=item.id;
-       const occurrence=el.dataset.calOccurrence==="1",date=el.dataset.calDate;
-       // Delay the single-click action so double-click can cancel it.
-       if(calendarSingleClickTimer)clearTimeout(calendarSingleClickTimer);
-       calendarSingleClickTimer=setTimeout(()=>{
-         calendarSingleClickTimer=null;
-         if(occurrence){
-           const current=occurrenceStatus(item,date);
-           setOccurrenceCalendarStatus(item,date,current==="Done"?"Todo":"Done");
-         }else{
-           setTodoCalendarStatus(item,item.status==="Done"?"Todo":"Done");
-         }
-       },240);
-     }else{
-       selected=item.id;clearTimeout(calendarSingleClickTimer);calendarSingleClickTimer=setTimeout(()=>openSelectedInFullEditor(item.id),240);
-     }
-   };
+   // Title: select and reveal; the marker (handled app-wide) is the only way to change status.
+   el.onclick=ev=>{ev.stopPropagation();selectAndReveal(el.dataset.calItem)};
 
    el.ondblclick=ev=>{
      ev.preventDefault();ev.stopPropagation();
@@ -120,28 +100,20 @@ function bindCalendarInteractions(w){
      openSelectedInFullEditor(item.id);
    };
 
-   el.onauxclick=ev=>{
-     if(ev.button!==1)return;
+   el.onauxclick=ev=>{if(ev.button===1){ev.preventDefault();ev.stopPropagation()}}; // markers handle middle-click app-wide
+   el.oncontextmenu=ev=>itemMenu(ev,itemById(db,el.dataset.calItem),{date:el.dataset.calDate,inCalendar:true});
+   // Keyboard, as in the Outline: Up/Down select the day's items (and show them in the Outline), Space marks
+   // a Todo done, Enter opens, the menu key shows the item menu and Escape returns to the day.
+   el.onkeydown=ev=>{
+     if(ev.ctrlKey||ev.metaKey||ev.altKey)return;
+     const items=[...el.closest('.day').querySelectorAll('[data-cal-item]')],index=items.indexOf(el);
+     if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){const next=items[index+(ev.key==='ArrowDown'?1:-1)];if(next)focusCalendarItem(next.dataset.calItem,next.dataset.calDate,{reveal:true})}
+     else if(ev.key===' '){const marker=el.querySelector('.itemMarker');if(marker&&el.dataset.calType==='Todo'){markerAction(marker);focusCalendarItem(el.dataset.calItem,el.dataset.calDate)}}
+     else if(ev.key==='Escape'){activePane='calendar';$('calendarBody').focus({preventScroll:true})}
+     else{itemKeys(ev,el,el.dataset.calItem,{date:el.dataset.calDate});return}
      ev.preventDefault();ev.stopPropagation();
-     if(calendarSingleClickTimer){clearTimeout(calendarSingleClickTimer);calendarSingleClickTimer=null}
-     const item=itemById(db,el.dataset.calItem);
-     if(item?.type==="Todo"){
-       selected=item.id;
-       if(el.dataset.calOccurrence==="1"){
-         setOccurrenceCalendarStatus(item,el.dataset.calDate,"Cancelled");
-         toast("Occurrence cancelled");
-       }else{
-         setTodoCalendarStatus(item,"Cancelled");
-         toast("Todo cancelled");
-       }
-     }
    };
-
-   el.oncontextmenu=ev=>{
-     ev.preventDefault();ev.stopPropagation();
-     const item=itemById(db,el.dataset.calItem);if(!item)return;
-     unscheduleExplicit(item,el.dataset.calDate);
-   };
+   el.onfocus=()=>{activePane='calendar'};
  });
 
  w.querySelectorAll("[data-occ-item]").forEach(e=>e.onclick=ev=>{
@@ -150,9 +122,7 @@ function bindCalendarInteractions(w){
    if(i)openOccurrenceStatus(i,e.dataset.occ)
  });
 
- w.querySelectorAll('.chip[data-cal-drag-item]').forEach(chip=>chip.oncontextmenu=ev=>{
-   ev.preventDefault();ev.stopPropagation();unscheduleExplicit(itemById(db,chip.dataset.calDragItem),chip.dataset.calDragDate);
- });
+ w.querySelectorAll('.chip[data-cal-drag-item]').forEach(chip=>chip.oncontextmenu=ev=>itemMenu(ev,itemById(db,chip.dataset.calDragItem),{date:chip.dataset.calDragDate,inCalendar:true}));
  // Calendar item drag source: only explicit scheduled dates can be moved.
  w.querySelectorAll('.chip[draggable="true"][data-cal-drag-item]').forEach(chip=>{
    chip.ondragstart=ev=>{
@@ -218,16 +188,8 @@ function centerCurrentWeekRow(){
  requestAnimationFrame(()=>row.scrollIntoView({block:"center",inline:"nearest",behavior:"auto"}));
 }
 
-function fairWeekVisibleCounts(dayData,maxVisible=20){
- const counts=dayData.map(()=>0);let used=0,progress=true;
- while(used<maxVisible&&progress){
-   progress=false;
-   for(let i=0;i<dayData.length&&used<maxVisible;i++){
-     if(counts[i]<dayData[i].entries.length){counts[i]++;used++;progress=true}
-   }
- }
- return counts;
-}
+// A collapsed week shows at most this many items per day; the rest appear when the week is expanded.
+const CALENDAR_DAY_VISIBLE=5;
 
 function renderWeekCalendar(w){
  const state=calendarSharedFilterState(),milestonesByWeek=new Map();
@@ -240,12 +202,12 @@ function renderWeekCalendar(w){
    const mon=new Date(start);mon.setDate(start.getDate()+widx*7);const key=iso(mon),expanded=expandedWeeks.has(key),dayData=[];
    let total=0;
    for(let j=0;j<7;j++){const d=new Date(mon);d.setDate(mon.getDate()+j);const entries=inCalendarRangeDate(d)?calendarEntries(iso(d)):[];dayData.push({d,entries});total+=entries.length}
-   const visibleCounts=expanded?dayData.map(x=>x.entries.length):fairWeekVisibleCounts(dayData,20);
+   const overflow=dayData.some(x=>x.entries.length>CALENDAR_DAY_VISIBLE);
    const milestoneWeek=isoWeekKey(key),milestones=milestonesByWeek.get(milestoneWeek)||[];
-   const currentWeekKey=iso(mondayOf(new Date()));h+=`<div class="weekrow ${milestones.length?"has-milestones":""} ${expanded?"expanded":""} ${key===currentWeekKey?"current-week":""}" data-week="${key}"><div class="weeknum weekcontrol"><strong>${isoWeek(mon)}</strong>${isoWeek(mon)===1?`<small class="weekYear">${new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+3).getFullYear()}</small>`:""}${total>20?`<button data-expand-week="${key}" aria-label="${expanded?"Collapse":"Expand"} busy week">${expanded?"−":"+"}</button>`:""}</div>`;
+   const currentWeekKey=iso(mondayOf(new Date()));h+=`<div class="weekrow ${milestones.length?"has-milestones":""} ${expanded?"expanded":""} ${key===currentWeekKey?"current-week":""}" data-week="${key}"><div class="weeknum weekcontrol"><strong>${isoWeek(mon)}</strong>${isoWeek(mon)===1?`<small class="weekYear">${new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+3).getFullYear()}</small>`:""}${overflow?`<button data-expand-week="${key}" aria-label="${expanded?"Collapse":"Expand"} busy week" title="${expanded?"Show at most "+CALENDAR_DAY_VISIBLE+" items per day":"Show all items this week"}">${expanded?"−":"+"}</button>`:""}</div>`;
    dayData.forEach(({d,entries},idx)=>{
-     const shown=entries.slice(0,visibleCounts[idx]),hidden=Math.max(0,entries.length-shown.length);
-     h+=calendarDayHTML(d,{entries:shown,limit:Infinity,hiddenCount:hidden})
+     const shown=expanded?entries:entries.slice(0,CALENDAR_DAY_VISIBLE),hidden=entries.length-shown.length;
+     h+=calendarDayHTML(d,{entries:shown,limit:Infinity,hiddenCount:hidden,weekKey:key})
    });
    h+=milestoneStripHTML(milestoneWeek,milestones)+"</div>"
  }
@@ -290,7 +252,7 @@ function yearsFilteredTargets(){
 function setYearsPage(year){yearsPageStart=Math.max(1,Math.min(9995,year));renderCalendar();focusPane('calendar')}
 function renderYearsCalendar(w){
  const targets=yearsFilteredTargets().filter(i=>i.target.startMonth<=String(yearsPageStart+4).padStart(4,'0')+'-12'&&i.target.endMonth>=String(yearsPageStart).padStart(4,'0')+'-01');
- const laneMap=assignTargetLanes(targets),counts=new Map(targets.map(item=>[item.id,milestoneCounter(item)])),months=Array.from({length:12},(_,m)=>new Date(2026,m,1).toLocaleDateString(undefined,{month:'short'}));
+ const laneMap=assignTargetLanes(targets),counts=new Map(targets.map(item=>[item.id,milestoneCounter(item)])),months=Array.from({length:12},(_,m)=>new Date(2026,m,1).toLocaleDateString('en-GB',{month:'short'}));
  w.innerHTML=`<div class="yearsScroll"><div class="yearsGrid"><div class="yearsMonths"><span>Year</span><div>${months.map(m=>`<span>${esc(m)}</span>`).join('')}</div></div>${Array.from({length:5},(_,offset)=>{
    const year=yearsPageStart+offset,{segments,lanes}=targetSegmentsForYear(targets,year,laneMap);
    return `<section class="targetYear" data-year="${year}"><h3>${year}</h3><div class="targetLanes" data-lanes="${lanes}">${segments.map(({item,start,end,lane,fromPrevious,intoNext})=>{
@@ -302,7 +264,7 @@ function renderYearsCalendar(w){
  w.querySelectorAll('.targetLanes').forEach(el=>{el.style.gridTemplateRows=`repeat(${Number(el.dataset.lanes)},32px)`});
  w.querySelectorAll('.targetBar').forEach(el=>{el.style.gridColumn=`${Number(el.dataset.startMonth)} / ${Number(el.dataset.endMonth)+1}`;el.style.gridRow=String(Number(el.dataset.lane)+1)});
  $('yearsPrevious').onclick=()=>setYearsPage(yearsPageStart-5);$('yearsNext').onclick=()=>setYearsPage(yearsPageStart+5);
- w.querySelectorAll('[data-target-id]').forEach(button=>{button.ondblclick=()=>openSelectedInFullEditor(button.dataset.targetId);button.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();openSelectedInFullEditor(button.dataset.targetId)}}});
+ w.querySelectorAll('[data-target-id]').forEach(button=>{button.onclick=e=>{e.stopPropagation();selectAndReveal(button.dataset.targetId)};button.ondblclick=()=>openSelectedInFullEditor(button.dataset.targetId);button.oncontextmenu=e=>itemMenu(e,itemById(db,button.dataset.targetId));button.onkeydown=e=>itemKeys(e,button,button.dataset.targetId)});
 }
 function updateCalendarModeControls(){
  for(const [id,mode] of [['weekMode','weeks'],['yearsMode','years']])$(id).classList.toggle('primary',calendarMode===mode);
@@ -326,5 +288,14 @@ function updateCalendarPeriodTitle(){
  const row=[...pane.querySelectorAll('.weekrow[data-week]')].find(r=>r.getBoundingClientRect().bottom>line);
  if(!row){el.textContent='';return}
  const thursday=new Date(row.dataset.week+'T12:00:00');thursday.setDate(thursday.getDate()+3);
- el.textContent=thursday.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+ el.textContent=thursday.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+}
+
+// Moves keyboard focus to an item on a day (the first one when no item is given).
+function focusCalendarItem(id,date,{reveal=false}={}){
+ const day=$('calendarBody').querySelector(`.day[data-date="${date}"]`);if(!day)return false;
+ const el=(id&&day.querySelector(`[data-cal-item="${CSS.escape(id)}"]`))||day.querySelector('[data-cal-item]');
+ if(!el)return false;
+ if(reveal){selectAndReveal(el.dataset.calItem);return focusCalendarItem(el.dataset.calItem,date)}
+ el.focus({preventScroll:true});el.scrollIntoView({block:'nearest'});return true;
 }

@@ -161,6 +161,9 @@ function revealSelectedInCalendar(){
  });
 }
 function navigateSelected(delta){
+ historyQuietSelection=true;try{navigateSelectedNow(delta)}finally{historyQuietSelection=false}
+}
+function navigateSelectedNow(delta){
  if(db?.locations){multiLocations.clear();multiSelected.clear();const rows=[...$('tree').querySelectorAll('.row[data-id]')];if(!rows.length)return;const i=rows.indexOf(locationRow(selected)),row=rows[Math.max(0,Math.min(rows.length-1,i<0?0:i+delta))];locationGroup=row.closest('[data-group-key]')?.dataset.groupKey;selectedLocation=row.dataset.location;selected=row.dataset.id;paintOutlineSelection();if(editorIsOpen()||appearance.defaultView==='editor')edit(selected);focusOutlineItem(selected);return}
   const ids=visibleOutlineIds();if(!ids.length)return;let idx=selected?ids.indexOf(selected):-1;if(idx<0)idx=0;else idx=Math.max(0,Math.min(ids.length-1,idx+delta));selected=ids[idx];renderTree();if(editorIsOpen()||appearance.defaultView==='editor')edit(selected);focusOutlineItem(selected);
 }
@@ -221,3 +224,76 @@ function weekdaysInclusive(start,end){
   for(let k=0;k<rem;k++){const day=(dow+k)%7;if(day!==0&&day!==6)count++}
   return count;
 }
+
+// One click model everywhere: a single click on an item's title selects it and reveals it in the
+// Outline (and switches the editor when it is open); a double-click opens its editor. Status only
+// changes through the item's marker, never by clicking the title.
+function selectAndReveal(id){
+ const item=itemById(db,id);if(!item)return;
+ clearTimeout(calendarSingleClickTimer);calendarSingleClickTimer=null;
+ if(item.archived){selected=id;toast('This item is archived. Restore it from ☰ → Archive… to see it in the Outline.');return}
+ revealOutlineItem(id);
+ if(editorIsOpen())edit(id);
+ document.querySelectorAll('#calendarBody .chip[data-cal-drag-item]').forEach(c=>c.classList.toggle('selected',c.dataset.calDragItem===id));
+ multiSelected.clear();paintTargetSelection();
+}
+
+// The one item menu, shown on right-click (or the menu key) wherever an item appears.
+// date: the day the item was clicked on (its occurrence for repeating Todos, and the date "Remove this date" removes).
+function itemMenu(e,item,{date=null,row=null,inOutline=false,inCalendar=false,removeDate=true,extra=[],returnFocus=document.activeElement}={}){
+ if(!item)return;e?.preventDefault?.();e?.stopPropagation?.();
+ const live=!item.archived,actions=[];
+ actions.push(['Open',()=>live?openSelectedInFullEditor(item.id):toast('Restore this archived item to edit it.')]);
+ if(!inOutline&&live)actions.push(['Show in Outline',()=>selectAndReveal(item.id)]);
+ if(live&&!inCalendar&&relevantCalendarDate(item))actions.push(['Show in Calendar',()=>{selected=item.id;showItemInCalendar(item)}]);
+ if(live&&itemPlannerBlocks(item,upcomingItemSessions()).length)actions.push(['Show in Daily Planner',()=>{selected=item.id;showItemInPlanner(item)}]);
+ if(item.type==='Todo'&&live){
+   const current=date&&isRecurringTodo(item)?occurrenceStatus(item,date):item.status;
+   for(const status of TODO_STATUSES)actions.push([(current===status?'✓ ':'')+status,()=>applyTodoStatus(item,status,{date,row})]);
+ }
+ const dates=item.scheduledDates||[];
+ if(live&&removeDate&&date&&dates.includes(date))actions.push(['Remove this date',()=>unscheduleExplicit(item,date)]);
+ if(live&&dates.length&&!(removeDate&&date&&dates.length===1&&dates[0]===date))actions.push(['Unschedule all dates',()=>unscheduleExplicit(item)]);
+ if(live){const ids=pinnedIds(),pinned=ids.includes(item.id);actions.push([pinned?'Unpin':'Pin to top',()=>savePins(pinned?ids.filter(id=>id!==item.id):[...ids,item.id])])}
+ if(live)actions.push(['Move to…',()=>moveItemTo(item.id)]);
+ actions.push(['Copy link',()=>copyPlainText(`[[${refToken(item.id)}]]`)]);
+ actions.push(...extra);
+ const x=e?.clientX??0,y=e?.clientY??0;
+ DailyPlanner.popup(x,y,actions,returnFocus);
+}
+
+// Keyboard for an item shown outside the Outline: Enter or Shift+Enter opens it, the menu key (or Shift+F10)
+// shows the item menu. Returns true when the key was handled.
+function itemKeys(e,node,id,{date=null}={}){
+ if(e.ctrlKey||e.metaKey||e.altKey)return false;
+ const item=itemById(db,id);if(!item)return false;
+ if(e.key==='Enter'){openSelectedInFullEditor(id)}
+ else if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){const r=node.getBoundingClientRect();itemMenu({clientX:r.x,clientY:r.bottom},item,{date,returnFocus:node})}
+ else return false;
+ e.preventDefault();e.stopPropagation();return true;
+}
+
+// Backlinks open on a single click (they are a list of places to go), remember the current place for Back,
+// and show the item in the Outline.
+function openBacklink(id){
+ syncModelFromRich?.();rememberEditorLocation();selected=id;edit(id);setView('editor');revealOutlineItem(id);
+}
+
+// "Parent › Grandchild" path of an item's ancestors, shown under titles in pickers and lists.
+function itemPathText(item){
+ const names=[],seen=new Set();
+ for(let p=item?.parentId&&itemById(db,item.parentId);p&&!seen.has(p.id);p=p.parentId&&itemById(db,p.parentId)){seen.add(p.id);names.unshift(p.title||'(untitled)')}
+ return names.join(' › ');
+}
+
+// Move an item under another parent, chosen from the item picker.
+function moveItemTo(id){
+ const item=itemById(db,id);if(!item||item.archived)return;
+ chooseReference(false,(target,meta)=>{
+   if(!meta?.created)checkpoint();const codes=codeMapBefore(activeItems(db).map(i=>i.id));moveItem(db,id,target.id);rememberChangedCodes(codes);
+   touch(db,item);revealOutlineItem(id);if(editorIsOpen())edit(id);renderCalendar();toast('Moved under “'+(target.title||'(untitled)')+'”');
+ },{title:'Move to…',prompt:'Choose the new parent for “'+(item.title||'(untitled)')+'”.',allowCreate:true,filter:i=>i.id!==id&&!isDescendant(db,i.id,id)});
+}
+
+// One date format for dates shown as text: 24/11/2026 (date inputs keep the system's own picker format).
+function displayDate(isoDate){const d=new Date(String(isoDate).slice(0,10)+'T12:00:00');return isNaN(d)?String(isoDate||''):d.toLocaleDateString('en-GB')}

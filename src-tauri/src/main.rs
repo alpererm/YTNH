@@ -3,6 +3,7 @@ mod files;
 mod fonts;
 mod close_probe;
 mod planner_calendar;
+mod portable;
 mod markdown_import;
 #[cfg(target_os = "macos")]
 mod menu;
@@ -179,6 +180,7 @@ fn register_capture_shortcuts(app: &tauri::AppHandle) {
     }
 }
 fn main() {
+    portable::prepare();
     let builder = tauri::Builder::default();
     // macOS gets a native menu bar; Windows keeps the in-app ☰ menu and no menu bar.
     #[cfg(target_os = "macos")]

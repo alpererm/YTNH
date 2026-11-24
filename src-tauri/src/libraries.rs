@@ -434,7 +434,7 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
     let mut guard = state.0.lock().map_err(|_| "Library service unavailable")?;
     if guard.is_none() {
         *guard = Some(Runtime {
-            store: Store::open(app.path().app_local_data_dir()?.join("libraries-v1"))?,
+            store: Store::open(crate::portable::local_data_dir(&app)?.join("libraries-v1"))?,
             writable: Default::default(),
             staged_images: Default::default(),
             legacy_reviews: Default::default(),

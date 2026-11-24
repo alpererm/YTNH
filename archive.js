@@ -100,7 +100,7 @@ async function restoreColdArchiveFile(file){
  if(incoming.some(i=>i.locationId||i.locationParent)){staged.schemaVersion=11;staged.locations??={}}
  const incomingIds=new Set(incoming.map(i=>i.id));staged.archiveIndex=staged.archiveIndex.filter(e=>!incomingIds.has(e.id));
  recordChangedCodes(staged,previous);reconcileAllocator(staged);validateDatabase(staged);
- checkpoint();db=staged;db.updatedAt=now();markDirty();render();toast(`Restored ${incoming.length} items into the in-file Archive.`);return true;
+ checkpoint();db=staged;db.updatedAt=now();markDirty();render();toast(`Restored ${incoming.length} item${incoming.length===1?'':'s'} to the Archive`);return true;
 }
 // Archive completed: the largest branches whose every active item is finished.
 // A branch qualifies when its top item is a finished, non-recurring Todo and everything

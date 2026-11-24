@@ -101,9 +101,10 @@ function milestoneStripHTML(week,items){
 function bindMilestoneInteractions(w){
  w.querySelectorAll('[data-milestone-id]').forEach(button=>{
    bindCalendarTooltip(button,()=>button.getAttribute('aria-label'));
-   button.onclick=e=>{e.stopPropagation();milestoneSelection=milestoneSelection===button.dataset.milestoneId?null:button.dataset.milestoneId;paintMilestoneSelection()};
+   button.onclick=e=>{e.stopPropagation();const id=button.dataset.milestoneId;milestoneSelection=milestoneSelection===id?null:id;selectAndReveal(id);paintMilestoneSelection()};
    button.ondblclick=e=>{e.preventDefault();e.stopPropagation();openSelectedInFullEditor(button.dataset.milestoneId)};
-   button.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();openSelectedInFullEditor(button.dataset.milestoneId)}else if(e.code==='Space'){e.preventDefault();e.stopPropagation();button.click()}};
+   button.oncontextmenu=e=>itemMenu(e,itemById(db,button.dataset.milestoneId));
+   button.onkeydown=e=>{if(e.code==='Space'){e.preventDefault();e.stopPropagation();button.click()}else itemKeys(e,button,button.dataset.milestoneId)};
    button.ondragstart=e=>{milestoneDraggedId=button.dataset.milestoneId;e.stopPropagation();if(e.dataTransfer){e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('application/x-yutanohe-milestone',milestoneDraggedId)}};
    button.ondragend=()=>{milestoneDraggedId=null;w.querySelectorAll('.milestone-drop').forEach(r=>r.classList.remove('milestone-drop'))};
  });
@@ -264,6 +265,19 @@ function itemMarker(item,{status=null,date=null,passive=false,code=false,planner
 function copyItemCode(item,location=null){
  const graph=db.locations?locationsForRead(db):null;
  return copyPlainText(graph&&location&&graph.nodes.has(location)?graph.code(graph.nodes.get(location)):itemCode(db,item));
+}
+// Sets a Todo's status from one of its markers, the same way in every view.
+function setMarkerStatus(marker,status){
+ return applyTodoStatus(itemById(db,marker.dataset.markerId),status,{date:marker.dataset.markerDate,row:marker.closest('.row')});
+}
+function applyTodoStatus(item,status,{date=null,row=null}={}){
+ if(!item||item.type!=='Todo')return false;
+ if(editorIsOpen())syncModelFromRich();
+ if(date&&isRecurringTodo(item)){setOccurrenceCalendarStatus(item,date,status);renderTree()}
+ else if(row){selected=item.id;selectedLocation=row.dataset.location;setOutlineCompletion(item,status)}
+ else {checkpoint();setItemCompletionStatus(item,status);if(status==='Done'&&!showDoneItems()&&!isRecurringTodo(item))startCompletionGrace(item);else{cancelCompletionGrace(item.id);render();if(editorIsOpen()&&selected===item.id)edit(item.id)}}
+ document.querySelector('#refSearch')?.dispatchEvent(new Event('input'));
+ return true;
 }
 function markerAction(marker){
  const item=itemById(db,marker.dataset.markerId);if(!item||item.type!=='Todo')return false;
@@ -551,7 +565,7 @@ function openEditorLink(href){
  if(url.protocol!=='file:'||browserFile){window.open(href,'_blank','noopener,noreferrer');return}
  const path=localFilePath(url),windowsPath=/^(?:[a-z]:\\|\\\\)/i.test(path);
  resetModalShell();
- $('modalTitle').textContent='Open local file';
+ $('modalTitle').textContent='Open Local File';
  $('modalText').textContent=windowsPath
    ?'To open this file in its Windows app, copy the path, press Win+R, paste it, and press Enter. The browser cannot reliably launch the desktop app for this file.'
    :'Copy this path and open the file from your file manager. The browser cannot reliably launch the desktop app for this file.';
@@ -582,7 +596,7 @@ function mdInlineToEditor(s){
       const snippet=String(t.content||"").replace(/!\[\[[^\]]+\]\]/g,"").replace(/\[\[[^\]]+\]\]/g,"").replace(/[#*_`>-]/g," ").replace(/\s+/g," ").trim().slice(0,180);
       stash.push(`<span class="mdref embedref" contenteditable="false" data-md="${esc(md)}" data-ref-id="${esc(t.id)}"><span class="embedtitle">↳ ${itemMarker(t,{passive:true})} ${esc(t.title||"(untitled)")}</span><span class="embedsnippet">${esc(snippet||"Empty embedded item")}</span><button type="button" class="embedEditBtn" data-edit-embed="${esc(t.id)}">Edit source</button></span>`);
     }else{
-      stash.push(`<span class="mdref" contenteditable="false" data-md="${esc(md)}" data-ref-id="${esc(t.id)}" title="Double-click to open linked item">${itemMarker(t,{passive:true})} ${esc(t.title)}</span>`);
+      stash.push(`<span class="mdref" contenteditable="false" data-md="${esc(md)}" data-ref-id="${esc(t.id)}" title="${IS_MAC?'⌘':'Ctrl'}+click or double-click to open linked item">${itemMarker(t,{passive:true})} ${esc(t.title)}</span>`);
     }
     return key;
   });

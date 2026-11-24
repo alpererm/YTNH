@@ -221,7 +221,7 @@ body[data-theme="light"] #editorSidebar .documentHeading button.current{color:va
  max-width:100%;align-self:flex-start;box-sizing:border-box;
 }
 :root body #layout.editor-focus #editorSidebar{
- inset-inline-end:max(12px, calc((100% - var(--writing-width) - var(--sidebar-width) - var(--editor-gutter)) / 2));
+ inset-inline-end:12px; /* Focus Mode keeps the writing centred; the side panel sits at the window edge */
 }
 :root body #layout.editor-focus #editor .editmeta{
  width:min(calc(100% - var(--sidebar-width) - var(--editor-gutter)),calc((100% + var(--writing-width) - var(--sidebar-width) - var(--editor-gutter)) / 2));
@@ -401,11 +401,19 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 
 :root body .weekcontrol button[data-expand-week]{border:0;background:transparent;box-shadow:none;outline:0;color:var(--muted);width:28px;height:28px;padding:0;display:block;margin:2px auto 0}
 .hiddenDayItems{display:block;color:var(--muted);font-size:12px;line-height:1.2;pointer-events:none}
+button.hiddenDayItems{pointer-events:auto;cursor:pointer;background:none;border:0;padding:1px 4px;margin:1px 0 0;border-radius:4px;font:inherit;font-size:12px;color:var(--muted)}
+button.hiddenDayItems:hover,button.hiddenDayItems:focus-visible{color:var(--ink);background:rgba(127,127,127,.15)}
 
 :root body :is(.outlineChevron,.pinHeading,.pinExpand,.targetGroupCount,.outlineGroupHead>span:last-child),
 :root body :is(.outlineChevron,.pinHeading,.pinExpand):is(:hover,:focus,:active){background:transparent!important;box-shadow:none!important}
 
-:root body #layout.editor-focus :is(.treepanel,#splitter,#editorSidebar,#dailyPlanner){display:none!important}
+:root body #layout.editor-focus :is(.treepanel,#splitter,#dailyPlanner){display:none!important}
+/* Focus Mode starts with the side panel closed; its button or shortcut can still open it. */
+:root body #layout.editor-focus #editorWorkspace.sidebar-hidden #editorSidebar{display:none!important}
+/* Focus Mode only: the editor's toolbar icons recede until pointed at or focused. */
+:root body #layout.editor-focus :is(#formatMenu>summary,#documentFindButton,#editorFocusToggle,#sidebarToggle){opacity:.35;transition:opacity .15s ease}
+:root body #layout.editor-focus :is(#formatMenu>summary,#documentFindButton,#editorFocusToggle,#sidebarToggle):is(:hover,:focus-visible),
+:root body #layout.editor-focus #formatMenu[open]>summary{opacity:1}
 :root body #layout.editor-focus #editorWorkspace::after{display:none!important}
 /* Pinned entries are flat shortcuts, independent of Outline expansion. */
 :root body #pinnedOutline .pinEntry{display:block;padding:0}

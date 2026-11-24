@@ -72,3 +72,10 @@ function rankItems(items,query,{title=i=>i.title,body=i=>descriptionSearchText(i
    .sort((a,b)=>(a.worst>5)-(b.worst>5)||a.inactive-b.inactive||a.worst-b.worst||a.sum-b.sum||(stable?0:a.length-b.length||b.edited.localeCompare(a.edited))||a.index-b.index)
    .map(h=>h.entry);
 }
+
+// Filtering for plain lists (Archive, Recently deleted, cold archive): every search word must match,
+// with the same typo tolerance as Outline search and Quick Open.
+function listSearchMatch(query,text){
+ const terms=String(query||'').trim().toLowerCase().split(/\s+/).filter(Boolean);if(!terms.length)return true;
+ const hay=String(text||'').toLowerCase();return terms.every(t=>fuzzyTextMatch(t,hay));
+}

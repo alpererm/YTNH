@@ -21,7 +21,7 @@ function positionDateSuggestions(el){const r=titleCaretRect(el);dateSuggestions.
 function moveTitleCalendar(days){const d=new Date(dateCompletion.dates[0]+'T12:00:00');d.setDate(d.getDate()+days);const value=iso(d);if(value<'2026-01-01'||value>'2150-12-31')return;dateCompletion.dates=[value];renderTitleCalendar();positionDateSuggestions(dateCompletion.el)}
 function monthPickerHTML(value,weeks=true){
  const selectedDate=new Date(value+'T12:00:00'),start=new Date(selectedDate.getFullYear(),selectedDate.getMonth(),1,12);start.setDate(start.getDate()-(start.getDay()+6)%7);
- return '<div class="titleCalHead"><button type="button" data-month="-1" aria-label="Previous month">‹</button><strong>'+selectedDate.toLocaleDateString(undefined,{month:'long',year:'numeric'})+'</strong><button type="button" data-month="1" aria-label="Next month">›</button></div><div class="titleCalGrid'+(weeks?' withWeeks':'')+'">'+(weeks?'<small>Wk</small>':'')+['Mo','Tu','We','Th','Fr','Sa','Su'].map(x=>'<small>'+x+'</small>').join('')+Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);const date=iso(d);return (weeks&&i%7===0?'<small class="weekLabel">'+isoWeek(d)+'</small>':'')+`<button type="button" role="option" id="titleCal${date}" data-pick-date="${date}" aria-label="${date}" aria-selected="${date===value}" class="${date===value?'active ':''}${date===today()?'today ':''}${d.getMonth()!==selectedDate.getMonth()?'outside':''}" ${date<'2026-01-01'||date>'2150-12-31'?'disabled':''}>${d.getDate()}</button>`}).join('')+'</div>';
+ return '<div class="titleCalHead"><button type="button" data-month="-1" aria-label="Previous month">‹</button><strong>'+selectedDate.toLocaleDateString('en-GB',{month:'long',year:'numeric'})+'</strong><button type="button" data-month="1" aria-label="Next month">›</button></div><div class="titleCalGrid'+(weeks?' withWeeks':'')+'">'+(weeks?'<small>Wk</small>':'')+['Mo','Tu','We','Th','Fr','Sa','Su'].map(x=>'<small>'+x+'</small>').join('')+Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);const date=iso(d);return (weeks&&i%7===0?'<small class="weekLabel">'+isoWeek(d)+'</small>':'')+`<button type="button" role="option" id="titleCal${date}" data-pick-date="${date}" aria-label="${date}" aria-selected="${date===value}" class="${date===value?'active ':''}${date===today()?'today ':''}${d.getMonth()!==selectedDate.getMonth()?'outside':''}" ${date<'2026-01-01'||date>'2150-12-31'?'disabled':''}>${d.getDate()}</button>`}).join('')+'</div>';
 }
 function renderTitleCalendar(){const value=dateCompletion.dates[0],selectedDate=new Date(value+'T12:00:00');dateSuggestions.innerHTML=monthPickerHTML(value);
  dateCompletion.el.setAttribute('aria-activedescendant','titleCal'+value);
@@ -55,8 +55,9 @@ function restoreTitleControl(el,id,position){
  if(!el.isConnected&&el.classList.contains('inlineEdit')){startInlineEdit(id);el=$('tree').querySelector('.inlineEdit')}
  if(el){el.dateRefreshing=false;el.focus({preventScroll:true});el.setSelectionRange(position,position)}return el;
 }
+// Typing >> in a title chooses the item's parent ([[ stays the link trigger in the body).
 function titleParentTrigger(el){
- const end=el.selectionStart;if(end!==el.selectionEnd||el.value.slice(end-2,end)!=='[['||el.value[end-3]==='!')return;
+ const end=el.selectionStart;if(end!==el.selectionEnd||el.value.slice(end-2,end)!=='>>'||el.value[end-3]==='>')return;
  const id=el.dataset.itemId||selected,item=itemById(db,id);if(!item)return;
  const value=el.value;el.dateRefreshing=true;closeDateSuggestions();
  chooseReference(false,(target,meta)=>{

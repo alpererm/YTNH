@@ -2,6 +2,22 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
+## 11.8.0 — 2026-11-24
+
+- One click model everywhere: a click on an item's title in the Calendar, Targets, milestones or Daily Planner selects it and shows it in the Outline; a double-click opens it. Only the marker changes a Todo's status, and middle-clicking any marker cancels it (one occurrence for a repeating Todo).
+- One right-click menu for items everywhere: Open, Show in Outline, Calendar or Daily Planner, statuses, Remove this date, Move to…, Pin to top and Copy link.
+- The Calendar shows up to 5 items per day with a +N button for the rest, and its items can be reached with the keyboard.
+- Back and Forward step through the items you opened (up to 50), not every selection.
+- Quick Open opens with Ctrl/Cmd+P, shows each item's parent path, shows an item in the Outline with Shift+Enter, creates a Note or Todo when nothing matches, and lists Item: commands for the selected item.
+- Links open with Ctrl/Cmd+click or a double-click; links and backlinks also show the item in the Outline and work with Back.
+- Type `>>` in a title to choose the item's parent (`[[` is only for links now).
+- Ctrl/Cmd +/−/0 change the saved Interface and Editor sizes instead of an unsaved window zoom.
+- Archive and Recently deleted search tolerates typos, and restoring shows the item in the Outline.
+- Windows: a portable version (zip, no installation) that keeps its data in a YTNH-data folder next to YTNH.exe. Quick Open's Focus Mode and Find and Replace commands now work on Windows.
+- Focus Mode dims the editor's toolbar icons, and the side panel can be opened there with its button or Ctrl/Cmd+Backslash.
+- Clicking the item whose editor is open moves the focus to the Outline.
+- Consistent wording, capitalisation and date format throughout.
+
 ## 11.7.0 — 2026-11-23
 
 - Keep Both: when another computer saved the library while this one had unsaved changes, the items it changed are copied into a "Conflicting changes from another computer" branch and then everything is saved, so nothing is lost.

@@ -159,12 +159,16 @@ const DailyPlanner = (() => {
     if(b.meeting)return DailyMeetingEditor.menu(e,b);
     const item=itemById(db,b.item),list=[['Move session…',()=>form('Move session',[['date','Date','date',date],['start','Start','time',clock(b.start)]],v=>{const t=snap(parse(v.start));if(t+b.duration>1440)throw Error('Session extends beyond this day.');apply(b,{date:v.date,start:t},e.clientX,e.clientY)})],['Remove session',()=>apply(b,{removed:true},e.clientX,e.clientY)]];
     if(!b.origin&&isRecurringTodo(item||{}))list.unshift(['Repeat with Todo',()=>mutate(()=>M.repeat(db,b.key))]);
+    if(item)return itemMenu(e,item,{date,removeDate:false,extra:list,returnFocus:e.currentTarget||grid});
     popup(e.clientX,e.clientY,list);
   }
   function attach(node,b){
     node.tabIndex=0;node.setAttribute('role','button');node.dataset.identity=identity(b);
-    const openBlock=()=>b.meeting?DailyMeetingEditor.open(b.key):itemById(db,b.item)?edit(b.item):toast('Restore this archived item to edit it.');
-    node.ondblclick=openBlock;node.oncontextmenu=e=>{e.preventDefault();actions(e,b)};
+    const live=()=>{const item=!b.meeting&&itemById(db,b.item);return item&&!item.archived?item:null};
+    const openBlock=()=>b.meeting?DailyMeetingEditor.open(b.key):live()?(revealOutlineItem(b.item),edit(b.item)):toast('Restore this archived item to edit it.');
+    // Same click model as the Outline and Calendar: click reveals the item, double-click opens it.
+    node.onclick=e=>{if(e.detail>1||e.target.tagName==='INPUT'||e.target.closest('.itemMarker,.planHandle')||!live())return;selectAndReveal(b.item)};
+    node.ondblclick=e=>{if(e.target.closest('.itemMarker'))return;openBlock()};node.oncontextmenu=e=>{e.preventDefault();actions(e,b)};
     node.onkeydown=e=>{if(e.key==='Enter')openBlock();else if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){const r=node.getBoundingClientRect();actions({clientX:r.x,clientY:r.y},b)}else return;e.preventDefault();e.stopPropagation()};
     node.onpointerdown=e=>{
       if(e.button!==0||e.target.tagName==='INPUT'||e.target.closest('.itemMarker'))return;
