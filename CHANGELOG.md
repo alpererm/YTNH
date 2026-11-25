@@ -2,6 +2,11 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
+## 11.9.1 — 2026-11-26
+
+- The editor toolbar shows Find before Formatting (11.9.0 changed only the underlying order).
+- Side panels and the Daily Planner slide in a little more slowly (280 ms instead of 200 ms).
+
 ## 11.9.0 — 2026-11-26
 
 - Outline search shows its magnifier inside the field and a × to clear it, and no longer covers the ☰ menu.

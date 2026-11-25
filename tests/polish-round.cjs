@@ -42,8 +42,9 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 
  // Find and replace: compact floating panel, no Aa/W, Tab to Replace, Enter replaces and moves on, Mod+Enter all.
  await ev(()=>openSelectedInFullEditor(ids.n));
- const order=await ev(()=>[...document.querySelectorAll('#editor .editmeta button,#editor .editmeta summary')].map(b=>b.id||b.parentElement.id).filter(Boolean));
- assert(order.indexOf('documentFindButton')<order.indexOf('formatMenu'),'Find comes before Formatting: '+order);
+ // Check where the buttons appear on screen, not just their order in the page.
+ const findX=(await page.locator('#documentFindButton').boundingBox()).x,formatX=(await page.locator('#formatMenu>summary').boundingBox()).x;
+ assert(findX<formatX,`Find (${findX}) appears left of Formatting (${formatX})`);
  await page.locator('#documentFindButton').click();
  assert.equal(await page.locator('#documentFindBar button[aria-label="Match case"],#documentFindBar button[aria-label="Whole word"]').count(),0);
  const bar=await page.locator('#documentFindBar').boundingBox(),title=await page.locator('#editorTitle').boundingBox();
