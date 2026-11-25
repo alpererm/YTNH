@@ -185,10 +185,11 @@ function bindCalendarInteractions(w){
    };
  })
 }
-function centerCurrentWeekRow(){
+function centerCurrentWeekRow({now=false}={}){
  const row=$("calendarBody")?.querySelector(".weekrow.current-week");
  if(!row)return;
- requestAnimationFrame(()=>row.scrollIntoView({block:"center",inline:"nearest",behavior:"auto"}));
+ const center=()=>row.scrollIntoView({block:"center",inline:"nearest",behavior:"auto"});
+ if(now)center();else requestAnimationFrame(center);
 }
 
 // A collapsed week shows at most this many items per day; the rest appear when the week is expanded.
@@ -200,7 +201,7 @@ function renderWeekCalendar(w){
    const key=item.milestone.targetWeek;if(!milestonesByWeek.has(key))milestonesByWeek.set(key,[]);milestonesByWeek.get(key).push(item);
  }
  const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],anchor=clampCalendarDate(weekAnchor),start=weekWindowStart(anchor);
- let h=`<div class="weekview ${weekendsHidden()&&!(selected&&calendarSelectionDate&&isWeekendDateString(calendarSelectionDate))&&!(calendarNavigationReveal?.owner===db&&calendarNavigationReveal.date===calendarCursorDate&&isWeekendDateString(calendarCursorDate))?"hide-weekends":""}"><div class="weekheader"><div>Wk</div>${days.map(x=>`<div>${x}</div>`).join("")}</div>`;
+ let h=`<div class="weekview ${weekendsHidden()&&!(selected&&calendarSelectionDate&&isWeekendDateString(calendarSelectionDate))&&!(calendarNavigationReveal?.owner===db&&calendarNavigationReveal.date===calendarCursorDate&&isWeekendDateString(calendarCursorDate))?"hide-weekends":""}"><div class="weekheader"><div>Week</div>${days.map(x=>`<div>${x}</div>`).join("")}</div>`;
  for(let widx=0;widx<21;widx++){
    const mon=new Date(start);mon.setDate(start.getDate()+widx*7);const key=iso(mon),expanded=expandedWeeks.has(key),dayData=[];
    let total=0;

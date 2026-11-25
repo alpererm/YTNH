@@ -408,3 +408,7 @@ html.no-motion .navigationFlash{outline:1px solid var(--accent)}
 :root body #calendarControls .calendarIconButton svg{width:16px;height:16px}
 :root body #calendarControls .calendarIconButton:hover{background:var(--soft);color:var(--ink)}
 :root body #calendarControls .calendarIconButton.primary{background:var(--soft);color:var(--ink)}
+
+/* The Calendar's day header matches the Targets month header: normal weight, the first column left-aligned. */
+:root body #calendarBody .weekheader>div{font-weight:400;padding:4px 0}
+:root body #calendarBody .weekheader>div:first-child{text-align:left;padding-left:2px}

@@ -253,6 +253,17 @@ function checkLabel(text){return String(text??'').replace(/[*_`~#<>\[\]]/g,'').r
 // Shared drawings, so the same idea looks the same everywhere (markers, Outline indicators, Daily Planner).
 // One way to write weeks in text: "W49 2026" (the Calendar's week column shows just the number).
 function weekLabel(isoWeek){const m=/^(\d{4})-W(\d{2})$/.exec(String(isoWeek||''));return m?`W${Number(m[2])} ${m[1]}`:String(isoWeek||'')}
+// Month and week fields: shown as "11/2026" and "W48 2026", stored as "2026-11" and "2026-W48".
+// Typing either form works (also "11.2026", "48 2026", "w48/2026").
+function monthText(month){const m=/^(\d{4})-(\d{2})$/.exec(String(month||''));return m?`${m[2]}/${m[1]}`:String(month||'')}
+function parseMonthText(text){
+ const t=String(text||'').trim();let m=/^(\d{4})-(\d{1,2})$/.exec(t);if(m)return `${m[1]}-${m[2].padStart(2,'0')}`;
+ m=/^(\d{1,2})\s*[\/.\- ]\s*(\d{4})$/.exec(t);return m?`${m[2]}-${m[1].padStart(2,'0')}`:t;
+}
+function parseWeekText(text){
+ const t=String(text||'').trim();let m=/^(\d{4})-?W(\d{1,2})$/i.exec(t);if(m)return `${m[1]}-W${m[2].padStart(2,'0')}`;
+ m=/^W?\s*(\d{1,2})\s*[\/,. ]\s*(\d{4})$/i.exec(t);return m?`${m[2]}-W${m[1].padStart(2,'0')}`:t;
+}
 // Short month names, with "Sep" (not the British "Sept") so every month has three letters.
 function shortMonthName(date){return date.toLocaleDateString('en-GB',{month:'short'}).replace(/^Sept$/,'Sep')}
 const ITEM_ICON_PATHS={
