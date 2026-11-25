@@ -36,6 +36,9 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  }
  await page.mouse.click(rect.x+80,rect.y+25);await page.keyboard.press('Escape');assert.equal(await marker.count(),0);
  await drop(null);assert.deepEqual(await page.evaluate(()=>db.items[0].scheduledDates),['2026-12-01','2026-12-03']);
+ // A second plan of the same item in the same time is refused, so remove the first before dropping again.
+ await drop(null);assert.equal(await page.evaluate(()=>Object.keys(db.planner.sessions).length),1);assert.match(await page.locator('#toast').innerText(),/already planned/);
+ await page.evaluate(()=>undo());
  await drop('2026-12-01');assert.deepEqual(await page.evaluate(()=>db.items[0].scheduledDates),['2026-12-03','2026-12-07']);
  const node=page.locator('.planBlock.Todo').first();
  const key=(await node.getAttribute('data-identity')).split('@')[0];

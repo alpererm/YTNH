@@ -26,6 +26,7 @@ for(const theme of ['light','dark']){
     // The writing area extends past the toolbar since the borderless layout (87976da); the toolbar must stay clear of the side panel.
     (sidebarIsDrawer() || control.right<=field.right+1);
   });
+  await p.evaluate(()=>Promise.allSettled(document.getAnimations().map(a=>a.finished))); // let the panel finish sliding in
   const before=await p.locator('#editorSidebar').boundingBox();
   await p.locator('.documentScroll').evaluate(e=>e.scrollTop=e.scrollHeight);
   assert.deepEqual(await p.locator('#editorSidebar').boundingBox(),before);

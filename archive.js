@@ -24,11 +24,11 @@ async function coldArchiveRoots(rootIds){
  if(archiveOperationBusy||fileOperationBusy){toast("Finish the current file operation first.");return false}
  const owner=db,revision=JSON.stringify(db);
  const roots=[...new Set(rootIds)].map(id=>itemById(db,id)).filter(i=>i?.archived);
- if(!roots.length){toast("No archived subtrees selected.");return false}
+ if(!roots.length){toast("No archived branches selected.");return false}
  const ids=new Set(),items=[];
  for(const root of roots)for(const i of [root,...descendants(db,root.id,true)])if(!ids.has(i.id)){ids.add(i.id);items.push(i)}
  if(db.locations&&items.some(i=>i.locationParent||Object.values(db.locations).some(p=>p.item===i.id||p.parent===(i.locationId||i.id)))){toast('Remove linked locations before cold archiving this branch.');return false}
- if(items.some(i=>!i.archived)){toast("Cold archive only moves fully archived subtrees.");return false}
+ if(items.some(i=>!i.archived)){toast("Cold archive only moves fully archived branches.");return false}
  const codes={};for(const i of items)codes[i.id]=itemCode(db,i);
  const archiveId=uuid(),stamp=new Date().toISOString(),suggestedName=`cold-archive-${stamp.slice(0,10)}-${archiveId.slice(0,8)}.json`;
  const payload={format:"local-notes-todos-cold-archive",schemaVersion:1,archiveId,createdAt:stamp,sourceDatabaseCreatedAt:db.createdAt||null,sourceSchemaVersion:10,itemCount:items.length,codes,items:items.map(i=>({...JSON.parse(JSON.stringify(i)),content:canonicalizeForDatabase(db,i.content)}))};

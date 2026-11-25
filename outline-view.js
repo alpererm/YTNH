@@ -113,7 +113,7 @@ function updateStatusFilterLabel(){
  }
  if(db&&!weekendsHidden())add('weekends','Show weekends',()=>{$('showWeekends').checked=false;$('showWeekends').dispatchEvent(new Event('change'))});
  if(db?.settings?.hideRecurring)add('hide-recurring','Hide recurring',()=>{checkpoint();db.settings.hideRecurring=false;markDirty();render()});
- if(outlineDayFilter)add('day','Day: '+shortDate(outlineDayFilter),()=>clearOutlineDayFilter());
+ if(outlineDayFilter)add('day',shortDate(outlineDayFilter),()=>clearOutlineDayFilter()); // the date alone says it's a day filter
  if($('search').value)add('search','Search: '+$('search').value,()=>{$('search').value='';$('search').dispatchEvent(new Event('input'))});
  const host=$('activeFilterChips'),focused=document.activeElement?.dataset?.removeFilter;
  host.replaceChildren();
@@ -241,7 +241,11 @@ function syncGroupByUI(){
  $("groupByBox")?.classList.toggle("has-filter",!!mode);
  updateOutlineToolbarState();
 }
-function outlineTargetMonth(month){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(month.slice(5,7))-1]+' '+month.slice(2,4)}
+// An empty library invites the first item; a search or filter that finds nothing says so.
+function outlineEmptyHTML(){return activeItems(db).length?'<div class="empty">No matching items.</div>':'<div class="empty">Nothing here yet. Press <kbd>N</kbd> for a Note or <kbd>T</kbd> for a Todo.</div>'}
+function outlineTargetMonth(month){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(month.slice(5,7))-1]+' '+month.slice(0,4)}
+// "Nov 2026 – Feb 2027", or just "Nov 2026" for a one-month target.
+function outlineTargetRange(target){const a=outlineTargetMonth(target.startMonth),b=outlineTargetMonth(target.endMonth);return a===b?a:a+' – '+b}
 function groupDateLabel(ds){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(ds||""))return ds||"No date";
  const [y,m,d]=ds.split("-").map(Number);
@@ -411,8 +415,8 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
    const showArrow=hasDisclosureChild(shownKids),groupArrow=heading&&(!ks.length||showArrow);
    const icons='';
    const metadata=[
-     isMilestone(i)?`<span class="outlineMilestone" aria-label="Milestone ${esc(i.milestone.targetWeek)}">W${i.milestone.targetWeek.slice(6)}/${i.milestone.targetWeek.slice(2,4)}</span>`:'',
-     i.type==='Todo'&&i.target?`<span class="outlineTarget" aria-label="Long-term target ${esc(i.target.startMonth)} to ${esc(i.target.endMonth)}">${outlineTargetMonth(i.target.startMonth)} – ${outlineTargetMonth(i.target.endMonth)}</span>`:'',
+     isMilestone(i)?`<span class="outlineMilestone" aria-label="Milestone ${esc(weekLabel(i.milestone.targetWeek))}">${esc(weekLabel(i.milestone.targetWeek))}</span>`:'',
+     i.type==='Todo'&&i.target?`<span class="outlineTarget" aria-label="Target ${esc(i.target.startMonth)} to ${esc(i.target.endMonth)}">${outlineTargetRange(i.target)}</span>`:'',
      !i.heading&&tags.length?`<span class="tags">${tags.map(tag=>`<span class="outlineTag">#${esc(tag)}</span>`).join('')}</span>`:'',
      heading?`<span class="targetGroupCount" aria-label="${heading.count} items">${heading.count}</span>`:''
    ].filter(Boolean).join('');
@@ -425,7 +429,7 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
  paintPins(row,graph);
  if(dateErr&&!searching){t.innerHTML=`<div class="empty filterError">${esc(dateErr.message)}</div>`;return}
  if(searching){
-   t.innerHTML=rankItems(directMatchedItems().filter(inZoomBranch),parseSearchQuery($('search').value).texts,{stable:true}).flatMap(item=>graph?graph.byItem.get(item.id).filter(location=>!branchZoomRoot||graph.chain(location).some(p=>p.id===branchZoomLocation)).map(location=>row(item,0,{grouped:true,location})):row(item,0,{grouped:true})).join('')||'<div class="empty">No matching items.</div>';
+   t.innerHTML=rankItems(directMatchedItems().filter(inZoomBranch),parseSearchQuery($('search').value).texts,{stable:true}).flatMap(item=>graph?graph.byItem.get(item.id).filter(location=>!branchZoomRoot||graph.chain(location).some(p=>p.id===branchZoomLocation)).map(location=>row(item,0,{grouped:true,location})):row(item,0,{grouped:true})).join('')||outlineEmptyHTML();
    if(!graph)t.querySelectorAll('.row[data-id]').forEach(r=>{const item=itemById(db,r.dataset.id),path=item?headingContextPath(item):'';const line=r.querySelector('.outlineTitleLine');if(path&&line){const c=document.createElement('div');c.className='searchContext';c.textContent=path;line.after(c)}});
    if(db.planner&&!zoomRootItem())DailyMeetingEditor.search(t,$('search').value.trim());
    paintHierarchy(t,hierarchyViews.outline,row,false);t.scrollTop=previousScrollTop;
@@ -456,13 +460,13 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
      }
      const rows=collapsed?'':roots.flatMap(i=>graph&&mode!=='target'?graph.byItem.get(i.id).map(location=>row(i,0,{grouped:true,allowed,location})):row(i,0,{grouped:true,hierarchy:mode==='target',allowed})).join('');
      return `<section class="outlineGroup" data-group-key="${esc(g.key)}"${node?.depth?` style="margin-inline-start:${node.depth*16}px"`:""}>${node?outlineGroupHead(collapseKey,collapsed,node.label,node.total>g.items.length?g.items.length+" · "+node.total:g.items.length,node.depth,node.total>g.items.length?g.items.length+" tagged directly, "+node.total+" including nested tags":""):outlineGroupHead(collapseKey,collapsed,g.label,g.items.length)}${rows}</section>`
-   }).join(""):'<div class="empty">No matching items.</div>';
+   }).join(""):outlineEmptyHTML();
    t.querySelectorAll('[data-indent]').forEach(el=>el.style.paddingLeft=Number(el.dataset.indent)+'px');
    paintHierarchy(t,hierarchyViews.outline,row,false);t.scrollTop=previousScrollTop;
    return;
  }
  const roots=zoomRootItem()?[zoomRootItem()]:activeItems(db).filter(x=>!x.parentId).sort((a,b)=>a.order-b.order);
- t.innerHTML=(graph?(zoomRootItem()?[graph.nodes.get(branchZoomLocation)||graph.primary(zoomRootItem())]:graph.siblings(null)).map(location=>row(location.item,0,{location})):roots.map(r=>row(r,0))).join("")||'<div class="empty">No matching items.</div>';
+ t.innerHTML=(graph?(zoomRootItem()?[graph.nodes.get(branchZoomLocation)||graph.primary(zoomRootItem())]:graph.siblings(null)).map(location=>row(location.item,0,{location})):roots.map(r=>row(r,0))).join("")||outlineEmptyHTML();
  t.querySelectorAll('[data-indent]').forEach(el=>el.style.paddingLeft=Number(el.dataset.indent)+'px');
  paintHierarchy(t,hierarchyViews.outline,row,false);applyHeadingSections(t);t.scrollTop=previousScrollTop;
 }

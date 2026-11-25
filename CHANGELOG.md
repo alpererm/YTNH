@@ -2,6 +2,17 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
+## 11.9.0 — 2026-11-26
+
+- Outline search shows its magnifier inside the field and a × to clear it, and no longer covers the ☰ menu.
+- Find and replace is a compact floating panel at the top right of the editor: Tab jumps to Replace, Enter replaces and moves on, Ctrl/Cmd+Enter replaces all. The Match case and Whole word buttons are gone; the Find button now comes before Formatting.
+- Smooth, short transitions for views, Focus Mode, panels, dialogs and menus; switching items and days stays instant. Settings → General → Animations (and the system's Reduce motion) turns them off. Items revealed in the Outline flash briefly.
+- Calendar toolbar: click the month title to jump to a date; Today, Calendar and Targets are icons; day boxes show the month only where it changes. A click selects a day; a double-click or Enter shows only that day in the Outline, and the filter then follows the selected day. Tab moves into a day's items.
+- Details shows Target, Milestone, Heading and Repeating Todo as types, drops the item move buttons and old codes, and has one ID row with Copy ID, Copy link and Copy embed. Archive… and Delete… are in every right-click item menu.
+- Dates read unambiguously: targets "Nov 2026 – Feb 2027", milestones "W49 2026", "Sep" instead of "Sept"; the day filter chip shows just the date.
+- Calendar items stay on one line; the Targets view has clearer tooltips and a "This year" button; the Archive dialog lists come first; an empty library invites the first item; Settings fits its content.
+- The same item can no longer be planned twice at the same time in the Daily Planner; a message says when it already is.
+
 ## 11.8.1 — 2026-11-25
 
 - Icons: Notes are as tall as Todo circles; Targets and Milestones are slightly smaller; Waiting for shows clock hands, not only amber; repeat arrows match the Scheduled and Planned indicators; Formatting is "Aa", the document outline tab is a stepped list and Daily Planner meetings show people. Each icon has one drawing everywhere.

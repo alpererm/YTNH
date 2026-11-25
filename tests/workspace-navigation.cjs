@@ -27,7 +27,7 @@ const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwrigh
     }), selectors);
     assert(Math.max(...offsets.map(x=>x[1]))-Math.min(...offsets.map(x=>x[1]))<=1.5,JSON.stringify(offsets));
   }
-  await aligned(['#appMenu>summary','#outlineSearchButton','#weeksEarlier','#today','#jumpDate','#weekMode','#yearsMode']);
+  await aligned(['#appMenu>summary','#outlineSearchButton','#weeksEarlier','#calendarPeriodTitle','#today','#weekMode','#yearsMode']);
   await page.keyboard.press('Control+Shift+f');
   await page.locator('#search').fill('delivery');
   await aligned(['#appMenu>summary','#search','#weeksLater']);
@@ -36,7 +36,7 @@ const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwrigh
   await item.hover();
   await page.waitForSelector('#calendarTooltip');
   assert.equal(await page.locator('#calendarTooltip').innerText(),await item.innerText());
-  await page.locator('.day[data-date="2026-11-06"]').click({position:{x:8,y:8}});
+  await page.locator('.day[data-date="2026-11-06"]').dblclick({position:{x:8,y:8}});
   await page.waitForFunction(()=>!$('outlineSearchSlot').classList.contains('search-expanded'));
   assert.equal(await page.locator('#search').inputValue(),'');
   await page.keyboard.press('ArrowDown');
@@ -86,7 +86,7 @@ const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwrigh
   const bars=page.locator('.targetBar').filter({hasText:'A long running target'});
   assert.equal(await bars.count(),4);
   assert.equal(new Set(await bars.evaluateAll(els=>els.map(el=>el.dataset.lane))).size,1);
-  assert.match(await bars.first().getAttribute('title'),/2026-11.*2029-04/);
+  assert.match(await bars.first().getAttribute('title'),/Nov 2026 – Apr 2029/);
   await aligned(['#appMenu>summary','#yearsPrevious','#yearsNext','#yearsMode']);
   await page.evaluate(()=>openHelp());
   await page.keyboard.press('Control+Shift+f');

@@ -50,7 +50,7 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
   const ordinary=p.locator('#calendarBody .day:not(.calendar-anchor)').first();assert.equal(await ordinary.evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   const today=p.locator('.day.today');assert.equal(await today.evaluate(e=>getComputedStyle(e).outlineStyle),'none');
   assert.equal(await today.locator('.daynum').evaluate(e=>getComputedStyle(e,'::before').content),'none');
-  assert.match(await today.locator('.daynum').innerText(),/\d+ \w+\s*Today/);assert.equal(await today.locator('.daynum .todayBadge').count(),1);
+  assert.match(await today.locator('.daynum').innerText(),/\d+( \w+)?\s+Today/);assert.equal(await today.locator('.daynum .todayBadge').count(),1);
   assert.equal(await today.locator('.daynum').evaluate(e=>getComputedStyle(e).fontWeight),'700');
   assert.equal(await p.locator('.day:not(.today) .daynum').first().evaluate(e=>getComputedStyle(e).fontWeight),'400');
   // Today's column is tinted so it stands out (review 42).
@@ -93,7 +93,7 @@ async function state(p,theme,mode){await p.evaluate(({theme,mode})=>{
  await p.locator('#tree .row').filter({hasText:'Project communication'}).dragTo(drop);
  assert.deepEqual(await p.evaluate(()=>itemById(db,ids.note).scheduledDates),[tomorrow]);
  await p.evaluate(()=>undo());assert.deepEqual(await p.evaluate(()=>itemById(db,ids.note).scheduledDates),[await p.evaluate(()=>today())]);
- await drop.click({position:{x:40,y:10}});assert.equal(await p.evaluate(()=>outlineDayFilter),tomorrow);
+ await drop.dblclick({position:{x:40,y:10}});assert.equal(await p.evaluate(()=>outlineDayFilter),tomorrow);
  await p.keyboard.press('Escape');assert.equal(await p.evaluate(()=>outlineDayFilter),null);
  await state(p,'light','years');
  await p.locator('#tree .row').filter({hasText:'Supplier programme'}).locator('.title').click();

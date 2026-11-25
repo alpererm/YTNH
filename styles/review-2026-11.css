@@ -174,7 +174,16 @@
 :root body .outlineSearchSlot #search{height:30px;border-radius:15px;border:0 solid transparent;box-sizing:border-box;transition:width 240ms cubic-bezier(.2,.8,.2,1),padding 240ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease,border-color 160ms ease,background-color 160ms ease,visibility 0s linear 240ms}
 :root body .outlineSearchSlot.search-expanded #search{width:100%;padding:0 10px 0 32px;border-width:1px;border-color:var(--line);background:var(--soft)!important;opacity:1;visibility:visible;transition:width 240ms cubic-bezier(.2,.8,.2,1),padding 240ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease 40ms,border-color 160ms ease,background-color 160ms ease,visibility 0s}
 :root body .outlineSearchSlot.search-expanded #search:focus{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
-:root body .outlineSearchSlot.search-expanded .outlineSearchButton{display:flex;margin-right:-30px;pointer-events:none;background:transparent}
+:root body .outlineSearchSlot.search-expanded .outlineSearchButton{display:none!important}
+/* Expanded search, Bear style: a small magnifier inside the field and a clear button once there is text. */
+:root body .outlineSearchSlot.search-expanded #search{padding:0 30px 0 31px}
+:root body .outlineSearchSlot.search-expanded::before{content:"";position:absolute;left:11px;top:50%;width:14px;height:14px;transform:translateY(-50%);z-index:1;pointer-events:none;background:var(--muted);
+ -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m16 16 5 5'/%3E%3C/svg%3E") center/contain no-repeat;
+ mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m16 16 5 5'/%3E%3C/svg%3E") center/contain no-repeat}
+:root body #searchClear{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:1;width:20px;height:20px;padding:0;border:0;border-radius:50%;place-items:center;background:color-mix(in srgb,var(--muted) 28%,transparent);color:var(--ink);cursor:default}
+:root body #searchClear svg{width:12px;height:12px}
+:root body #searchClear:hover{background:color-mix(in srgb,var(--muted) 45%,transparent)}
+:root body .outlineSearchSlot.search-expanded.has-query #searchClear{display:grid}
 @media(prefers-reduced-motion:reduce){:root body .outlineSearchSlot :is(#search,.outlineSearchButton){transition:none!important}}
 /* Editor heading list: the current heading is shown by text colour only (no background, in every theme). */
 :root body #editorSidebar .documentHeading button.current,:root body .documentHeading button.current{background:transparent!important}
@@ -215,7 +224,7 @@ body[data-theme="dark"] #editorSidebar .documentHeading .headingDisclosure{color
 :root body .settingsTabs button{border:0;background:transparent;box-shadow:none;padding:5px 12px;border-radius:8px;color:var(--muted);font-weight:500}
 :root body .settingsTabs button:hover{background:var(--outline-hover);color:var(--ink)}
 :root body .settingsTabs button[aria-selected="true"]{background:var(--soft);color:var(--ink)}
-:root body .settingsPanel{display:grid;gap:12px;align-content:start;min-height:330px}
+:root body .settingsPanel{display:grid;gap:12px;align-content:start}
 :root body .settingsPanel[hidden]{display:none}
 :root body .settingsGroupTitle{font-size:12px;color:var(--muted);margin:6px 0 4px}
 /* Editor lists: markers in the theme accent; nested bullets change shape; numbers align; the quote bar
@@ -304,8 +313,9 @@ body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-ind
 :root body #tree .outlineGroupHead .groupHeadCount{flex:none;font-size:11px;font-weight:400;color:var(--muted);background:transparent!important;padding:0}
 
 /* Calendar titles wrap to two lines before shortening (R8). */
-:root body #calendarBody .chip,:root body #calendarBody .chip .cal-code{white-space:normal}
-:root body #calendarBody .chip .calendarItemTitle{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:break-word;line-height:1.25}
+:root body #calendarBody .chip,:root body #calendarBody .chip .cal-code{white-space:nowrap}
+/* One line per Calendar item, ending in "…"; the full title shows on hover. */
+:root body #calendarBody .chip .calendarItemTitle{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
 
 /* Open Recent flyout while moved to the page top level. */
 :root body #recentFilesList.recentFilesFlyout{position:fixed;z-index:300}
@@ -345,3 +355,56 @@ body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-ind
 :root body #editor #richEditor>[data-mdblock="check"]{min-height:25px;box-sizing:border-box} /* hit areas of neighbouring lines never overlap */
 :root body #editor .richEditor input.md-check::before{content:"";position:absolute;inset:min(-1.5px,calc((var(--check-size) - 24px) / 2 - 1.5px))} /* measured inside the 1.5px border */
 :root body .dayFirstField .dayPickerGlyph[role=button]{width:24px;height:24px;padding:4.5px;box-sizing:border-box;right:-.5px}
+
+/* Motion: things that open or change view fade or slide in; content changes (switching items, days, matches)
+   stay instant. The new state is in place at once; only its appearance animates. Off via Settings or Reduce motion. */
+:root{--t-view:160ms;--t-focus:220ms;--t-panel:200ms;--t-dialog:140ms;--t-menu:120ms;--ease-out:cubic-bezier(.2,.8,.2,1)}
+@keyframes ytnhFade{from{opacity:0}}
+@keyframes ytnhFadeAgain{from{opacity:0}}
+@keyframes ytnhSettle{from{opacity:.4;transform:translateY(6px)}}
+@keyframes ytnhSlideIn{from{opacity:0;transform:translateX(16px)}}
+@keyframes ytnhPop{from{opacity:0;transform:scale(.98)}}
+@keyframes ytnhDrop{from{opacity:0;transform:translateY(-4px)}}
+@media (prefers-reduced-motion:no-preference){
+ :root body #editor:not(.hidden),:root body #calendarBody:not(.hidden){animation:ytnhFade var(--t-view) ease-out}
+ :root body #calendarBody.viewEnter{animation:ytnhFadeAgain var(--t-view) ease-out}
+ :root body #editor .editorDocument.focusEnter{animation:ytnhSettle var(--t-focus) var(--ease-out)}
+ :root body #dailyPlanner:not([hidden]),:root body #editorWorkspace:not(.sidebar-hidden)>#editorSidebar{animation:ytnhSlideIn var(--t-panel) var(--ease-out)}
+ :root body #modalbg.open{animation:ytnhFade var(--t-dialog) ease-out}
+ :root body #modalbg.open>.modal,:root body dialog[open]{animation:ytnhPop var(--t-dialog) var(--ease-out)}
+ :root body :is(#formatMenu[open]>.formatCommands,#appMenu[open]>.appMenuBody,.selectPopover,.caretPopover:not(.hidden),.linkContextMenu:not(.hidden),#documentFindBar:not([hidden])){animation:ytnhDrop var(--t-menu) var(--ease-out)}
+}
+html.no-motion *,html.no-motion *::before,html.no-motion *::after{animation:none!important;transition:none!important}
+html.no-motion .navigationFlash{outline:1px solid var(--accent)}
+
+/* Details: one ID row with its copy buttons. */
+:root body #sidebar-details .detailCopyButtons{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+:root body #sidebar-details .detailCopyButtons button{padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--ink);font-size:11px}
+:root body #sidebar-details .detailCopyButtons button:hover{background:var(--soft)}
+
+/* Properties: dropdowns look like the other fields in the side panel. */
+:root body #editorSidebar select.field{-webkit-appearance:none;appearance:none;height:30px;padding:0 28px 0 10px;border:1px solid var(--line);border-radius:6px;color:var(--ink);
+ background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a9096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E") right 9px center/12px no-repeat}
+:root body #editorSidebar select.field:focus{outline:none;border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+
+/* Archive dialog: lists first; each section's tools beside its heading; empty sections take one line. */
+:root body .archiveTools .archiveSectionHead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;margin-top:6px;padding-top:8px;border-top:1px solid var(--line)}
+:root body .archiveTools .archiveSectionHead .archiveSectionTitle{margin:0;padding:0;border:0;font-size:12px;font-weight:700}
+:root body .archiveTools .archiveSectionTools{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+:root body .archiveTools .archiveSectionTools label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+:root body .archiveTools .archiveSectionTools :is(input,select){width:auto;height:28px;font-size:12px}
+:root body .archiveTools .archiveSectionTools button{height:28px;padding:0 10px;font-size:12px}
+:root body .archiveTools .archive-empty{padding:2px 0 4px;text-align:left;font-size:13px;color:var(--muted)}
+:root body .archiveTools .archiveSectionTools select{padding:0 22px 0 8px;line-height:26px}
+:root body .archiveTools .archiveSectionTools input[type=date]{width:150px}
+
+/* Calendar toolbar: the month title jumps to a date (the old date field stays only as hidden state);
+   Today, Calendar and Targets are icon buttons like the rest of the app. */
+:root body #calendarControls .dateControls .dayFirstField,:root body #calendarControls #jumpDate{display:none!important}
+:root body #calendarControls button.calendarPeriodTitle{border:0 solid transparent;background:transparent;padding:3px 8px;border-radius:6px;font:inherit;font-size:1.07em;font-weight:650;color:var(--ink);cursor:pointer}
+:root body #calendarControls button.calendarPeriodTitle:hover:not(:disabled){background:var(--soft)}
+:root body #calendarControls button.calendarPeriodTitle:disabled{cursor:default;opacity:1}
+:root body #calendarControls .calendarIconButton{display:inline-grid;place-items:center;width:30px;min-width:30px;height:30px;padding:0;border:0 solid transparent;border-radius:50%;background:transparent;color:var(--muted)}
+:root body #calendarControls .calendarIconButton svg{width:16px;height:16px}
+:root body #calendarControls .calendarIconButton:hover{background:var(--soft);color:var(--ink)}
+:root body #calendarControls .calendarIconButton.primary{background:var(--soft);color:var(--ink)}

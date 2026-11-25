@@ -69,7 +69,7 @@ function openRichReference(el){
  syncModelFromRich();
  const target=itemById(db,id);if(!target)return toast("Referenced item no longer exists.");
  rememberEditorLocation();selected=id;
- edit(id);setView("editor");revealOutlineItem(id);
+ edit(id);setView("editor");revealOutlineItem(id,{flash:true});
 }
 
 

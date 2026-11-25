@@ -50,7 +50,7 @@ function quickOpenCommands(){
   ...Object.entries(APP_THEMES).map(([value,label])=>setControl('appearance','settingsTheme',value,'Theme: '+label)),
   setControl('general','settingsDefaultView','calendar','Default view: Calendar first'),setControl('general','settingsDefaultView','editor','Default view: Editor first'),
   ...onOff('editor','settingsSpellcheck','Spell checking'),...onOff('editor','settingsLimitWidth','Limit editor width'),
-  ...onOff('editor','settingsScrollPastEnd','Scroll past end'),...onOff('general','settingsCompletionSound','Completion sound'),
+  ...onOff('editor','settingsScrollPastEnd','Scroll past end'),...onOff('general','settingsCompletionSound','Completion sound'),...onOff('general','settingsAnimations','Animations'),
   openTab('appearance','settingsFont','Settings: Font'),openTab('appearance','settingsInterfaceSize','Settings: Interface size'),
   openTab('editor','settingsEditorSize','Settings: Editor size'),openTab('editor','settingsLanguage','Settings: Spell-check language'),
   openTab('calendar','plannerStart','Settings: Daily Planner hours'),openTab('general','settingsGlobalQuickOpen','Settings: Global Quick Open shortcut'),

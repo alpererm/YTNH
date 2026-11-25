@@ -8,7 +8,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  page.on('pageerror',e=>errors.push(e.message));
  await page.goto(require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../app.html')).href);
  await page.evaluate(()=>{installDatabase(createEmptyDatabase());const item=createItem(db,'Todo');item.title='Plan this';item.scheduledDates=['2026-11-12'];window.item=item.id;DailyPlanner.open();DailyPlanner.selectDay('2026-11-16');});
- for(const picker of ['#dailyPlanner header .dayPickerGlyph','.dayFirstField:has(#jumpDate) .dayPickerGlyph']){
+ for(const picker of ['#dailyPlanner header .dayPickerGlyph']){
    await page.locator(picker).click();assert.equal(await page.locator('.toolbarDatePopup .weekLabel').count(),6);await page.keyboard.press('Escape');
  }
  const pin=page.locator('#dailyPlanner [data-act=pin]');
@@ -67,6 +67,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.deepEqual(await page.evaluate(()=>Object.values(db.planner.meetings)[0].versions[0].recurrence),{frequency:'monthly',interval:1,startDate:'2026-11-16',monthlyMode:'relative',ordinal:-1,dayKind:'weekday'});
  await page.evaluate(()=>{DailyPlanner.selectDay('2026-11-17');DailyMeetingEditor.create(DailyPlanner.date,960)});
  // close events remove old dialogs asynchronously; measure the active form only.
+ await page.evaluate(()=>Promise.allSettled(document.getAnimations().map(a=>a.finished))); // the dialog has finished opening
  const startDate=page.locator('dialog[open]').getByLabel('Start date',{exact:true}),endDate=page.locator('dialog[open]').getByLabel('End date (exclusive for all-day)',{exact:true});
  assert.equal((await startDate.boundingBox()).y,(await endDate.boundingBox()).y);
  assert.equal(await page.getByLabel('Start time').inputValue(),'16:00');

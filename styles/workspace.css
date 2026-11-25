@@ -443,7 +443,7 @@ body{--sidebar-surface:var(--panel);--editor-frame:var(--line);--editor-divider:
 .documentHeading button[data-heading-index]{flex:1;min-width:0}
 .documentHeading .headingDisclosure{flex:none;width:14px;color:var(--muted);font-size:10px}
 .documentHeading button.current{color:var(--accent);background:var(--soft);border-radius:4px}
-.sidebarEmpty{color:var(--muted);font-size:11px;margin:0}
+.sidebarEmpty{color:var(--muted);font-size:13px;line-height:1.4;margin:0}
 #editorSidebar .editorOptions{display:flex;flex-direction:column;max-height:none;overflow:visible;padding:0;border:0;gap:12px;flex:none}
 #editorSidebar .editorPropertyRow,#editorSidebar .grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
 #editorSidebar .field{font-size:11px;padding:5px 6px;min-width:0;max-width:100%}
