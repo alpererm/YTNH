@@ -277,17 +277,24 @@ body #appMenu .menuStatus{padding:5px 8px 2px}
 :root body .treepanel.active-panel #tree .paneMarker::before,
 :root body #layout .mainpanel.active-panel::before{opacity:1;transition:opacity 120ms ease}
 @media(prefers-reduced-motion:reduce){:root body #layout .panel ::before,:root body #layout .mainpanel::before{transition:none!important}}
-#documentFindBar{flex:none;box-sizing:border-box;width:100%;min-width:0;max-width:100%;padding:6px 8px;container-type:inline-size}
-#documentFindBar>div:not([hidden]){display:grid;align-items:center;grid-template-columns:22px minmax(0,1fr) 160px;column-gap:5px}
-#documentFindBar>div+div{margin-top:4px}
-#documentFindBar input{grid-column:2;width:100%;min-width:0;height:28px;box-sizing:border-box;margin:0;padding:3px 8px;color:var(--ink);border:1px solid var(--line);border-radius:5px;background:var(--panel);font:inherit}
-#documentFindBar input:focus{outline:1px solid var(--accent);outline-offset:-1px}
-#documentFindBar .findActions{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:2px}
-#documentFindBar button{box-sizing:border-box;min-width:19px;height:25px;margin:0;padding:2px 4px;line-height:1;border:0;border-radius:4px;background:transparent;color:var(--muted);white-space:nowrap}
-#documentFindBar button:is(:hover,:focus-visible,[aria-pressed=true]){background:var(--soft);color:var(--ink)}
+/* Find and replace: a compact floating panel at the top right of the editor, styled like the Outline search box. */
+:root body #editor .editorDocument{position:relative}
+#documentFindBar{position:absolute;top:calc(var(--toolbar-height,44px) + 2px);right:8px;z-index:30;box-sizing:border-box;width:min(400px,calc(100% - 16px));padding:3px 6px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 6px 24px rgb(0 0 0 / .14)}
+#documentFindBar:focus-within{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+#documentFindBar>div:not([hidden]){display:flex;align-items:center;gap:2px;min-height:30px}
+#documentFindBar>.replaceRow{border-top:1px solid var(--line);padding-left:40px} /* the Replace text lines up with the Find text */
+#documentFindBar .findGlyph{display:grid;place-items:center;width:18px;color:var(--muted);flex:none}
+#documentFindBar svg{display:block;width:14px;height:14px}
+#documentFindBar input{flex:1;min-width:0;height:28px;margin:0;padding:0 6px;border:0;background:transparent;color:var(--ink);font:inherit;outline:none}
+#documentFindBar output{flex:none;padding:0 4px;font-size:.85em;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+#documentFindBar button{flex:none;display:grid;place-items:center;box-sizing:border-box;min-width:24px;height:24px;margin:0;padding:0 4px;border:0;border-radius:6px;background:transparent;color:var(--muted);line-height:1;white-space:nowrap}
+#documentFindBar button:is(:hover,:focus-visible){background:var(--soft);color:var(--ink)}
 #documentFindBar button:focus-visible{outline:1px solid var(--accent);outline-offset:-1px}
-#documentFindBar output{font-size:.85em;font-variant-numeric:tabular-nums;color:var(--muted)}
-@container(max-width:340px){#documentFindBar>div:not([hidden]){grid-template-columns:22px minmax(0,1fr)}#documentFindBar .findActions{grid-column:2;justify-content:flex-start;flex-wrap:wrap}}
+#documentFindBar button:disabled{opacity:.4;background:transparent}
+#documentFindBar .findToggle{min-width:16px;width:16px;padding:0;margin-right:2px}
+#documentFindBar .findToggle svg{width:12px;height:12px;transition:transform .15s ease}
+#documentFindBar .findToggle[aria-expanded=true] svg{transform:rotate(180deg)}
+#documentFindBar .findText{padding:0 8px;font-size:.9em;font-weight:600}
 :root body #editor .editmeta{column-gap:4px}
 :root body #editor #formatMenu{width:30px;margin:0;padding:0;align-self:center}
 :root body #editor #formatMenu>summary{width:30px;height:30px;display:grid;place-items:center;box-sizing:border-box;padding:0;margin:0;border-radius:50%}

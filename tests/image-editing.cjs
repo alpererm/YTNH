@@ -95,9 +95,9 @@ const {webkit,chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.evaluate(()=>focusBodyStart());await page.keyboard.press('Control+h');
   const bar=page.locator('#documentFindBar');await bar.getByLabel('Find text').fill('legend');
   assert.match(await bar.locator('output').textContent(),/\/2$/);
-  await bar.getByLabel('Replace with').fill('key');await bar.getByText('Replace All',{exact:true}).click();
+  await bar.getByLabel('Replace with').fill('key');await bar.getByText('All',{exact:true}).click();
   assert.ok((await current()).includes('<figcaption>Map key</figcaption>'));
-  await bar.getByLabel('Find text').fill('Site plan');assert.equal(await bar.locator('output').textContent(),'0/0');
+  await bar.getByLabel('Find text').fill('Site plan');assert.equal(await bar.locator('output').textContent(),'No results');
   console.log('PASS occurrence-local caption, Alt text, alignment, source round trip, deletion and undo');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

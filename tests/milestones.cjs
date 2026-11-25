@@ -12,7 +12,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');con
  const ids=await evalp(()=>window.ids);const chip=id=>page.locator(`[data-milestone-id="${id}"]`);
  assert.equal(await page.locator('[data-week="2026-11-02"] .milestoneChip').count(),2);
  const grid=await page.locator('[data-week="2026-11-02"]').evaluate(row=>{const days=[...row.querySelectorAll('.day')].map(e=>e.getBoundingClientRect()),strip=row.querySelector('.milestoneStrip').getBoundingClientRect();return {days:days.length,above:strip.bottom<=days[0].top,width:Math.abs(strip.width-(days[6].right-days[0].left))<1,aligned:days.every(d=>d.y===days[0].y)}});assert.deepEqual(grid,{days:7,above:true,width:true,aligned:true});
- await chip(ids.m).hover();await page.clock.runFor(1100);assert.match(await page.locator('#calendarTooltip').textContent(),/Requirements agreed.*2026-W45.*Todo/);
+ await chip(ids.m).hover();await page.clock.runFor(1100);assert.match(await page.locator('#calendarTooltip').textContent(),/Requirements agreed.*W45 2026.*Todo/);
  console.log('PASS editor creation, ISO week strip, multiple milestones and unchanged day grid');
  await chip(ids.m).click();assert.equal(await page.locator('.milestone-related').count(),2);assert.equal(await page.locator('.milestone-unrelated').count(),1);assert.equal(await evalp(()=>itemById(db,ids.m).status),'Todo');
  await chip(ids.m).click();assert.equal(await page.locator('.milestone-related').count(),0);await chip(ids.m).click();
@@ -35,7 +35,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');con
  const conflict=await evalp(()=>{const a=itemById(db,ids.m),b=JSON.parse(JSON.stringify(a));b.milestone.targetWeek='2027-W01';return archiveItemSignature(a)!==archiveItemSignature(b)});assert(conflict);
  console.log('PASS JSON reload, backup/cold archive restoration and conflicting-metadata detection');
  await evalp(()=>{calendarMode='weeks';weekAnchor=new Date('2026-11-02T12:00:00');selected=null;multiSelected.clear();milestoneSelection=null;showCalendar();focusPane('calendar')});
- const day=page.locator('.day[data-date="2026-11-03"]');await day.locator('.daynum').click();assert.equal(await evalp(()=>outlineDayFilter),'2026-11-03');
+ const day=page.locator('.day[data-date="2026-11-03"]');await day.locator('.daynum').dblclick();assert.equal(await evalp(()=>outlineDayFilter),'2026-11-03');
  await page.keyboard.press('ArrowRight');assert.equal(await evalp(()=>outlineDayFilter),'2026-11-04');await page.keyboard.press('ArrowLeft');assert.equal(await evalp(()=>outlineDayFilter),'2026-11-03');await page.keyboard.press('Escape');assert.equal(await evalp(()=>outlineDayFilter),null);
  const before=await evalp(()=>$('showDone').checked);await page.keyboard.press('Alt+Shift+KeyD');assert.equal(await evalp(()=>$('showDone').checked),!before);await page.keyboard.press('Alt+Shift+KeyD');assert.equal(await evalp(()=>$('showDone').checked),before);
  await evalp(()=>{edit(ids.m);$('editorTitle').focus()});await page.keyboard.press('Alt+Shift+KeyD');assert.equal(await evalp(()=>$('showDone').checked),!before);

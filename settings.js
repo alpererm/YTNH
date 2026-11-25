@@ -1,7 +1,11 @@
 "use strict";
 // Appearance settings and the Settings dialog.
 // Declarations only; loaded before the main script.
+// Animations follow Settings → General → Animations; the system's Reduce motion turns them off as well (CSS).
+function animationsEnabled(){try{return localStorage.getItem('ytnh-animations')!=='off'}catch{return true}}
+function applyMotionPreference(){document.documentElement.classList.toggle('no-motion',!animationsEnabled())}
 function applyAppearance(){
+ applyMotionPreference();
  const style=document.documentElement.style;
  $('editor').classList.toggle('limit-editor-width',appearance.limitEditorWidth);
  style.setProperty('--app-font',APP_FONTS[appearance.font][1]);
@@ -45,6 +49,9 @@ function openSettings(){
  {const row=document.createElement('label');row.innerHTML='<span><input id="settingsCompletionSound" type="checkbox"> Play a sound when completing a Todo</span>';
    $('settingsPreview').before(row);try{$('settingsCompletionSound').checked=localStorage.getItem('ytnh-completion-sound')==='on'}catch{}
    $('settingsCompletionSound').onchange=()=>{try{localStorage.setItem('ytnh-completion-sound',$('settingsCompletionSound').checked?'on':'off')}catch{}if($('settingsCompletionSound').checked)playCompletionSound()};}
+ {const row=document.createElement('label');row.innerHTML='<span><input id="settingsAnimations" type="checkbox"> Animations</span>';
+   $('settingsCompletionSound').closest('label').after(row);$('settingsAnimations').checked=animationsEnabled();
+   $('settingsAnimations').onchange=()=>{try{localStorage.setItem('ytnh-animations',$('settingsAnimations').checked?'on':'off')}catch{}applyMotionPreference()};}
  {const row=document.createElement('label');row.innerHTML='<span><input id="settingsScrollPastEnd" type="checkbox"> Scroll past end of the document</span>';
    $('settingsPreview').before(row);$('settingsScrollPastEnd').checked=scrollPastEndEnabled();
    $('settingsScrollPastEnd').onchange=()=>{try{localStorage.setItem(SCROLL_PAST_END_KEY,$('settingsScrollPastEnd').checked?'on':'off')}catch{}updateScrollPastEnd()};}

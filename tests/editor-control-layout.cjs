@@ -21,8 +21,8 @@ const {webkit, chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright'
       await page.keyboard.press('Control+h');
       const find = await page.getByLabel('Find text').boundingBox();
       const replace = await page.getByLabel('Replace with').boundingBox();
-      assert.equal(find.x, replace.x);
-      assert.equal(find.width, replace.width);
+      // The Replace text lines up with the Find text; Replace has its own buttons, so the fields differ in width.
+      assert(Math.abs(find.x - replace.x) <= 1, `find ${find.x} replace ${replace.x}`);
       const frame = await page.locator('#editorWorkspace .writingArea').boundingBox();
       for (const control of await page.locator('#documentFindBar input, #documentFindBar button').all()) {
         const box = await control.boundingBox();

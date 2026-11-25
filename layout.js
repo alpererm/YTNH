@@ -228,7 +228,7 @@ function selectAndReveal(id){
  const item=itemById(db,id);if(!item)return;
  clearTimeout(calendarSingleClickTimer);calendarSingleClickTimer=null;
  if(item.archived){selected=id;toast('This item is archived. Restore it from ☰ → Archive… to see it in the Outline.');return}
- revealOutlineItem(id);
+ revealOutlineItem(id,{flash:true});
  if(editorIsOpen())edit(id);
  document.querySelectorAll('#calendarBody .chip[data-cal-drag-item]').forEach(c=>c.classList.toggle('selected',c.dataset.calDragItem===id));
  multiSelected.clear();paintTargetSelection();
@@ -254,6 +254,8 @@ function itemMenu(e,item,{date=null,row=null,inOutline=false,inCalendar=false,re
  if(live)actions.push(['Move to…',()=>moveItemTo(item.id)]);
  actions.push(['Copy link',()=>copyPlainText(`[[${refToken(item.id)}]]`)]);
  actions.push(...extra);
+ // Every item action lives here, the same in every view; destructive ones last.
+ if(live)actions.push(['Archive…',()=>{selected=item.id;$('archive')?.click()}],['Delete…',()=>{selected=item.id;$('delete')?.click()}]);
  const x=e?.clientX??0,y=e?.clientY??0;
  DailyPlanner.popup(x,y,actions,returnFocus);
 }
@@ -272,7 +274,7 @@ function itemKeys(e,node,id,{date=null}={}){
 // Backlinks open on a single click (they are a list of places to go), remember the current place for Back,
 // and show the item in the Outline.
 function openBacklink(id){
- syncModelFromRich?.();rememberEditorLocation();selected=id;edit(id);setView('editor');revealOutlineItem(id);
+ syncModelFromRich?.();rememberEditorLocation();selected=id;edit(id);setView('editor');revealOutlineItem(id,{flash:true});
 }
 
 // "Parent › Grandchild" path of an item's ancestors, shown under titles in pickers and lists.

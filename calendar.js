@@ -143,12 +143,15 @@ function bindCalendarInteractions(w){
    };
  });
 
- w.querySelectorAll("[data-date]").forEach(e=>e.onclick=ev=>{
-   if(ev.target.closest("[data-cal-item],[data-occ-item],[data-expand-week]"))return;
-   calendarCursorDate=e.dataset.date;
-   window.dailyPlanner?.follow(e.dataset.date);
-   if((ev.ctrlKey||ev.metaKey)&&(selected||multiSelected.size))scheduleOn(e.dataset.date,{stayCalendar:true});
-   else filterOutlineDay(e.dataset.date);
+ // A click selects a day; a double-click (or Enter) filters the Outline to it. While the filter is on,
+ // it follows the selected day.
+ w.querySelectorAll("[data-date]").forEach(e=>{
+   e.onclick=ev=>{
+     if(ev.target.closest("[data-cal-item],[data-occ-item],[data-expand-week]"))return;
+     if((ev.ctrlKey||ev.metaKey)&&(selected||multiSelected.size)){calendarCursorDate=e.dataset.date;window.dailyPlanner?.follow(e.dataset.date);scheduleOn(e.dataset.date,{stayCalendar:true})}
+     else selectCalendarDay(e.dataset.date);
+   };
+   e.ondblclick=ev=>{if(ev.target.closest("[data-cal-item],[data-occ-item],[data-expand-week]"))return;ev.preventDefault();filterOutlineDay(e.dataset.date)};
  });
 
  w.querySelectorAll(".day[data-date]").forEach(day=>{
@@ -207,7 +210,7 @@ function renderWeekCalendar(w){
    const currentWeekKey=iso(mondayOf(new Date()));h+=`<div class="weekrow ${milestones.length?"has-milestones":""} ${expanded?"expanded":""} ${key===currentWeekKey?"current-week":""}" data-week="${key}"><div class="weeknum weekcontrol"><strong>${isoWeek(mon)}</strong>${isoWeek(mon)===1?`<small class="weekYear">${new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+3).getFullYear()}</small>`:""}${overflow?`<button data-expand-week="${key}" aria-label="${expanded?"Collapse":"Expand"} busy week" title="${expanded?"Show at most "+CALENDAR_DAY_VISIBLE+" items per day":"Show all items this week"}">${expanded?"−":"+"}</button>`:""}</div>`;
    dayData.forEach(({d,entries},idx)=>{
      const shown=expanded?entries:entries.slice(0,CALENDAR_DAY_VISIBLE),hidden=entries.length-shown.length;
-     h+=calendarDayHTML(d,{entries:shown,limit:Infinity,hiddenCount:hidden,weekKey:key})
+     h+=calendarDayHTML(d,{entries:shown,limit:Infinity,hiddenCount:hidden,weekKey:key,showMonth:widx===0}) // the month only where it changes (and on the first row)
    });
    h+=milestoneStripHTML(milestoneWeek,milestones)+"</div>"
  }
@@ -252,13 +255,13 @@ function yearsFilteredTargets(){
 function setYearsPage(year){yearsPageStart=Math.max(1,Math.min(9995,year));renderCalendar();focusPane('calendar')}
 function renderYearsCalendar(w){
  const targets=yearsFilteredTargets().filter(i=>i.target.startMonth<=String(yearsPageStart+4).padStart(4,'0')+'-12'&&i.target.endMonth>=String(yearsPageStart).padStart(4,'0')+'-01');
- const laneMap=assignTargetLanes(targets),counts=new Map(targets.map(item=>[item.id,milestoneCounter(item)])),months=Array.from({length:12},(_,m)=>new Date(2026,m,1).toLocaleDateString('en-GB',{month:'short'}));
+ const laneMap=assignTargetLanes(targets),counts=new Map(targets.map(item=>[item.id,milestoneCounter(item)])),months=Array.from({length:12},(_,m)=>shortMonthName(new Date(2026,m,1)));
  w.innerHTML=`<div class="yearsScroll"><div class="yearsGrid"><div class="yearsMonths"><span>Year</span><div>${months.map(m=>`<span>${esc(m)}</span>`).join('')}</div></div>${Array.from({length:5},(_,offset)=>{
    const year=yearsPageStart+offset,{segments,lanes}=targetSegmentsForYear(targets,year,laneMap);
    return `<section class="targetYear" data-year="${year}"><h3>${year}</h3><div class="targetLanes" data-lanes="${lanes}">${segments.map(({item,start,end,lane,fromPrevious,intoNext})=>{
-     const count=counts.get(item.id),overdue=targetOverdue(item),label=`${item.title||'(untitled)'} · ${item.target.startMonth} → ${item.target.endMonth}${overdue?' · Overdue target':''}${count?' · Milestones done: '+String(count).replace('/',' of '):''}`;
-     return `<button type="button" class="targetBar ${fromPrevious?'continues-in':''} ${intoNext?'continues-out':''} ${statusClass(item.status)} ${overdue?'targetOverdue':''}" data-target-id="${esc(item.id)}" data-selected="${selected===item.id||multiSelected.has(item.id)}" data-start-month="${start}" data-end-month="${end}" data-lane="${lane}" aria-label="${esc(label)}" title="${esc(label)}">${itemMarker(item,{nested:true})}<span>${overdue?'⚑ ':''}${esc(item.title||'(untitled)')}</span>${count?`<span class="milestoneCount" aria-label="Milestones done: ${String(count).replace('/',' of ')}">${count}</span>`:''}</button>`;
-   }).join('')}${!segments.length?'<span class="noTargets">No targets</span>':''}</div></section>`;
+     const count=counts.get(item.id),overdue=targetOverdue(item),label=`${item.title||'(untitled)'} · ${outlineTargetRange(item.target)}${overdue?' · Overdue target':''}${count?' · '+String(count).replace('/',' of ')+' milestones done':''}`;
+     return `<button type="button" class="targetBar ${fromPrevious?'continues-in':''} ${intoNext?'continues-out':''} ${statusClass(item.status)} ${overdue?'targetOverdue':''}" data-target-id="${esc(item.id)}" data-selected="${selected===item.id||multiSelected.has(item.id)}" data-start-month="${start}" data-end-month="${end}" data-lane="${lane}" aria-label="${esc(label)}" title="${esc(label)}">${itemMarker(item,{nested:true})}<span>${overdue?'⚑ ':''}${esc(item.title||'(untitled)')}</span>${count?`<span class="milestoneCount" aria-label="${String(count).replace('/',' of ')} milestones done">${count}</span>`:''}</button>`;
+   }).join('')}</div></section>`;
  }).join('')}</div></div>`;
  // CSSOM preserves dynamic layout under the desktop Content Security Policy.
  w.querySelectorAll('.targetLanes').forEach(el=>{el.style.gridTemplateRows=`repeat(${Number(el.dataset.lanes)},32px)`});
@@ -270,13 +273,18 @@ function updateCalendarModeControls(){
  for(const [id,mode] of [['weekMode','weeks'],['yearsMode','years']])$(id).classList.toggle('primary',calendarMode===mode);
  $('weeksNavigation').classList.toggle('hidden',calendarMode==='years');$('yearsNavigation').classList.toggle('hidden',calendarMode!=='years');
  $('yearsPrevious').disabled=yearsPageStart<=1;$('yearsNext').disabled=yearsPageStart>=9995;
- $('jumpDate').classList.toggle('hidden',calendarMode==='years');$('today').textContent=calendarMode==='years'?'Current years':'Today';
+ $('jumpDate').classList.toggle('hidden',calendarMode==='years');{const label=calendarMode==='years'?'This year':'Today';$('today').setAttribute('aria-label',label);$('today').title=label+(IS_MAC?' (⌥⇧T)':' (Alt+Shift+T)')}
+ $('calendarPeriodTitle').disabled=calendarMode==='years';
 }
+let renderedCalendarMode=null;
 function renderCalendar(){
+ const pane=$("calendarBody");
+ if(renderedCalendarMode&&renderedCalendarMode!==calendarMode){pane.classList.remove('viewEnter');void pane.offsetWidth;pane.classList.add('viewEnter')}
+ renderedCalendarMode=calendarMode;
  // The Daily Planner belongs to day planning: hide it in Targets, bring it back in Calendar (30).
  if(calendarMode==='years')window.dailyPlanner?.suspend();else if(!editorIsOpen())window.dailyPlanner?.resume();
  window.dailyPlanner?.follow(calendarCursorDate);
- const pane=$("calendarBody"),top=pane.scrollTop,left=pane.scrollLeft;
+ const top=pane.scrollTop,left=pane.scrollLeft;
  try{renderCalendarContents()}finally{pane.scrollTop=top;pane.scrollLeft=left}
  updateCalendarPeriodTitle();
 }

@@ -93,8 +93,8 @@ function setMilestoneWeek(id,week){
 }
 function milestoneStripHTML(week,items){
  if(!items.length)return '';
- return `<div class="milestoneStrip" aria-label="Milestones for ${week}">${items.map(item=>{
- const label=`${item.title||'(untitled)'} · ${week} · ${item.status}${milestoneOverdue(item)?' · Overdue':''}`;
+ return `<div class="milestoneStrip" aria-label="Milestones for ${weekLabel(week)}">${items.map(item=>{
+ const label=`${item.title||'(untitled)'} · ${weekLabel(week)} · ${item.status}${milestoneOverdue(item)?' · Overdue':''}`;
  return `<button type="button" draggable="true" class="milestoneChip ${statusClass(item.status)} ${milestoneOverdue(item)?'milestone-overdue':''}" data-milestone-id="${esc(item.id)}" aria-pressed="${item.id===milestoneSelection}" title="${esc(label)}" aria-label="${esc(label)}">${itemMarker(item)}<span class="milestoneTitle">${esc(item.title||'(untitled)')}</span></button>`
  }).join('')}</div>`;
 }
@@ -251,6 +251,10 @@ function rootOf(db,item){let x=item,seen=new Set();while(x?.parentId){if(seen.ha
 // Checklist checkboxes are named after their line, so screen readers say what is being ticked.
 function checkLabel(text){return String(text??'').replace(/[*_`~#<>\[\]]/g,'').replace(/\s+/g,' ').trim().slice(0,120)||'Checklist item'}
 // Shared drawings, so the same idea looks the same everywhere (markers, Outline indicators, Daily Planner).
+// One way to write weeks in text: "W49 2026" (the Calendar's week column shows just the number).
+function weekLabel(isoWeek){const m=/^(\d{4})-W(\d{2})$/.exec(String(isoWeek||''));return m?`W${Number(m[2])} ${m[1]}`:String(isoWeek||'')}
+// Short month names, with "Sep" (not the British "Sept") so every month has three letters.
+function shortMonthName(date){return date.toLocaleDateString('en-GB',{month:'short'}).replace(/^Sept$/,'Sep')}
 const ITEM_ICON_PATHS={
  note:'<path d="M13.5 4H7.5A1.5 1.5 0 0 0 6 5.5v13A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V8.5zM13.5 4v4.5H18M9 13h6M9 16.5h4"/>',
  repeat:'<path d="m16.5 3.5 3 3-3 3"/><path d="M4.5 11.5v-1a4 4 0 0 1 4-4h11"/><path d="m7.5 20.5-3-3 3-3"/><path d="M19.5 12.5v1a4 4 0 0 1-4 4h-11"/>',

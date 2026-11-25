@@ -22,7 +22,7 @@ function openOutlineSearch(){
 }
 function closeOutlineSearch(restoreFocus=true,calendarDelay=0){
  const field=$('search');
- $('outlineSearchSlot').classList.remove('search-expanded');
+ $('outlineSearchSlot').classList.remove('search-expanded','has-query');
  $('outlineSearchButton').setAttribute('aria-expanded','false');
  field.tabIndex=-1;
  if(field.value){
@@ -80,6 +80,12 @@ function initOutlineToolbar(){
  const header=document.querySelector('.outlineHeaderLeft'),slot=$('outlineSearchSlot');
  const icon=paths=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
  const search=document.createElement('button');search.type='button';search.id='outlineSearchButton';search.className='outlineSearchButton';search.title='Search (/)';search.setAttribute('aria-label','Search');search.setAttribute('aria-expanded','false');search.setAttribute('aria-controls','search');search.innerHTML=icon('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>');slot.append(search);search.addEventListener('pointerdown',rememberSearchOrigin);search.onclick=openOutlineSearch;
+ // Clear button inside the expanded search field, shown once there is text.
+ const clear=document.createElement('button');clear.type='button';clear.id='searchClear';clear.title='Clear search';clear.setAttribute('aria-label','Clear search');clear.innerHTML=icon('<path d="M7 7l10 10M17 7 7 17"/>');slot.append(clear);
+ const syncClear=()=>slot.classList.toggle('has-query',!!$('search').value);
+ $('search').addEventListener('input',syncClear);$('search').addEventListener('focus',syncClear);
+ clear.onmousedown=e=>e.preventDefault();
+ clear.onclick=()=>{const field=$('search');field.value='';field.dispatchEvent(new Event('input',{bubbles:true}));syncClear();field.focus({preventScroll:true})};
  const actions=$('outlineIconActions');
  $('filtersToggle').insertAdjacentHTML('afterbegin',icon('<path d="M3 6h18M6 12h12M10 18h4"/>'));
  const group=document.createElement('button');group.type='button';group.id='outlineGroupButton';group.setAttribute('aria-haspopup','listbox');group.setAttribute('aria-controls','outlineGroupChoices');group.setAttribute('aria-expanded','false');group.innerHTML=icon('<path d="M4 3v14a3 3 0 0 0 3 3h3M4 6h6M14 6h7M14 13h7M14 20h7M4 13h6"/>');actions.append(group);group.onclick=toggleOutlineGroup;
@@ -234,17 +240,19 @@ function initThemedSelects(){
 function initDocumentFind(){
  const editor=$('editor'),rich=$('richEditor'),source=$('content');
  const button=document.createElement('button');button.className='editorIconButton';button.title=button.ariaLabel='Find in document';button.id='documentFindButton';
- button.innerHTML=sidebarIcon(ITEM_ICON_PATHS.search);$('formatMenu').after(button);
- const bar=document.createElement('div');bar.id='documentFindBar';bar.hidden=true;editor.querySelector('.writingArea').prepend(bar);
- bar.innerHTML='<div><button aria-label="Show replacement" aria-expanded="false">▸</button><input aria-label="Find text" placeholder="Find"><span class="findActions"><output aria-live="polite"></output><button aria-label="Previous match">↑</button><button aria-label="Next match">↓</button><button title="Match case" aria-label="Match case" aria-pressed="false">Aa</button><button title="Whole word" aria-label="Whole word" aria-pressed="false">W</button><button aria-label="Close find">×</button></span></div><div hidden><input aria-label="Replace with" placeholder="Replace with"><span class="findActions"><button>Replace</button><button>Replace All</button></span></div>';
- const [expand,prev,next,matchCase,word,close,replace,all]=bar.querySelectorAll('button'),[query,value]=bar.querySelectorAll('input'),count=bar.querySelector('output');
+ button.innerHTML=sidebarIcon(ITEM_ICON_PATHS.search);$('formatMenu').before(button); // toolbar order: Find, Formatting, Focus Mode, side panel
+ // Compact floating panel at the top right of the editor, styled like the Outline search box.
+ const bar=document.createElement('div');bar.id='documentFindBar';bar.hidden=true;editor.querySelector('.editorDocument').prepend(bar);
+ const glyph=paths=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+ bar.innerHTML='<div class="findRow"><span class="findGlyph">'+glyph(ITEM_ICON_PATHS.search)+'</span><button class="findToggle" title="Replace" aria-label="Show replace" aria-expanded="false">'+glyph('<path d="m7 10 5 5 5-5"/>')+'</button><input aria-label="Find text" placeholder="Find"><output aria-live="polite"></output><button title="Previous match (Shift+Enter)" aria-label="Previous match">'+glyph('<path d="m6 15 6-6 6 6"/>')+'</button><button title="Next match (Enter)" aria-label="Next match">'+glyph('<path d="m6 9 6 6 6-6"/>')+'</button><button title="Close (Esc)" aria-label="Close find">'+glyph('<path d="M7 7l10 10M17 7 7 17"/>')+'</button></div><div class="replaceRow" hidden><input aria-label="Replace with" placeholder="Replace"><button class="findText" title="Replace and go to the next (Enter)">Replace</button><button class="findText" title="Replace all ('+(IS_MAC?'⌘':'Ctrl+')+'Enter)">All</button></div>';
+ const [expand,prev,next,close,replace,all]=bar.querySelectorAll('button'),[query,value]=bar.querySelectorAll('input'),count=bar.querySelector('output');
  const mirror=document.createElement('div');mirror.className='sourceFindMirror';mirror.ariaHidden='true';source.before(mirror);
  let index=0,matches=[],origin=null,frame=0;
  function clearHighlights(){for(const name of ['doc-matches','doc-current'])globalThis.CSS?.highlights?.delete(name);mirror.replaceChildren();mirror.hidden=true}
  function collect(){
    const term=query.value;if(!term)return [];
    const escaped=Array.from(term,c=>'\\^$.*+?()[]{}|'.includes(c)?'\\'+c:c).join('');
-   const boundary='[\\p{L}\\p{M}\\p{N}_]',pattern=new RegExp(word.ariaPressed==='true'?'(?<!'+boundary+')'+escaped+'(?!'+boundary+')':escaped,matchCase.ariaPressed==='true'?'gu':'giu');
+   const pattern=new RegExp(escaped,'giu'); // case-insensitive, matches inside words
    const found=[];
    function scan(text,nodes,protectedText=false){
      for(const m of text.matchAll(pattern)){
@@ -286,7 +294,7 @@ function initDocumentFind(){
    if(scroll&&active){const delta=active.getBoundingClientRect().top-box.top;if(delta<0||delta>box.height-24)source.scrollTop+=delta-box.height/2;mirror.scrollTop=source.scrollTop}
  }
  function paint(scroll=false){
-   clearHighlights();count.textContent=matches.length?(index+1)+'/'+matches.length:'0/0';
+   clearHighlights();count.textContent=!query.value?'':matches.length?(index+1)+'/'+matches.length:'No results';
    prev.disabled=next.disabled=!matches.length;replace.disabled=!matches.length||!!matches[index].protectedText;all.disabled=!matches.some(m=>!m.protectedText);
    if(sourceMode()){drawSource(scroll);return}
    if(!matches.length)return;
@@ -295,7 +303,7 @@ function initDocumentFind(){
  }
  function refresh(scroll=false){if(bar.hidden)return;matches=collect();index=Math.max(0,Math.min(index,matches.length-1));paint(scroll)}
  function schedule(){if(!bar.hidden&&!frame)frame=requestAnimationFrame(()=>{frame=0;refresh()})}
- function setExpanded(on){bar.lastElementChild.hidden=!on;expand.ariaExpanded=String(on);expand.textContent=on?'▾':'▸'}
+ function setExpanded(on){bar.lastElementChild.hidden=!on;expand.ariaExpanded=String(on);expand.ariaLabel=on?'Hide replace':'Show replace'}
  function open(expanded=false){if(bar.hidden){origin=captureEditorSelection();bar.hidden=false;setExpanded(expanded)}else if(expanded)setExpanded(true);query.focus();query.select();refresh(true)}
  function hide(restore){if(bar.hidden)return;bar.hidden=true;query.value=value.value='';index=0;matches=[];clearHighlights();if(restore){const pane=rich.closest('.documentScroll'),top=pane.scrollTop,sourceTop=source.scrollTop;if(origin)restoreEditorSelection(origin);else (sourceMode()?source:rich).focus({preventScroll:true});pane.scrollTop=top;source.scrollTop=sourceTop}origin=null}
  function step(delta){if(matches.length){index=(index+delta+matches.length)%matches.length;paint(true)}}
@@ -312,8 +320,16 @@ function initDocumentFind(){
  button.onclick=()=>bar.hidden?open():hide(true);close.onclick=()=>hide(true);expand.onclick=()=>setExpanded(bar.lastElementChild.hidden);
  replace.onclick=()=>change(false);all.onclick=()=>change(true);prev.onclick=()=>step(-1);next.onclick=()=>step(1);
  query.oninput=()=>{index=0;refresh(true)};
- for(const toggle of [matchCase,word])toggle.onclick=()=>{toggle.ariaPressed=String(toggle.ariaPressed!=='true');index=0;refresh(true)};
- bar.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();hide(true)}else if(e.key==='Enter'&&e.target===query){e.preventDefault();step(e.shiftKey?-1:1)}};
+ // Enter steps through matches; Tab moves to Replace (opening it); in Replace, Enter replaces and moves on,
+ // Ctrl/Cmd+Enter replaces all and Shift+Tab goes back to Find.
+ bar.onkeydown=e=>{
+   const mod=e.metaKey||e.ctrlKey;
+   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();hide(true)}
+   else if(e.key==='Enter'&&e.target===query){e.preventDefault();step(e.shiftKey?-1:1)}
+   else if(e.key==='Enter'&&e.target===value){e.preventDefault();change(mod)}
+   else if(e.key==='Tab'&&!e.shiftKey&&e.target===query){e.preventDefault();setExpanded(true);value.focus()}
+   else if(e.key==='Tab'&&e.shiftKey&&e.target===value){e.preventDefault();query.focus()}
+ };
  window.addEventListener('keydown',e=>{
    if(e.isComposing||!editorIsOpen()||(!editor.contains(e.target)&&(bar.hidden||e.target!==document.body||activePane==='outline'))||$('modalbg').classList.contains('open'))return;
    const mod=e.metaKey||e.ctrlKey,find=mod&&!e.altKey&&!e.shiftKey&&e.code==='KeyF',repl=mod&&!e.shiftKey&&((!e.altKey&&e.code==='KeyH')||(e.metaKey&&e.altKey&&e.code==='KeyF'));

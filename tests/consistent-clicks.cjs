@@ -123,7 +123,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  // Keyboard in the Calendar: Enter on a chosen day moves into its items; Enter opens one.
  await page.evaluate(()=>{setView('calendar');showCalendar();renderCalendar()});
  await page.locator('.day[data-date="2026-11-10"]').click({position:{x:6,y:6}});
- await page.keyboard.press('Enter');
+ await page.keyboard.press('Tab');
  assert.equal(await page.evaluate(()=>document.activeElement.closest('.day')?.dataset.date),'2026-11-10');
  const first=await page.evaluate(()=>document.activeElement.dataset.calItem);
  await page.keyboard.press('ArrowDown');

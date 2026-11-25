@@ -42,11 +42,12 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
   await page.evaluate(()=>{calendarMode='weeks';showCalendar()});
   console.log('PASS Calendar markers out of the Tab order; Target bars have no nested controls');
 
-  // Calendar titles wrap at word boundaries; the date-picker glyph is a 24 px target.
-  assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('#calendarBody .chip .calendarItemTitle')).overflowWrap),'break-word');
-  const glyph=await page.locator('.dayFirstField:has(#jumpDate) .dayPickerGlyph').boundingBox();
-  assert.ok(glyph.width>=24&&glyph.height>=24,JSON.stringify(glyph));
-  console.log('PASS whole-word Calendar titles and 24 px date-picker glyph');
+  // Calendar titles stay on one line ending in "…"; the date-picker glyph is a 24 px target.
+  assert.deepEqual(await page.evaluate(()=>{const s=getComputedStyle(document.querySelector('#calendarBody .chip .calendarItemTitle'));return [s.whiteSpace,s.textOverflow]}),['nowrap','ellipsis']);
+  // The Calendar's date field is gone from the toolbar; the month title jumps to a date instead.
+  assert.equal(await page.locator('#jumpDate').isVisible(),false);
+  assert.equal(await page.locator('#calendarPeriodTitle').evaluate(e=>e.tagName),'BUTTON');
+  console.log('PASS one-line Calendar titles and the month title as date jump');
 
   // Checklist checkboxes are named after their line and can be hit within 24 px.
   await page.evaluate(()=>{itemById(db,ids.c).content='- [ ] Call **the** supplier\n- [x] Send invoice';edit(ids.c)});

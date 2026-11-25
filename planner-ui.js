@@ -126,7 +126,13 @@ const DailyPlanner = (() => {
     case 'prev':selectDay(M.shift(date,-1));break;case 'next':selectDay(M.shift(date,1));break;
     case 'pin':previewing=false;pinnedDate=pinnedDate?null:date;savePin();follow(calendarCursorDate||today());break;
   }};
+  // The same item can't be planned twice in overlapping time on one day.
+  function planClash(itemId,day,start,duration,except=null){
+    return M.sessions(db,day).find(o=>!o.meeting&&!o.removed&&o.item===itemId&&(!except||identity(o)!==identity(except))&&start<o.start+o.duration&&o.start<start+duration);
+  }
+  function warnClash(o){const i=itemById(db,o.item);toast(`“${i?.title||'This item'}” is already planned at ${clock(o.start)}–${clock(o.start+o.duration)}.`)}
   function add(item,start,from,keepDates=false){
+    {const clash=planClash(item.id,date,start,15);if(clash){warnClash(clash);return}}
     const save=occ=>mutate(()=>M.session(db,item,date,start,15,occ,from,keepDates));
     if(!isRecurringTodo(item))return save(null);
     if(from&&recurrenceOccurrences(item,from,from).next().value)return save(occurrenceOrigins(item,from)[0]);
@@ -145,6 +151,10 @@ const DailyPlanner = (() => {
   }
   function apply(b,values,x,y){
     if(b.meeting)return DailyMeetingEditor.change(b,values,x,y);
+    if(!values.removed&&(values.start!==undefined||values.duration!==undefined||values.date!==undefined)){
+      const clash=planClash(b.item,values.date||b.date||date,values.start??b.start,values.duration??b.duration,b);
+      if(clash){warnClash(clash);paint();return}
+    }
     const save=future=>mutate(()=>{
       M.change(db,b,values,future);
       const item=itemById(db,b.item),origin=b.occurrence||b.origin;

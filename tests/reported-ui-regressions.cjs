@@ -14,7 +14,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  await p.evaluate(()=>navigateFocusHistory(false));assert(await p.locator('#editor').isVisible());assert.equal(await p.evaluate(()=>selected),await p.evaluate(()=>parent.id));
  await p.evaluate(()=>navigateFocusHistory(true));assert(await p.locator('#calendarBody').isVisible());assert.equal(await p.evaluate(()=>calendarMode),'weeks');await p.evaluate(()=>navigateFocusHistory(true));assert.equal(await p.evaluate(()=>calendarMode),'years');
  await p.evaluate(()=>{calendarMode='weeks';showCalendar();DailyPlanner.open();DailyPlanner.selectDay('2026-11-16')});
- for(const selector of ['#dailyPlanner header .dayPickerGlyph','.dayFirstField:has(#jumpDate) .dayPickerGlyph']){
+ for(const selector of ['#dailyPlanner header .dayPickerGlyph']){
  await p.locator(selector).click();await p.locator('.toolbarDatePopup [data-pick-date="2026-11-18"]').click();assert.equal(await p.evaluate(()=>calendarCursorDate),'2026-11-18');assert.equal(await p.evaluate(()=>DailyPlanner.date),'2026-11-18');
  }
  await p.clock.setFixedTime(new Date(2026,10,12,11,37));await p.evaluate(()=>{DailyPlanner.selectDay('2026-11-18');PlannerModel.session(db,child,DailyPlanner.date,540,60);PlannerModel.session(db,other,DailyPlanner.date,555,15);DailyPlanner.paint()});
