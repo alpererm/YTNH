@@ -116,6 +116,22 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await ev(()=>outlineDayFilter),'2026-11-19');
  await ev(()=>clearOutlineDayFilter());
 
+ // The Calendar header matches the Targets header; Target months and milestone weeks read like the Outline.
+ assert.equal(await page.locator('.weekheader>div').first().innerText(),'Week');
+ assert.equal(await page.locator('.weekheader>div').nth(1).evaluate(e=>getComputedStyle(e).fontWeight),'400');
+ await page.locator(`#tree .row[data-id="${await ev(()=>ids.t)}"]`).first().dblclick();await ev(()=>selectSidebarTab('properties'));
+ assert.equal(await page.locator('#targetStart').inputValue(),'11/2026');assert.equal(await page.locator('#targetEnd').inputValue(),'02/2027');
+ assert.match(await page.locator('#targetBox .targetToggle').innerText(),/^\s*Target\s*$/);
+ await page.locator('#targetEnd').fill('03/2027');await page.locator('#targetEnd').dispatchEvent('change');
+ assert.equal(await ev(()=>itemById(db,ids.t).target.endMonth),'2027-03');
+ await page.locator(`#tree .row[data-id="${await ev(()=>ids.m)}"]`).first().dblclick();await ev(()=>selectSidebarTab('properties'));
+ assert.equal(await page.locator('#milestoneWeek').inputValue(),'W49 2026');
+ assert.equal(await page.locator('label[for="milestoneWeek"]').innerText(),'Week');
+ assert.equal(await page.locator('#milestoneHint').count(),0);
+ await page.locator('#milestoneWeek').fill('W50 2026');await page.locator('#milestoneWeek').dispatchEvent('change');
+ assert.equal(await ev(()=>itemById(db,ids.m).milestone.targetWeek),'2026-W50');
+ await ev(()=>{closeRightEditor();setView('calendar');showCalendar()});
+
  // The day filter chip shows just the date.
  await ev(()=>{outlineDayFilter='2026-11-23';renderTree()});
  assert.equal(await page.locator('#activeFilterChips').innerText().then(t=>/Day:/.test(t)),false);
