@@ -192,9 +192,9 @@ const DailyPlanner = (() => {
     };
   }
   const icons={
-    meeting:sidebarIcon('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/>'),
-    note:sidebarIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h6"/>'),
-    repeat:sidebarIcon('<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/>')
+    meeting:sidebarIcon(ITEM_ICON_PATHS.meeting),
+    note:sidebarIcon(ITEM_ICON_PATHS.note),
+    repeat:sidebarIcon(ITEM_ICON_PATHS.repeat)
   };
   function blockLabel(node,b,item){
     if(b.meeting)node.insertAdjacentHTML('beforeend',icons.meeting);else if(item){node.insertAdjacentHTML('beforeend',itemMarker(item,{status:b.done?'Done':item.status,planner:true}));const marker=node.lastElementChild;marker.onclick=e=>{e.stopPropagation();if(item.type==='Todo')apply(b,{done:!b.done})};}
@@ -216,6 +216,7 @@ const DailyPlanner = (() => {
     const label=blockLabel(node,b,i);
     // Blocks tall enough for two lines show their time range under the title (42).
     if(bottom-top>=38){const time=document.createElement('span');time.className='planTime';time.textContent=clock(b.start)+' – '+clock(b.start+b.duration);node.append(time)}
+    else node.classList.add('planSingleLine'); // one line: centred, so it doesn't touch the bottom edge
     node.title=label+' · '+clock(b.start)+'–'+clock(b.start+b.duration)+' · '+b.duration+' min';
     if(end===b.start+b.duration){const handle=document.createElement('span');handle.className='planHandle';node.append(handle)}attach(node,b);grid.append(node);
   }

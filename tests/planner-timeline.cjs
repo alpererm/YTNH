@@ -4,6 +4,8 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  const browser=await (process.env.BROWSER_ENGINE==='webkit'?webkit:chromium).launch(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{});
  try{
  const page=await browser.newPage({viewport:{width:1500,height:1000}});
+ // The Planner scrolls towards the current time; fix the clock so the fixed click positions below hold at any hour.
+ await page.clock.install({time:new Date(2026,10,24,12,0)});
  await page.goto(require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../app.html')).href);
  await page.evaluate(()=>{installDatabase(createEmptyDatabase());const n=createItem(db,'Todo');n.title='Fixture';n.scheduledDates=['2026-12-01','2026-12-03'];window.testTodo=n.id;DailyPlanner.open();DailyPlanner.selectDay('2026-12-07')});
  const timeline=page.locator('.planGrid'),marker=page.locator('.planSlotMarker');

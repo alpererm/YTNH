@@ -2,6 +2,12 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
+## Unreleased
+
+- Icons: Notes are as tall as Todo circles; Targets and Milestones are slightly smaller; Waiting for shows clock hands, not only amber; repeat arrows match the Scheduled and Planned indicators; Formatting is "Aa", the document outline tab is a stepped list and Daily Planner meetings show people. Each icon has one drawing everywhere.
+- Focus Mode hides the active-pane bar and dims the title's icon.
+- 15-minute Daily Planner blocks centre their title and icon.
+
 ## 11.8.0 — 2026-11-24
 
 - One click model everywhere: a click on an item's title in the Calendar, Targets, milestones or Daily Planner selects it and shows it in the Outline; a double-click opens it. Only the marker changes a Todo's status, and middle-clicking any marker cancels it (one occurrence for a repeating Todo).

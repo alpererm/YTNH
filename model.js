@@ -250,17 +250,28 @@ function rootOf(db,item){let x=item,seen=new Set();while(x?.parentId){if(seen.ha
 // One visual marker for each logical item. Dates supply occurrence-specific status.
 // Checklist checkboxes are named after their line, so screen readers say what is being ticked.
 function checkLabel(text){return String(text??'').replace(/[*_`~#<>\[\]]/g,'').replace(/\s+/g,' ').trim().slice(0,120)||'Checklist item'}
+// Shared drawings, so the same idea looks the same everywhere (markers, Outline indicators, Daily Planner).
+const ITEM_ICON_PATHS={
+ note:'<path d="M13.5 4H7.5A1.5 1.5 0 0 0 6 5.5v13A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V8.5zM13.5 4v4.5H18M9 13h6M9 16.5h4"/>',
+ repeat:'<path d="m16.5 3.5 3 3-3 3"/><path d="M4.5 11.5v-1a4 4 0 0 1 4-4h11"/><path d="m7.5 20.5-3-3 3-3"/><path d="M19.5 12.5v1a4 4 0 0 1-4 4h-11"/>',
+ calendar:'<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M8.5 3.5v4M15.5 3.5v4M4 10.5h16"/>',
+ clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+ search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+ meeting:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3 2.6-5 5.5-5s5.1 2 5.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.3 0 4 1.6 4.4 4"/>'
+};
 function itemMarker(item,{status=null,date=null,passive=false,code=false,planner=false,outline=false,nested=false}={}){
  const state=status||(date&&isRecurringTodo(item)?occurrenceStatus(item,date):item.status)||'Todo';
  const kind=item.target?'Target':isMilestone(item)?'Milestone':isRecurringTodo(item)?'Recurring Todo':item.type;
  // In the Outline a recurring Todo uses the plain Todo circle; the repeat icon moves to the right-hand indicators.
  const plainRecurring=outline&&kind==='Recurring Todo',special=!plainRecurring&&!['Note','Todo'].includes(kind);
- let shape=kind==='Target'?'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>':kind==='Milestone'?'<path d="m12 2 10 10-10 10L2 12z"/>':kind==='Recurring Todo'&&!plainRecurring?'<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/>':item.type==='Note'?'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h6"/>':'<circle cx="12" cy="12" r="8"'+(state==='Done'?' fill="currentColor"':'')+'/>';
+ // Drawn to one optical size: a Note page is as tall as a Todo circle; Target and Milestone are only a touch larger.
+ let shape=kind==='Target'?'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>':kind==='Milestone'?'<path d="m12 3.5 8.5 8.5-8.5 8.5L3.5 12z"/>':kind==='Recurring Todo'&&!plainRecurring?ITEM_ICON_PATHS.repeat:item.type==='Note'?ITEM_ICON_PATHS.note:'<circle cx="12" cy="12" r="8"'+(state==='Done'?' fill="currentColor"':'')+'/>';
  if(item.type==='Todo'&&special&&['Done','Cancelled','On hold'].includes(state))shape+='<circle cx="19" cy="19" r="5" fill="var(--bg)" stroke="none"/>'+(state==='Done'?'<circle cx="19" cy="19" r="3" fill="currentColor" stroke="none"/>':state==='Cancelled'?'<path d="m16.5 16.5 5 5m0-5-5 5"/>':'<path d="M16 19h6"/>');
  else if(item.type==='Todo'&&state==='Cancelled')shape+='<path d="m8 8 8 8m0-8-8 8"/>';
  else if(item.type==='Todo'&&state==='On hold')shape+='<path d="M7 12h10"/>';
+ else if(item.type==='Todo'&&state==='Waiting for'&&!special)shape+='<path d="M12 8.5V12l2.5 1.5"/>'; // a shape cue, not colour alone
  const label=kind+(item.type==='Todo'?' · '+state:'')+(!passive&&item.type==='Todo'?' · '+(state==='Done'?'Mark Todo':'Mark done'):'');
- return '<span class="itemMarker'+(code?' code':'')+'" data-marker-id="'+esc(item.id||'')+'" data-marker-type="'+esc(item.type)+'" data-marker-kind="'+kind+'" data-marker-status="'+esc(state)+'"'+(date?' data-marker-date="'+esc(date)+'"':'')+(code?' data-code="'+esc(item.id)+'"':'')+(planner?' data-marker-planner="true"':'')+(passive?' data-marker-passive="true" aria-label="'+esc(label)+'"':nested?' aria-hidden="true"':' role="button" tabindex="'+(outline?'-1':'0')+'" aria-label="'+esc(label)+'"')+' title="'+esc(label)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shape+'</svg></span>';
+ return '<span class="itemMarker'+(code?' code':'')+'" data-marker-id="'+esc(item.id||'')+'" data-marker-type="'+esc(item.type)+'" data-marker-kind="'+kind+'" data-marker-status="'+esc(state)+'"'+(date?' data-marker-date="'+esc(date)+'"':'')+(code?' data-code="'+esc(item.id)+'"':'')+(planner?' data-marker-planner="true"':'')+(plainRecurring?' data-marker-plain="true"':'')+(passive?' data-marker-passive="true" aria-label="'+esc(label)+'"':nested?' aria-hidden="true"':' role="button" tabindex="'+(outline?'-1':'0')+'" aria-label="'+esc(label)+'"')+' title="'+esc(label)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+shape+'</svg></span>';
 }
 function copyItemCode(item,location=null){
  const graph=db.locations?locationsForRead(db):null;
