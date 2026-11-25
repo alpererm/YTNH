@@ -358,7 +358,7 @@ body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-ind
 
 /* Motion: things that open or change view fade or slide in; content changes (switching items, days, matches)
    stay instant. The new state is in place at once; only its appearance animates. Off via Settings or Reduce motion. */
-:root{--t-view:160ms;--t-focus:220ms;--t-panel:200ms;--t-dialog:140ms;--t-menu:120ms;--ease-out:cubic-bezier(.2,.8,.2,1)}
+:root{--t-view:160ms;--t-focus:220ms;--t-panel:280ms;--t-dialog:140ms;--t-menu:120ms;--ease-out:cubic-bezier(.2,.8,.2,1)}
 @keyframes ytnhFade{from{opacity:0}}
 @keyframes ytnhFadeAgain{from{opacity:0}}
 @keyframes ytnhSettle{from{opacity:.4;transform:translateY(6px)}}

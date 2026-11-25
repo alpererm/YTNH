@@ -465,8 +465,8 @@ button.hiddenDayItems:hover,button.hiddenDayItems:focus-visible{color:var(--ink)
  width:100%!important;
  grid-template-columns:24px minmax(0,1fr) repeat(4,auto);grid-template-rows:var(--toolbar-height) auto;row-gap:16px;
 }
-:root body #layout #editor .editorDocument .editmeta #formatMenu{grid-column:3;grid-row:1}
-:root body #layout #editor .editorDocument .editmeta #documentFindButton{grid-column:4;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #documentFindButton{grid-column:3;grid-row:1}
+:root body #layout #editor .editorDocument .editmeta #formatMenu{grid-column:4;grid-row:1}
 :root body #layout #editor .editorDocument .editmeta #sidebarToggle{grid-column:6;grid-row:1}
 :root body #layout #editor .editorDocument .editmeta #editorFocusToggle{grid-column:5;grid-row:1}
 :root body #layout #editor .editorDocument .editmeta #editorTitle{grid-column:2 / -1;grid-row:2;margin:0;padding:3px 0;align-self:start}
