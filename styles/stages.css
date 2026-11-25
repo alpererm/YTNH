@@ -397,7 +397,8 @@ button.outlineChevron svg{width:13px;height:13px;display:block}
 :root body :is(#tree,#pinnedOutline) .row>.locationButton{align-self:flex-start;margin-top:calc((var(--title-line-height) - 24px)/2)}
 :root body :is(#tree,#pinnedOutline) .row>.locationButton{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;box-sizing:border-box;padding:0}
 :root body :is(#tree,#pinnedOutline) .row>.outlineChevron{margin-top:calc((var(--title-line-height) - 17px)/2)}
-.itemMarker[data-marker-kind="Recurring Todo"] svg{width:13.5px;height:13.5px}
+/* Repeat arrows match the 12px Scheduled and Planned indicators; a repeating Todo shown as a plain circle stays Todo-sized. */
+.itemMarker[data-marker-kind="Recurring Todo"]:not([data-marker-plain]) svg{width:12px;height:12px;stroke-width:1.6}
 
 :root body .weekcontrol button[data-expand-week]{border:0;background:transparent;box-shadow:none;outline:0;color:var(--muted);width:28px;height:28px;padding:0;display:block;margin:2px auto 0}
 .hiddenDayItems{display:block;color:var(--muted);font-size:12px;line-height:1.2;pointer-events:none}
@@ -414,6 +415,10 @@ button.hiddenDayItems:hover,button.hiddenDayItems:focus-visible{color:var(--ink)
 :root body #layout.editor-focus :is(#formatMenu>summary,#documentFindButton,#editorFocusToggle,#sidebarToggle){opacity:.35;transition:opacity .15s ease}
 :root body #layout.editor-focus :is(#formatMenu>summary,#documentFindButton,#editorFocusToggle,#sidebarToggle):is(:hover,:focus-visible),
 :root body #layout.editor-focus #formatMenu[open]>summary{opacity:1}
+/* Focus Mode: no active-pane bar, and the title's type icon recedes like the toolbar (the title itself stays). */
+:root body #layout.editor-focus .mainpanel::before,:root body #layout.editor-focus #editor .editmeta::after{display:none!important}
+:root body #layout.editor-focus #editor #editCode{opacity:.35;transition:opacity .15s ease}
+:root body #layout.editor-focus #editor #editCode:is(:hover,:focus-within){opacity:1}
 :root body #layout.editor-focus #editorWorkspace::after{display:none!important}
 /* Pinned entries are flat shortcuts, independent of Outline expansion. */
 :root body #pinnedOutline .pinEntry{display:block;padding:0}

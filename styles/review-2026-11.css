@@ -287,6 +287,7 @@ body[data-theme="light"] #editorSidebar .documentHeading button[data-heading-ind
 :root body .planBlock{--plan-title-lh:17px;padding:4px 6px 3px 4px;column-gap:3px}
 :root body .planBlock .planTitle{line-height:var(--plan-title-lh)}
 :root body .planBlock .planTime{padding-left:23px}
+:root body .planBlock.planSingleLine{padding-block:0;align-content:center}
 :root body #tree .row .searchContext{font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Focus Mode (32): a centred, readable column of about 70 characters, whatever the width setting. */

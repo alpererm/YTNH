@@ -149,7 +149,7 @@ function dayFirstField(input){
  wrap.className='dayFirstField';input.before(wrap);wrap.append(input,text,icon);
  text.type='text';text.className=input.className+' dayFirstText';text.placeholder='DD/MM/YYYY';text.maxLength=10;
  text.setAttribute('aria-label',(input.getAttribute('aria-label')||input.labels?.[0]?.textContent?.trim()||'Date')+' (DD/MM/YYYY)');
- icon.className='dayPickerGlyph';icon.innerHTML=sidebarIcon('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>');
+ icon.className='dayPickerGlyph';icon.innerHTML=sidebarIcon(ITEM_ICON_PATHS.calendar);
  const toolbar=input.id==='jumpDate'||input.closest('#dailyPlanner header');
  if(toolbar){input.style.pointerEvents='none';icon.style.pointerEvents='auto';icon.setAttribute('role','button');icon.tabIndex=0;icon.setAttribute('aria-label','Choose date');icon.onclick=()=>toolbarDatePicker(input,text);icon.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();icon.click()}}}
  input.tabIndex=-1;input.lang='en-GB';
@@ -234,7 +234,7 @@ function initThemedSelects(){
 function initDocumentFind(){
  const editor=$('editor'),rich=$('richEditor'),source=$('content');
  const button=document.createElement('button');button.className='editorIconButton';button.title=button.ariaLabel='Find in document';button.id='documentFindButton';
- button.innerHTML=sidebarIcon('<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>');$('formatMenu').after(button);
+ button.innerHTML=sidebarIcon(ITEM_ICON_PATHS.search);$('formatMenu').after(button);
  const bar=document.createElement('div');bar.id='documentFindBar';bar.hidden=true;editor.querySelector('.writingArea').prepend(bar);
  bar.innerHTML='<div><button aria-label="Show replacement" aria-expanded="false">▸</button><input aria-label="Find text" placeholder="Find"><span class="findActions"><output aria-live="polite"></output><button aria-label="Previous match">↑</button><button aria-label="Next match">↓</button><button title="Match case" aria-label="Match case" aria-pressed="false">Aa</button><button title="Whole word" aria-label="Whole word" aria-pressed="false">W</button><button aria-label="Close find">×</button></span></div><div hidden><input aria-label="Replace with" placeholder="Replace with"><span class="findActions"><button>Replace</button><button>Replace All</button></span></div>';
  const [expand,prev,next,matchCase,word,close,replace,all]=bar.querySelectorAll('button'),[query,value]=bar.querySelectorAll('input'),count=bar.querySelector('output');

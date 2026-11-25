@@ -93,11 +93,7 @@ function relevantCalendarDate(item){
 function upcomingItemSessions(){const now=new Date();return PlannerModel.upcoming(db,today(),now.getHours()*60+now.getMinutes())}
 // Outline row indicators, right-aligned: calendar (scheduled, non-recurring), repeat (recurring) and clock
 // (Daily Planner sessions). Small thin-stroke SVGs; hover lists the dates, click navigates.
-const OUTLINE_INDICATOR_ICONS={
- calendar:'<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M8.5 3.5v4M15.5 3.5v4M4 10.5h16"/>',
- repeat:'<path d="m16.5 3.5 3 3-3 3"/><path d="M4.5 11.5v-1a4 4 0 0 1 4-4h11"/><path d="m7.5 20.5-3-3 3-3"/><path d="M19.5 12.5v1a4 4 0 0 1-4 4h-11"/>',
- clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
-};
+const OUTLINE_INDICATOR_ICONS={calendar:ITEM_ICON_PATHS.calendar,repeat:ITEM_ICON_PATHS.repeat,clock:ITEM_ICON_PATHS.clock};
 function outlineIndicatorIcon(kind){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+OUTLINE_INDICATOR_ICONS[kind]+'</svg>'}
 function plannerBlockLabel(block){return displayDay(block.date)+' · '+DailyPlanner.clock(block.start)+'–'+DailyPlanner.clock(block.start+block.duration)}
 function itemPlannerBlocks(item,sessions){
