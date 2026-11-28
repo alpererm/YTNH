@@ -29,7 +29,7 @@ function renderTitleCalendar(){const value=dateCompletion.dates[0],selectedDate=
  dateSuggestions.querySelectorAll('[data-pick-date]').forEach(b=>b.onclick=()=>{dateCompletion.dates=[b.dataset.pickDate];acceptDateSuggestion(0)});
  dateSuggestions.querySelectorAll('[data-month]').forEach(b=>b.onclick=()=>{const d=new Date(selectedDate.getFullYear(),selectedDate.getMonth()+Number(b.dataset.month),1,12);moveTitleCalendar(Math.round((d-selectedDate)/86400000))});
 }
-function paintDateChoice(){[...dateSuggestions.children].forEach((b,i)=>{b.classList.toggle('active',i===dateChoice);b.setAttribute('aria-selected',String(i===dateChoice))});dateCompletion?.el.setAttribute('aria-activedescendant','dateSuggestion'+dateChoice)}
+function paintDateChoice(){[...dateSuggestions.children].forEach((b,i)=>{b.classList.toggle('active',i===dateChoice);b.setAttribute('aria-selected',String(i===dateChoice))});dateSuggestions.children[dateChoice]?.scrollIntoView({block:'nearest'}); /* #54 */dateCompletion?.el.setAttribute('aria-activedescendant','dateSuggestion'+dateChoice)}
 function acceptDateSuggestion(index=dateChoice){
  const token=dateCompletion;if(!token)return;if(token.inline)return acceptInlineDate(token,index);const el=token.el,item=itemById(db,el.dataset.itemId||selected),current=titleDateToken(el);if(!item||!current||current.start!==token.start||current.end!==token.end)return closeDateSuggestions();
  closeDateSuggestions();item.title=el.value;checkpoint();resetEditorHistoryGroup();

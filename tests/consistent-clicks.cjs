@@ -27,8 +27,12 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await page.evaluate(()=>itemById(db,ids.parent).collapsed),false,'reveal expands the parent');
  assert.equal(await page.locator(`#tree .row[data-id="${await page.evaluate(()=>ids.todo)}"]`).count(),1);
  assert(!(await page.locator('#editor').isVisible()),'a single click does not open the editor');
+ // #55: a middle-click on a Calendar title removes that date (status unchanged); Undo brings it back.
  await title(await page.evaluate(()=>ids.todo)).click({button:'middle'});
  assert.equal(await status(await page.evaluate(()=>ids.todo)),'Todo');
+ assert.deepEqual(await page.evaluate(()=>itemById(db,ids.todo).scheduledDates),[]);
+ await page.evaluate(()=>{undo();renderCalendar()});
+ assert.deepEqual(await page.evaluate(()=>itemById(db,ids.todo).scheduledDates),['2026-11-10']);
 
  // The marker is the only status control.
  await page.locator(`#calendarBody .cal-code [data-marker-id="${await page.evaluate(()=>ids.todo)}"]`).first().click();
@@ -92,12 +96,18 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 
  // Middle-click on a marker cancels through the normal path in every view; a repeating Todo cancels one occurrence only.
  await page.evaluate(()=>{closeRightEditor?.();setView('calendar');calendarMode='weeks';
-   const r=createItem(db,'Todo');r.title='Daily standup';const d0=today(),add=n=>{const d=new Date(d0+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};r.recurrence={frequency:'daily',interval:1,startDate:d0};ids.r=r.id;ids.d1=add(1);ids.d2=add(2);weekAnchor=new Date(d0+'T12:00:00');
+   const r=createItem(db,'Todo');r.title='Daily standup';const d0=today(),add=n=>{const d=new Date(d0+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};r.recurrence={frequency:'daily',interval:1,startDate:d0};db.settings.hideWeekends=false; /* today may be a weekend day */ids.r=r.id;ids.d1=add(1);ids.d2=add(2);weekAnchor=new Date(d0+'T12:00:00');
    const o=createItem(db,'Todo');o.title='Outline todo';ids.o=o.id;render();showCalendar();renderCalendar()});
+ // #55: a middle-click on a marker no longer cancels anything.
  await page.locator(`#tree [data-marker-id="${await page.evaluate(()=>ids.o)}"]`).click({button:'middle'});
- assert.equal(await status(await page.evaluate(()=>ids.o)),'Cancelled');
+ assert.equal(await status(await page.evaluate(()=>ids.o)),'Todo');
  await page.locator(`.day[data-date="${await page.evaluate(()=>today())}"] [data-cal-item="${await page.evaluate(()=>ids.r)}"] .itemMarker`).click({button:'middle'});
- assert.deepEqual(await page.evaluate(()=>[occurrenceStatus(itemById(db,ids.r),today()),occurrenceStatus(itemById(db,ids.r),ids.d1),itemById(db,ids.r).status]),['Cancelled','Todo','Todo']);
+ assert.deepEqual(await page.evaluate(()=>[occurrenceStatus(itemById(db,ids.r),today()),itemById(db,ids.r).status]),['Todo','Todo']);
+ // Delete on a focused Calendar item removes that date.
+ await page.evaluate(()=>{const n=itemById(db,ids.note);n.scheduledDates=['2026-11-10'];weekAnchor=new Date(2026,10,10,12);renderCalendar();focusPane('calendar');focusCalendarItem(ids.note,'2026-11-10')});
+ await page.keyboard.press('Delete');
+ assert.deepEqual(await page.evaluate(()=>itemById(db,ids.note).scheduledDates),[]);
+ await page.evaluate(()=>{undo();renderCalendar()});
  await page.evaluate(()=>{weekAnchor=new Date(2026,10,10,12);renderCalendar()});
  assert.equal(await page.locator('.toast:visible').filter({hasText:/cancelled/i}).count(),0);
 

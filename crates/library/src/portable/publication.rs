@@ -71,7 +71,7 @@ impl WorkingStore {
         Uuid::parse_str(&session.copy)?;
         Ok(Some(session))
     }
-    fn publication_path(&self, library: &str) -> Result<PathBuf> {
+    pub(super) fn publication_path(&self, library: &str) -> Result<PathBuf> {
         self.record_path(library)?;
         Ok(self
             .root
@@ -335,6 +335,10 @@ impl WorkingStore {
         session.base_revision = revision.into();
         self.write_session(&session)?;
         checkpoint("recorded")?;
+        // The save is verified and recorded: its package and the copy of the replaced file are
+        // no longer needed (#privacy: nothing of the library stays behind longer than recovery needs).
+        let _ = fs::remove_file(self.publication_path(library)?);
+        let _ = self.remove_publications(Some(library));
         self.recover(library)?
             .ok_or_else(|| "Local working copy unavailable after save".into())
     }
@@ -412,13 +416,9 @@ mod tests {
                 .modified()
                 .unwrap()
         );
-        let attempt = fs::read_dir(store.root.join("publications"))
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap()
-            .path();
-        assert_eq!(fs::read(attempt.join("previous.ytnh")).unwrap(), original);
+        // A verified, recorded save keeps no package or copy of the replaced file.
+        assert!(fs::read_dir(store.root.join("publications")).unwrap().next().is_none());
+        assert_ne!(fs::read(&saved.session.master).unwrap(), original);
     }
     #[test]
     fn recovery_listing_uses_active_publication_without_rewriting_receipts() {

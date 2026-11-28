@@ -22,7 +22,7 @@ function render(){
 }
 function renderStatus(){
  let ready=!!db;["saveFile","exportFile","archiveBrowser"].forEach(id=>$(id).disabled=!ready);
- $("showWeekends").disabled=!ready;$("showWeekends").checked=!weekendsHidden();$("storageStatus").textContent=(dirty?"Unsaved changes · ":"")+(storage.handle?`Connected: ${storage.name}`:db?`Loaded: ${storage.name||"new file"}${dirty?"":" · saved"}`:"No file open");updateDirtyUI();paintSaveState();$("notice").classList.toggle("hidden",!!db)
+ $("showWeekends").disabled=!ready;$("showWeekends").checked=!weekendsHidden();if($("calendarNoteDates")){$("calendarNoteDates").disabled=!ready;$("calendarNoteDates").value=calendarNoteDatesMode()}$("storageStatus").textContent=(dirty?"Unsaved changes · ":"")+(storage.handle?`Connected: ${storage.name}`:db?`Loaded: ${storage.name||"new file"}${dirty?"":" · saved"}`:"No file open");updateDirtyUI();paintSaveState();$("notice").classList.toggle("hidden",!!db)
 }
 
 function normalizeStatusValue(v){
@@ -78,6 +78,17 @@ const completionGrace=new Map();
 function doneIsVisible(status,_statuses,item){return !['Done','Cancelled','On hold'].includes(status)||showDoneItems()||!!(item&&completionGrace.has(item.id))}
 let outlineDayFilter=null,outlineRevealId=null;
 function weekendsHidden(){return db?.settings?.hideWeekends!==false}
+// #57: the Calendar can also list unscheduled Notes on the day they were created or last modified (per library).
+function calendarNoteDatesMode(){const m=db?.settings?.calendarNoteDates;return m==='created'||m==='modified'?m:''}
+function calendarDatedDay(item){
+ const mode=calendarNoteDatesMode();if(!mode||item?.type!=='Note'||item.archived)return null;
+ const t=Date.parse(mode==='created'?item.createdAt:item.updatedAt);if(!Number.isFinite(t))return null;
+ const d=new Date(t);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function setCalendarNoteDates(mode){
+ if(!db)return;mode=['created','modified'].includes(mode)?mode:'';if(calendarNoteDatesMode()===mode)return;
+ checkpoint();db.settings=db.settings||{};if(mode)db.settings.calendarNoteDates=mode;else delete db.settings.calendarNoteDates;markDirty();render();
+}
 function displayFilterActive(){return !!(weekendsHidden()||db?.settings?.hideRecurring)}
 function statusFilterActive(){
  return !!(selectedStatusFilters().length||statusRecurringOnly()||selectedItemTypes().length||outlineDayFilter||statusNotRecurring()||displayFilterActive());
@@ -89,7 +100,7 @@ function isWeekendDateString(ds){
 }
 function itemPassesDisplayFilters(item){
  if(!itemMatchesSelectedTypes(item)||(item.type==='Todo'&&!doneIsVisible(item.status,parseSearchQuery($("search").value).statuses.length?parseSearchQuery($("search").value).statuses:selectedStatusFilters(),item)))return false;
- if(outlineDayFilter&&!scheduledGroupingDates(item).includes(outlineDayFilter))return false;
+ if(outlineDayFilter&&!scheduledGroupingDates(item).includes(outlineDayFilter)&&calendarDatedDay(item)!==outlineDayFilter)return false;
  if(db?.settings?.hideRecurring&&item.type==="Todo"&&item.recurrence?.frequency)return false;
  if(weekendsHidden()){
    const dates=scheduledGroupingDates(item);
@@ -397,6 +408,10 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
    const kids=graph?graph.siblings(location.id):childrenOf(db,i.id),ks=kids;
    const renderChild=(child,depth)=>row(graph?child.item:child,depth,{grouped,hierarchy,allowed,location:graph?child:undefined});
    if(!shortcut&&i.type==='Todo'&&!doneIsVisible(i.status,null,i))return heading?'':ks.map(k=>renderChild(k,d)).join('');
+   // A Note follows its nearest Todo, Target or Milestone: hidden with it when that is finished (its own
+   // unfinished Todos stay visible), shown dimmed with "Show inactive".
+   const followsInactive=i.type==='Note'&&!!inactiveTodoAbove(i);
+   if(!shortcut&&followsInactive&&!showDoneItems())return heading?'':ks.map(k=>renderChild(k,d)).join('');
    const cl=i.type==='Todo'&&i.status==='Done'?'done':i.status==='Cancelled'?'cancelled':'',tags=inheritedTags(db,i);
    let visualDepth=d;
    if(grouped&&!hierarchy){
@@ -417,10 +432,10 @@ function renderOutlineTree(){const navigationSessions=upcomingItemSessions();loc
    const metadata=[
      isMilestone(i)?`<span class="outlineMilestone" aria-label="Milestone ${esc(weekLabel(i.milestone.targetWeek))}">${esc(weekLabel(i.milestone.targetWeek))}</span>`:'',
      i.type==='Todo'&&i.target?`<span class="outlineTarget" aria-label="Target ${esc(i.target.startMonth)} to ${esc(i.target.endMonth)}">${outlineTargetRange(i.target)}</span>`:'',
-     !i.heading&&tags.length?`<span class="tags">${tags.map(tag=>`<span class="outlineTag">#${esc(tag)}</span>`).join('')}</span>`:'',
+     !i.heading&&tags.length&&outlineTagsShown()?`<span class="tags">${tags.map(tag=>`<span class="outlineTag">#${esc(tag)}</span>`).join('')}</span>`:'',
      heading?`<span class="targetGroupCount" aria-label="${heading.count} items">${heading.count}</span>`:''
    ].filter(Boolean).join('');
-   return `<div class="row ${i.heading?'headingRow':''} ${current?'currentItem':''} ${grouped?'grouped-row':''} ${outlineDayFilter&&!scheduledGroupingDates(i).includes(outlineDayFilter)?'day-context-row':''} ${heading?'targetGroupRow':''} ${current||(graph&&multiLocations.size?multiLocations.has(location.id):multiSelected.size>1&&multiSelected.has(i.id))?'sel':''} ${i.type==='Todo'?statusClass(i.status||'Todo'):''}" data-id="${esc(i.id)}" data-location="${esc(location?.id||i.id)}" data-item-type="${i.type}" draggable="true" tabindex="-1" role="treeitem" aria-level="${visualDepth+1}" aria-selected="${current?'true':'false'}" data-indent="${indent}" data-hierarchy-depth="${visualDepth}" ${groupArrow||showArrow?`aria-expanded="${heading?!heading.collapsed:!collapsed}"`:''}>${groupArrow?`<button type="button" class="targetGroupToggle outlineChevron" data-group-toggle="${esc(heading.key)}" aria-label="${heading.collapsed?'Expand':'Collapse'} Target group" aria-expanded="${!heading.collapsed}">${disclosureIcon(!heading.collapsed)}</button>`:!shortcut&&(!grouped||hierarchy)?(i.heading?`<button type="button" tabindex="-1" class="outlineChevron headingToggle" data-heading-toggle="${esc(i.id)}" aria-label="${i.collapsed?'Expand':'Collapse'} section" aria-expanded="${!i.collapsed}">${disclosureIcon(!i.collapsed)}</button>`:showArrow?disclosureButton(!collapsed,'treeExpand'):'<span class="chevronSpace" aria-hidden="true"></span>'):''}${i.heading?'':itemMarker(i,{code:true,outline:true})}<div class="outlineText"><div class="outlineTitleLine"><span class="title ${cl}">${esc(i.title||'(untitled)')}</span>${icons?`<span class="outlineIcons">${icons}</span>`:''}</div>${searching?imageSearchResult(i,$("search").value):''}${metadata?`<div class="outlineMetadata">${metadata}</div>`:''}</div>${link}${outlineNavigationIndicators(i,navigationSessions)}</div>${heading||(grouped&&!hierarchy)||collapsed?'':ks.map(k=>renderChild(k,d+1)).join('')}`;
+   return `<div class="row ${i.heading?'headingRow':''} ${i.type==='Todo'&&i.target?'targetRow':''} ${followsInactive?'inactiveNoteRow':''} ${current?'currentItem':''} ${grouped?'grouped-row':''} ${outlineDayFilter&&!scheduledGroupingDates(i).includes(outlineDayFilter)&&calendarDatedDay(i)!==outlineDayFilter?'day-context-row':''} ${heading?'targetGroupRow':''} ${current||(graph&&multiLocations.size?multiLocations.has(location.id):multiSelected.size>1&&multiSelected.has(i.id))?'sel':''} ${i.type==='Todo'?statusClass(i.status||'Todo'):''}" data-id="${esc(i.id)}" data-location="${esc(location?.id||i.id)}" data-item-type="${i.type}" draggable="true" tabindex="-1" role="treeitem" aria-level="${visualDepth+1}" aria-selected="${current?'true':'false'}" data-indent="${indent}" data-hierarchy-depth="${visualDepth}" ${groupArrow||showArrow?`aria-expanded="${heading?!heading.collapsed:!collapsed}"`:''}>${groupArrow?`<button type="button" class="targetGroupToggle outlineChevron" data-group-toggle="${esc(heading.key)}" aria-label="${heading.collapsed?'Expand':'Collapse'} Target group" aria-expanded="${!heading.collapsed}">${disclosureIcon(!heading.collapsed)}</button>`:!shortcut&&(!grouped||hierarchy)?(i.heading?`<button type="button" tabindex="-1" class="outlineChevron headingToggle" data-heading-toggle="${esc(i.id)}" aria-label="${i.collapsed?'Expand':'Collapse'} section" aria-expanded="${!i.collapsed}">${disclosureIcon(!i.collapsed)}</button>`:showArrow?disclosureButton(!collapsed,'treeExpand'):'<span class="chevronSpace" aria-hidden="true"></span>'):''}${i.heading?'':itemMarker(i,{code:true,outline:true})}<div class="outlineText"><div class="outlineTitleLine"><span class="title ${cl}">${esc(i.title||'(untitled)')}</span>${icons?`<span class="outlineIcons">${icons}</span>`:''}</div>${searching?imageSearchResult(i,$("search").value):''}${metadata?`<div class="outlineMetadata">${metadata}</div>`:''}</div>${link}${outlineNavigationIndicators(i,navigationSessions)}</div>${heading||(grouped&&!hierarchy)||collapsed?'':ks.map(k=>renderChild(k,d+1)).join('')}`;
  };
  // Remember how every row was built so one changed row can be rebuilt alone (patchRender).
  const rowArgs=new Map();

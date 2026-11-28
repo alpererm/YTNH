@@ -87,6 +87,7 @@ function bindCalendarTooltip(element,label){
  },1000)};
  element.onmouseleave=hide;element.onmousedown=hide;element.onblur=hide;
 }
+function datedNoteHint(el){toast(`Not scheduled: shown by its ${el.dataset.calDated==='created'?'created':'modified'} date. Drag it to a day to schedule it.`)}
 function bindCalendarInteractions(w){
  w.querySelectorAll('.chip[data-cal-drag-item]').forEach(chip=>bindCalendarTooltip(chip,()=>itemById(db,chip.dataset.calDragItem)?.title||''));
  w.querySelectorAll("[data-cal-item]").forEach(el=>{
@@ -100,8 +101,10 @@ function bindCalendarInteractions(w){
      openSelectedInFullEditor(item.id);
    };
 
-   el.onauxclick=ev=>{if(ev.button===1){ev.preventDefault();ev.stopPropagation()}}; // markers handle middle-click app-wide
-   el.oncontextmenu=ev=>itemMenu(ev,itemById(db,el.dataset.calItem),{date:el.dataset.calDate,inCalendar:true});
+   // #55: a middle-click on an item in the Calendar removes that date (Undo brings it back).
+   el.onmousedown=ev=>{if(ev.button===1)ev.preventDefault()};
+   el.onauxclick=ev=>{if(ev.button!==1)return;ev.preventDefault();ev.stopPropagation();if(ev.target.closest('.itemMarker'))return;if(el.dataset.calDated){datedNoteHint(el);return}unscheduleExplicit(itemById(db,el.dataset.calItem),el.dataset.calDate)};
+   el.oncontextmenu=ev=>itemMenu(ev,itemById(db,el.dataset.calItem),{date:el.dataset.calDate,inCalendar:true,removeDate:!el.dataset.calDated});
    // Keyboard, as in the Outline: Up/Down select the day's items (and show them in the Outline), Space marks
    // a Todo done, Enter opens, the menu key shows the item menu and Escape returns to the day.
    el.onkeydown=ev=>{
@@ -110,6 +113,8 @@ function bindCalendarInteractions(w){
      if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){const next=items[index+(ev.key==='ArrowDown'?1:-1)];if(next)focusCalendarItem(next.dataset.calItem,next.dataset.calDate,{reveal:true})}
      else if(ev.key===' '){const marker=el.querySelector('.itemMarker');if(marker&&el.dataset.calType==='Todo'){markerAction(marker);focusCalendarItem(el.dataset.calItem,el.dataset.calDate)}}
      else if(ev.key==='Escape'){activePane='calendar';$('calendarBody').focus({preventScroll:true})}
+     else if((ev.key==='Delete'||ev.key==='Backspace')&&el.dataset.calDated)datedNoteHint(el);
+     else if(ev.key==='Delete'||ev.key==='Backspace'){const date=el.dataset.calDate;if(unscheduleExplicit(itemById(db,el.dataset.calItem),date)!==false){activePane='calendar';focusCalendarItem(null,date)||$('calendarBody').focus({preventScroll:true})}}
      else{itemKeys(ev,el,el.dataset.calItem,{date:el.dataset.calDate});return}
      ev.preventDefault();ev.stopPropagation();
    };
@@ -122,12 +127,14 @@ function bindCalendarInteractions(w){
    if(i)openOccurrenceStatus(i,e.dataset.occ)
  });
 
- w.querySelectorAll('.chip[data-cal-drag-item]').forEach(chip=>chip.oncontextmenu=ev=>itemMenu(ev,itemById(db,chip.dataset.calDragItem),{date:chip.dataset.calDragDate,inCalendar:true}));
+ w.querySelectorAll('.chip[data-cal-drag-item]').forEach(chip=>chip.oncontextmenu=ev=>itemMenu(ev,itemById(db,chip.dataset.calDragItem),{date:chip.dataset.calDragDate,inCalendar:true,removeDate:!chip.dataset.calDated}));
  // Calendar item drag source: only explicit scheduled dates can be moved.
  w.querySelectorAll('.chip[draggable="true"][data-cal-drag-item]').forEach(chip=>{
    chip.ondragstart=ev=>{
      const id=chip.dataset.calDragItem,from=chip.dataset.calDragDate;
      if(!id||!from)return;
+     // #57: a Note shown by its created/modified date isn't scheduled; dropping it on a day schedules it.
+     if(chip.dataset.calDated){draggedItemId=id;draggedItemIds=[];chip.classList.add("dragging-calendar");if(ev.dataTransfer){ev.dataTransfer.effectAllowed="all";ev.dataTransfer.setData("text/plain",id)}return}
      calendarDraggedItemId=id;calendarDraggedFromDate=from;
      chip.classList.add("dragging-calendar");
      if(ev.dataTransfer){
@@ -137,7 +144,7 @@ function bindCalendarInteractions(w){
      }
    };
    chip.ondragend=()=>{
-     chip.classList.remove("dragging-calendar");
+     chip.classList.remove("dragging-calendar");if(chip.dataset.calDated)draggedItemId=null;
      calendarDraggedItemId=null;calendarDraggedFromDate=null;
      document.querySelectorAll(".day.drop-target").forEach(x=>x.classList.remove("drop-target"));
    };
@@ -267,7 +274,7 @@ function renderYearsCalendar(w){
  // CSSOM preserves dynamic layout under the desktop Content Security Policy.
  w.querySelectorAll('.targetLanes').forEach(el=>{el.style.gridTemplateRows=`repeat(${Number(el.dataset.lanes)},32px)`});
  w.querySelectorAll('.targetBar').forEach(el=>{el.style.gridColumn=`${Number(el.dataset.startMonth)} / ${Number(el.dataset.endMonth)+1}`;el.style.gridRow=String(Number(el.dataset.lane)+1)});
- $('yearsPrevious').onclick=()=>setYearsPage(yearsPageStart-5);$('yearsNext').onclick=()=>setYearsPage(yearsPageStart+5);
+ $('yearsPrevious').onclick=()=>setYearsPage(yearsPageStart-1);$('yearsNext').onclick=()=>setYearsPage(yearsPageStart+1); // #37: one year per click; Page Up/Down move five
  w.querySelectorAll('[data-target-id]').forEach(button=>{button.onclick=e=>{e.stopPropagation();selectAndReveal(button.dataset.targetId)};button.ondblclick=()=>openSelectedInFullEditor(button.dataset.targetId);button.oncontextmenu=e=>itemMenu(e,itemById(db,button.dataset.targetId));button.onkeydown=e=>itemKeys(e,button,button.dataset.targetId)});
 }
 function updateCalendarModeControls(){

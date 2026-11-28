@@ -26,6 +26,7 @@ const path=require('node:path');const {pathToFileURL}=require('node:url');
   // Through the dialog, with the 30-day filter and the preview confirmed.
   const before=await page.evaluate(()=>JSON.stringify(db.items.map(i=>[i.id,i.archived,i.parentId])));
   await page.evaluate(()=>openArchiveBrowser());
+  await page.locator('.archiveMore>summary').click(); // the tools sit in the … menu (#43)
   await page.selectOption('#archiveCompletedAge','30');
   await page.click('#archiveCompleted');
   await page.waitForSelector('#appConfirmTitle');

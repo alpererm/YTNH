@@ -7,7 +7,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');con
   await p.evaluate(t=>{appearance.theme=t;applyTheme()},theme);
   assert.equal(await p.locator('#editCode').evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
   assert.deepEqual(await p.locator('#backlinksBox').evaluate(e=>[getComputedStyle(e).backgroundColor,getComputedStyle(e).borderLeftWidth,getComputedStyle(e).borderTopWidth]),['rgba(0, 0, 0, 0)','0px','0px']);
-  assert.notEqual(await p.locator('#milestoneEnabled').evaluate(e=>getComputedStyle(e).accentColor),'auto');
+  assert.notEqual(await p.locator('#showDone').evaluate(e=>getComputedStyle(e).accentColor),'auto');
   assert.equal(await p.locator('#filtersContent legend').first().evaluate(e=>getComputedStyle(e).textTransform),'none');
   await p.locator('#tagInput').focus();assert.equal(await p.locator('#editorSidebar').isVisible(),true);
   await p.screenshot({path:`${require('node:os').tmpdir()}/workspace-polish-${theme}.png`});

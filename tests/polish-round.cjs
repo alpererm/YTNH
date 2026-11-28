@@ -121,16 +121,38 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await page.locator('.weekheader>div').nth(1).evaluate(e=>getComputedStyle(e).fontWeight),'400');
  await page.locator(`#tree .row[data-id="${await ev(()=>ids.t)}"]`).first().dblclick();await ev(()=>selectSidebarTab('properties'));
  assert.equal(await page.locator('#targetStart').inputValue(),'11/2026');assert.equal(await page.locator('#targetEnd').inputValue(),'02/2027');
- assert.match(await page.locator('#targetBox .targetToggle').innerText(),/^\s*Target\s*$/);
+ assert.equal(await page.locator('#planKind').inputValue(),'target');
+ assert.equal(await page.locator('#milestoneFields').isVisible(),false,'a Target shows only its months');
  await page.locator('#targetEnd').fill('03/2027');await page.locator('#targetEnd').dispatchEvent('change');
  assert.equal(await ev(()=>itemById(db,ids.t).target.endMonth),'2027-03');
  await page.locator(`#tree .row[data-id="${await ev(()=>ids.m)}"]`).first().dblclick();await ev(()=>selectSidebarTab('properties'));
  assert.equal(await page.locator('#milestoneWeek').inputValue(),'W49 2026');
  assert.equal(await page.locator('label[for="milestoneWeek"]').innerText(),'Week');
  assert.equal(await page.locator('#milestoneHint').count(),0);
+ // Switching the plan replaces the other kind (one undo step), and a library with both keeps the Target.
+ const undoCount=await ev(()=>undoStack.length);
+ await page.locator('#planKind').selectOption('target');
+ assert.deepEqual(await ev(()=>[isMilestone(itemById(db,ids.m)),!!itemById(db,ids.m).target]),[false,true]);
+ assert.equal(await ev(()=>undoStack.length),undoCount+1);
+ await ev(()=>undo());
+ assert.deepEqual(await ev(()=>[isMilestone(itemById(db,ids.m)),!!itemById(db,ids.m).target]),[true,false]);
+ assert.equal(await ev(()=>{const copy=JSON.parse(JSON.stringify(db));const x=copy.items.find(i=>i.id===ids.m);x.target={startMonth:'2026-11',endMonth:'2026-12'};const fixed=migrateDatabase(copy).items.find(i=>i.id===ids.m);return !!fixed.target&&!fixed.milestone}),true);
  await page.locator('#milestoneWeek').fill('W50 2026');await page.locator('#milestoneWeek').dispatchEvent('change');
  assert.equal(await ev(()=>itemById(db,ids.m).milestone.targetWeek),'2026-W50');
  await ev(()=>{closeRightEditor();setView('calendar');showCalendar()});
+
+ // A Note follows its nearest Todo/Target/Milestone: hidden with it when finished, dimmed when inactive items show.
+ await ev(()=>{const parent=createItem(db,'Todo');parent.title='Finished parent';const note=createItem(db,'Note',parent.id);note.title='Note under finished';note.scheduledDates=['2026-11-18'];
+   const open=createItem(db,'Todo',parent.id);open.title='Still open';window.fin={parent:parent.id,note:note.id,open:open.id};parent.status='Done';
+   $('showDone').checked=false;render();renderCalendar()});
+ assert.equal(await page.locator(`#tree .row[data-id="${await ev(()=>fin.note)}"]`).count(),0,'the Note is hidden with its finished parent');
+ assert.equal(await page.locator(`#tree .row[data-id="${await ev(()=>fin.open)}"]`).count(),1,'an unfinished Todo stays visible');
+ assert.equal(await page.locator(`#calendarBody [data-cal-item="${await ev(()=>fin.note)}"]`).count(),0,'and it drops out of the Calendar');
+ await ev(()=>{$('showDone').checked=true;$('showDone').dispatchEvent(new Event('change'))});
+ assert.equal(await page.locator(`#tree .row.inactiveNoteRow[data-id="${await ev(()=>fin.note)}"]`).count(),1,'shown dimmed with inactive items');
+ await ev(()=>{$('showDone').checked=false;$('showDone').dispatchEvent(new Event('change'))});
+ // Target titles are semi-bold.
+ assert.equal(await page.locator(`#tree .row.targetRow[data-id="${await ev(()=>ids.t)}"] .title`).evaluate(e=>getComputedStyle(e).fontWeight),'600');
 
  // The day filter chip shows just the date.
  await ev(()=>{outlineDayFilter='2026-11-23';renderTree()});

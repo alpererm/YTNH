@@ -25,6 +25,13 @@ struct Entry {
     paused: bool,
     #[serde(default)]
     portable: bool,
+    /// The library file, so a closed library (no local working copy) can be opened again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    master: Option<PathBuf>,
+    /// Where automatic backups go on this computer: None = YTNH's data folder,
+    /// "beside" = a hidden folder next to the library file, "off" = none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    backups: Option<String>,
 }
 #[derive(Serialize, Deserialize)]
 struct Catalog {
@@ -74,13 +81,32 @@ impl Store {
             Err(e) => return Err(e.into()),
         };
         let portable = portable::WorkingStore::open(&root.join("portable-v1"), portable::Limits::default())?;
-        Ok(Self {
+        let mut store = Self {
             portable,
             root,
             cat,
             catalog_issue,
             _lock: lock,
-        })
+        };
+        store.tidy();
+        Ok(store)
+    }
+    /// On start: libraries whose working copy holds nothing beyond their library file are closed
+    /// (their copy removed; they reopen from the file), and copies nothing needs are pruned.
+    /// Copies with unsaved work stay for recovery. Failures here never block starting.
+    fn tidy(&mut self) {
+        if self.catalog_issue.is_some() { return; }
+        let mut changed = false;
+        let ids: Vec<String> = self.cat.libraries.iter().filter(|(_, e)| e.portable).map(|(id, _)| id.clone()).collect();
+        for id in ids {
+            let Ok(Some(session)) = self.portable.session(&id) else { continue };
+            if let Some(entry) = self.cat.libraries.get_mut(&id) {
+                if entry.master.as_ref() != Some(&session.master) { entry.master = Some(session.master.clone()); changed = true; }
+            }
+            if let Err(error) = self.portable.close(&id) { eprintln!("Keeping the local copy of {id}: {error}"); }
+        }
+        if let Err(error) = self.portable.prune() { eprintln!("Local copies were not pruned: {error}"); }
+        if changed { let _ = self.persist(); }
     }
     fn persist(&mut self) -> Result<()> {
         if let Some(issue) = &self.catalog_issue { return Err(issue.clone().into()); }
@@ -108,8 +134,78 @@ impl Store {
         if let Some(e) = self.cat.libraries.get(id).filter(|e| e.portable) { return e.copy.join("objects") }
         self.root.join("objects").join(id)
     }
-    fn backups(&self, id: &str) -> PathBuf {
+    fn app_backups(&self, id: &str) -> PathBuf {
         self.root.join(if self.cat.libraries.get(id).is_some_and(|e| e.portable) { "portable-backups" } else { "backups" }).join(id)
+    }
+    fn backup_mode(&self, id: &str) -> &str {
+        match self.cat.libraries.get(id).and_then(|e| e.backups.as_deref()) { Some("beside") => "beside", Some("off") => "off", _ => "app" }
+    }
+    fn library_file(&self, id: &str) -> Option<PathBuf> {
+        self.portable.session(id).ok().flatten().map(|s| s.master).or_else(|| self.cat.libraries.get(id).and_then(|e| e.master.clone()))
+    }
+    /// A hidden folder next to the library file, so backups stay wherever the file is kept
+    /// (for example inside an encrypted folder) and are locked with it.
+    fn beside_backups(master: &Path) -> Option<PathBuf> {
+        Some(master.parent()?.join(format!(".{}-backups", master.file_name()?.to_string_lossy())))
+    }
+    fn backups(&self, id: &str) -> PathBuf {
+        if self.backup_mode(id) == "beside" {
+            if let Some(folder) = self.library_file(id).as_deref().and_then(Self::beside_backups) { return folder; }
+        }
+        self.app_backups(id)
+    }
+    /// Keeps an automatic backup where this library's setting says. Next to the file, a missing or
+    /// locked folder never blocks saving; the local save still happens.
+    fn keep_backup(&self, repo: &Repository, id: &str, force: bool) -> Result<()> {
+        match self.backup_mode(id) {
+            "off" => Ok(()),
+            "beside" => {
+                // Only while the library file is actually there (an encrypted folder may be locked or a
+                // drive unplugged): never create its folder, and never fall back to YTNH's own folder.
+                let Some(master) = self.library_file(id).filter(|m| m.is_file()) else {
+                    eprintln!("Backup next to the library file skipped: the file isn't available");
+                    return Ok(());
+                };
+                let Some(folder) = Self::beside_backups(&master) else { return Ok(()) };
+                if let Err(error) = fs::create_dir(&folder).or_else(|e| if folder.is_dir() { Ok(()) } else { Err(e) })
+                    .map_err(|e| e.into()).and_then(|_| lifecycle::backup_retained(repo, &folder, &self.vault(id), force)) {
+                    eprintln!("Backup next to the library file skipped: {error}");
+                }
+                Ok(())
+            },
+            _ => lifecycle::backup_retained(repo, &self.backups(id), &self.vault(id), force),
+        }
+    }
+    /// Changes where this library's automatic backups go on this computer. Existing backups in
+    /// YTNH's data folder move next to the file ("beside") or are deleted ("off").
+    fn set_backup_location(&mut self, id: &str, mode: &str) -> Result<Value> {
+        if !self.entry(id)?.portable { return Err("Only libraries with a library file have this setting".into()); }
+        let mode = match mode { "beside" | "off" => Some(mode.to_owned()), "app" | "" => None, _ => return Err("Unknown backup location".into()) };
+        let from = self.app_backups(id);
+        if mode.as_deref() == Some("beside") {
+            let master = self.library_file(id).ok_or("The library file's location is unknown")?;
+            let to = Self::beside_backups(&master).ok_or("The library file's folder is unavailable")?;
+            if from.is_dir() { move_tree(&from, &to)?; }
+        } else if mode.as_deref() == Some("off") {
+            for folder in [from, self.root.join("backups").join(id)] { if folder.is_dir() { fs::remove_dir_all(&folder)?; } }
+        }
+        self.cat.libraries.get_mut(id).ok_or("Unknown local library")?.backups = mode;
+        self.persist()?;
+        Ok(json!({"backups": self.backup_mode(id), "folder": self.backups(id)}))
+    }
+    /// Removes everything YTNH keeps about this library on this computer: working copies, save
+    /// attempts, backups in its data folder and the library-list entry. The library file and any
+    /// backups next to it are not touched.
+    fn forget(&mut self, id: &str, discard: bool) -> Result<Value> {
+        if !self.entry(id)?.portable { return Err("Only libraries with a library file can be forgotten here".into()); }
+        let copies = self.portable.forget(id, discard)?;
+        for folder in [self.root.join("portable-backups").join(id), self.root.join("backups").join(id), self.root.join("archive-keys").join(id)] {
+            if folder.is_dir() { fs::remove_dir_all(&folder)?; }
+        }
+        self.cat.libraries.remove(id);
+        if self.cat.last.as_deref() == Some(id) { self.cat.last = None; }
+        self.persist()?;
+        Ok(json!({"copies": copies}))
     }
     fn attach_portable(&mut self, copy: portable::WorkingCopy) -> Result<Value> {
         let id = copy.session.library.clone();
@@ -117,7 +213,8 @@ impl Store {
             transfer::immutable(&self.root.join("legacy-entries").join(format!("{}-{}.json", id, Uuid::new_v4())), &serde_json::to_vec(old)?)?;
         }
         let name = copy.session.master.file_name().unwrap_or_default().to_string_lossy().into_owned();
-        self.add(&id, Entry { name, copy: copy.directory, exchange: PathBuf::new(), source: None, source_hash: None, published: Some(copy.session.base_revision), paused: false, portable: true })
+        let backups = self.cat.libraries.get(&id).and_then(|e| e.backups.clone());
+        self.add(&id, Entry { name, copy: copy.directory, exchange: PathBuf::new(), source: None, source_hash: None, published: Some(copy.session.base_revision), paused: false, portable: true, master: Some(copy.session.master), backups })
     }
     fn check_catalog_action(&self, op: &str) -> Result<()> {
         if let Some(issue) = &self.catalog_issue {
@@ -182,6 +279,17 @@ impl Store {
         portable::create(&repo, &self.vault(id), destination, &self.root, portable::Limits::default())?;
         self.open_master(destination)
     }
+    /// #45: a complete, verified .ytnh copy (with its images) under a new library identity, so opening it
+    /// later never replaces this library's entry. The current library stays open and unchanged.
+    fn backup_copy(&self, id: &str, model: &Value, destination: &Path) -> Result<Value> {
+        let source = self.repo(id)?;
+        let inventory = self.resolve_inventory(id, model, &source)?;
+        let stage = tempfile::tempdir_in(&self.root)?;
+        let mut copy = Repository::create(&stage.path().join("library.sqlite"), &Uuid::new_v4().to_string(), None)?;
+        copy.save_with_files(model, None, &self.cat.device, &inventory)?;
+        portable::create(&copy, &self.vault(id), destination, stage.path(), portable::Limits::default())?;
+        Ok(json!(destination))
+    }
     fn new_portable(&mut self, model: &Value, destination: &Path) -> Result<Value> {
         let stage = tempfile::tempdir_in(&self.root)?;
         let mut repo = Repository::create(&stage.path().join("library.sqlite"), &Uuid::new_v4().to_string(), None)?;
@@ -205,10 +313,14 @@ impl Store {
     }
     fn status(&self, id: &str) -> Result<Value> {
         let e = self.entry(id)?;
+        if e.portable && self.portable.session(id)?.is_none() {
+            // Closed: nothing is kept locally; it opens again from its library file.
+            return Ok(json!({"id":id,"name":e.name,"revision":null,"published":null,"paused":false,"portable":true,"master":e.master,"unpublished":false,"closed":true,"backups":self.backup_mode(id)}));
+        }
         let head = self.repo(id)?.identity()?.1;
         if e.portable {
             let session = self.portable.session(id)?.ok_or("Missing portable session")?;
-            return Ok(json!({"id":id,"name":e.name,"revision":head,"published":session.base_revision,"paused":false,"portable":true,"master":session.master,"unpublished":head.as_deref()!=Some(&session.base_revision)}));
+            return Ok(json!({"id":id,"name":e.name,"revision":head,"published":session.base_revision,"paused":false,"portable":true,"master":session.master,"unpublished":head.as_deref()!=Some(&session.base_revision),"backups":self.backup_mode(id)}));
         }
         Ok(
             json!({"id":id,"name":e.name,"revision":head,"published":e.published,"paused":e.paused,"unpublished":head!=e.published}),
@@ -230,7 +342,7 @@ impl Store {
         repo.save_with_files(&model,None,&self.cat.device,&inv)?;
         let exchange=path.with_extension("handoffs");fs::create_dir_all(&exchange)?;
         transfer::immutable(&exchange.join("library.identity.json"),&serde_json::to_vec(&json!({"library":id,"version":1}))?)?;
-        self.add(&id,Entry{name:"Legacy fixture".into(),copy,exchange,source:Some(path.into()),source_hash:None,published:None,paused:false,portable:false})
+        self.add(&id,Entry{name:"Legacy fixture".into(),copy,exchange,source:Some(path.into()),source_hash:None,published:None,paused:false,portable:false,master:None,backups:None})
     }
     // Synthetic legacy fixtures still exercise existing-library recovery and image retention.
     fn resolve_inventory(
@@ -302,7 +414,7 @@ impl Store {
             }
         }
         let inv = self.resolve_inventory(id, model, &r)?;
-        lifecycle::backup_retained(&r, &self.backups(id), &self.vault(id), false)?;
+        self.keep_backup(&r, id, false)?;
         let revision = r.save_with_files(model, Some(expected), &self.cat.device, &inv)?;
         Ok(json!({"revision":revision}))
     }
@@ -411,6 +523,10 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
     let portable_pick = if op == "portable_open" {
         let Some(file) = app.dialog().file().set_title("Open Library").add_filter("YTNH library", &["ytnh"]).blocking_pick_file() else { return Ok(Value::Null) };
         Some(file.into_path().map_err(|e| e.to_string())?)
+    } else if op == "backup_copy" {
+        // #45: Back Up Library… saves a complete .ytnh copy that Open Library can open again.
+        let Some(file) = app.dialog().file().set_title("Back Up Library").add_filter("YTNH library", &["ytnh"]).set_file_name(args["name"].as_str().filter(|n| n.ends_with(".ytnh") && !n.contains(['/', '\\'])).unwrap_or("Library backup.ytnh")).blocking_save_file() else { return Ok(Value::Null) };
+        Some(file.into_path().map_err(|e| e.to_string())?)
     } else if matches!(op.as_str(), "portable_new" | "portable_transition" | "portable_save_as") {
         let Some(file) = app.dialog().file().set_title("Save Library As").add_filter("YTNH library", &["ytnh"]).set_file_name(args["name"].as_str().filter(|n| n.ends_with(".ytnh") && !n.contains(['/', '\\'])).unwrap_or("Library.ytnh")).blocking_save_file() else { return Ok(Value::Null) };
         Some(file.into_path().map_err(|e| e.to_string())?)
@@ -487,6 +603,24 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
             runtime.writable.insert(id.into());
             Ok(result)
         },
+        "portable_close" => {
+            // After a clean save: remove the local working copy (kept if anything isn't saved yet).
+            let e = store.entry(id)?;
+            if !e.portable { return Ok(json!({"closed":false})); }
+            Ok(json!({"closed": store.portable.close(id)?}))
+        },
+        "portable_forget" => store.forget(id, args["discard"].as_bool().unwrap_or(false)),
+        "portable_discard_copy" => {
+            // Never the working copy of the library that is open now.
+            let copy = arg(&args, "copy")?;
+            if let Some(open) = args["open"].as_str().filter(|o| !o.is_empty()) {
+                if store.portable.session(open).ok().flatten().is_some_and(|s| s.copy == copy) {
+                    return Err("This copy belongs to the library that is open now.".into());
+                }
+            }
+            Ok(json!({"library": store.portable.discard_copy(copy)?}))
+        },
+        "backup_location" => store.set_backup_location(id, arg(&args, "mode")?),
         "portable_recovery_list" => {
             let mut report = store.portable.recovery_report()?;
             if let Some(issue)=&store.catalog_issue { report.issues.push(portable::RecoveryIssue { copy:"Library list".into(), error:issue.clone() }); }
@@ -503,8 +637,14 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
                 "portable_new" => store.new_portable(&args["model"], portable_pick.as_deref().unwrap())?,
                 "portable_publish" | "portable_save_as" => store.portable_publish(id, arg(&args,"revision")?, portable_pick.as_deref())?,
                 "portable_reopen" => {
-                    let copy = store.portable.reopen(id)?;
-                    store.attach_portable(copy)?
+                    if store.portable.session(id)?.is_none() {
+                        // Closed cleanly before: open it again from its library file.
+                        let master = store.entry(id)?.master.ok_or("This library's file location is unknown; open it with Open Library…")?;
+                        store.open_master(&master)?
+                    } else {
+                        let copy = store.portable.reopen(id)?;
+                        store.attach_portable(copy)?
+                    }
                 },
                 _ => {
                     store.portable.reconcile_publication(id)?;
@@ -695,7 +835,7 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
             yutanohe_library::images::export_files(&inventory, &store.vault(id), temp.path())?;
             transfer::immutable(
                 &temp.path().join("document.md"),
-                format!("# {title}\n\n{body}").as_bytes(),
+                format!("# {title}\n\n{}", portable_markdown(body)).as_bytes(),
             )?;
             let name = title
                 .chars()
@@ -848,7 +988,7 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
             let inv = backup.inventory()?;
             transfer::stage_archives(&model, &store.vault(id), &store.vault(id), &inv)?;
             let mut r = store.repo(id)?;
-            lifecycle::backup_retained(&r, &store.backups(id), &store.vault(id), true)?;
+            store.keep_backup(&r, id, true)?;
             let rev = r.save_with_files(
                 &model,
                 Some(arg(&args, "revision")?),
@@ -856,6 +996,10 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
                 &inv,
             )?;
             Ok(json!({"revision":rev,"model":model}))
+        }
+        "backup_copy" => {
+            let destination = portable_pick.as_deref().ok_or("No destination chosen")?;
+            store.backup_copy(id, args.get("model").ok_or("Missing library")?, destination)
         }
         "export" => {
             let r = store.repo(id)?;
@@ -878,8 +1022,65 @@ fn dispatch(app: tauri::AppHandle, op: String, args: Value) -> Result<Value> {
     }
 }
 
+/// Moves a backup folder, also across drives: copy everything, then remove the original.
+fn move_tree(from: &Path, to: &Path) -> Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() { move_tree(&entry.path(), &target)?; }
+        else if fs::symlink_metadata(&target).is_err() { fs::copy(entry.path(), &target)?; }
+    }
+    fs::remove_dir_all(from)?;
+    Ok(())
+}
+
+/// YTNH keeps one block per line, so a paragraph may follow a list item or quote directly. Other Markdown
+/// apps would read that line as part of the list or quote; an exported file gets a blank line there (#66).
+fn portable_markdown(body: &str) -> String {
+    let is_list = |l: &str| {
+        let t = l.trim_start();
+        t.starts_with("- ")
+            || t.split_once(['.', ')']).is_some_and(|(n, rest)| {
+                !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()) && rest.starts_with(' ')
+            })
+    };
+    let mut out: Vec<&str> = Vec::new();
+    let mut fence: Option<char> = None;
+    for line in body.split('\n') {
+        let trimmed = line.trim_start();
+        let opens = trimmed.starts_with("```") || trimmed.starts_with("~~~");
+        if fence.is_none() && !line.trim().is_empty() && !opens {
+            if let Some(prev) = out.last() {
+                let continues_quote = trimmed.starts_with('>');
+                if (is_list(prev) && !is_list(line) && !line.starts_with(' ') && !line.starts_with('\t'))
+                    || (prev.starts_with('>') && !continues_quote)
+                {
+                    out.push("");
+                }
+            }
+        }
+        if opens {
+            let mark = trimmed.chars().next();
+            fence = if fence.is_none() { mark } else if fence == mark { None } else { fence };
+        }
+        out.push(line);
+    }
+    out.join("\n")
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn exported_markdown_separates_paragraphs_from_lists_and_quotes() {
+        assert_eq!(super::portable_markdown("- one\nafter"), "- one\n\nafter");
+        assert_eq!(super::portable_markdown("1) a\n2) b\ntext"), "1) a\n2) b\n\ntext");
+        assert_eq!(super::portable_markdown("> q\n> r\nout"), "> q\n> r\n\nout");
+        assert_eq!(super::portable_markdown("- a\n    - b\n- c"), "- a\n    - b\n- c");
+        assert_eq!(super::portable_markdown("- a\n\nb"), "- a\n\nb");
+        assert_eq!(super::portable_markdown("```\n- a\nb\n```"), "```\n- a\nb\n```");
+    }
+
     use super::*;
     fn copy_fixture(folder: &Path) -> Result<PathBuf> {
         fs::create_dir_all(folder)?;
@@ -892,6 +1093,70 @@ mod tests {
             include_bytes!("../../crates/library/tests/fixtures/cold-archive.json"),
         )?;
         Ok(folder.join("library.json"))
+    }
+    #[test]
+    fn backup_copy_opens_as_a_separate_library_with_the_same_content() -> Result<()> {
+        let d=tempfile::tempdir()?;let mut store=Store::open(d.path().join("local"))?;
+        let mut model:Value=serde_json::from_slice(include_bytes!("../../crates/library/tests/fixtures/library.json"))?;model["archiveIndex"]=json!([]);
+        let master=d.path().join("Library.ytnh");let info=store.new_portable(&model,&master)?;let id=arg(&info,"id")?.to_owned();
+        let before=fs::read(&master)?;
+        let backup=d.path().join("Library backup.ytnh");
+        assert_eq!(store.backup_copy(&id,&model,&backup)?,json!(backup));
+        assert_eq!(fs::read(&master)?,before,"the library file is untouched");
+        let opened=store.open_master(&backup)?;let copy_id=arg(&opened,"id")?.to_owned();
+        assert_ne!(copy_id,id,"the backup has its own identity");
+        assert_eq!(store.repo(&copy_id)?.load()?,model,"same content");
+        assert_eq!(store.repo(&id)?.load()?,model,"the original library is still there");
+        Ok(())
+    }
+    #[test]
+    fn the_app_bundle_ships_no_library_files() -> Result<()> {
+        // Only the app (web/index.html built from its own sources, plus icons) is packaged; no
+        // extra resources, so no library, backup or test file can end up in an installer.
+        let conf: Value = serde_json::from_slice(&fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tauri.conf.json"))?)?;
+        assert_eq!(conf["build"]["frontendDist"], "../web");
+        assert!(conf["bundle"].get("resources").is_none() && conf["bundle"].get("externalBin").is_none());
+        let build = fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/build.rs"))?;
+        for name in build.split('"').filter(|s| s.contains('.') && !s.contains(' ') && !s.starts_with("cargo:")) {
+            assert!(!name.ends_with(".ytnh") && !name.ends_with(".sqlite") && !name.ends_with(".json"), "build input {name}");
+        }
+        for entry in fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../web"))? {
+            let name = entry?.file_name().to_string_lossy().into_owned();
+            assert!(matches!(name.as_str(), "index.html" | ".gitkeep"), "unexpected file in web/: {name}");
+        }
+        Ok(())
+    }
+    #[test]
+    fn privacy_close_forget_and_backup_location() -> Result<()> {
+        let d=tempfile::tempdir()?;let root=d.path().join("local");let mut store=Store::open(root.clone())?;
+        let mut model:Value=serde_json::from_slice(include_bytes!("../../crates/library/tests/fixtures/library.json"))?;model["archiveIndex"]=json!([]);
+        let vault=d.path().join("Vault");fs::create_dir(&vault)?;let master=vault.join("Private.ytnh");
+        let info=store.new_portable(&model,&master)?;let id=arg(&info,"id")?.to_owned();
+        // 3: backups next to the library file; existing ones move there.
+        model["items"][0]["title"]=json!("First edit");let saved=store.save(&id,arg(&info,"revision")?,&model)?;
+        assert!(store.app_backups(&id).is_dir());
+        let moved=store.set_backup_location(&id,"beside")?;assert_eq!(moved["backups"],"beside");
+        let beside=vault.join(".Private.ytnh-backups");assert!(beside.is_dir());assert!(!store.app_backups(&id).exists());
+        model["items"][0]["title"]=json!("Second edit");let saved=store.save(&id,arg(&saved,"revision")?,&model)?;
+        assert!(!store.app_backups(&id).exists(),"nothing of this library is backed up in YTNH's folder");
+        assert_eq!(store.backups(&id),beside.canonicalize()?);
+        // A locked or missing folder never blocks saving.
+        let hidden=d.path().join("locked");fs::rename(&vault,&hidden)?;
+        model["items"][0]["title"]=json!("Saved while locked");let saved=store.save(&id,arg(&saved,"revision")?,&model)?;
+        assert!(!vault.exists(),"a locked folder is never recreated by a backup");
+        fs::rename(&hidden,&vault)?;
+        // "off" keeps no backups in YTNH's folder.
+        store.set_backup_location(&id,"off")?;store.save(&id,arg(&saved,"revision")?,&model)?;assert!(!store.app_backups(&id).exists());
+        // 1: closing after a clean save removes the working copy; the setting is kept.
+        let revision=store.repo(&id)?.identity()?.1.unwrap();store.portable_publish(&id,&revision,None)?;
+        assert!(store.portable.close(&id)?);assert_eq!(store.status(&id)?["closed"],true);assert_eq!(store.status(&id)?["backups"],"off");
+        assert_eq!(store.portable.recovery_report()?.copies.len(),0);
+        // 2: forgetting removes the library from this computer; the file and its backups stay.
+        let file=store.entry(&id)?.master.unwrap();store.open_master(&file)?;
+        store.forget(&id,false)?;assert!(store.entry(&id).is_err());assert_eq!(store.cat.last,None);
+        assert_eq!(store.portable.recovery_report()?.copies.len(),0);assert!(store.portable.session(&id)?.is_none());
+        assert!(master.exists());assert!(beside.is_dir());assert!(!store.root.join("portable-backups").join(&id).exists());
+        Ok(())
     }
     #[test]
     fn damaged_catalog_allows_only_explicit_verified_recovery() -> Result<()> {
@@ -908,7 +1173,9 @@ mod tests {
         store.adopt_portable(&copy)?;assert!(store.catalog_issue.is_none());assert_eq!(store.repo(&id)?.load()?,model);
         assert_eq!(fs::read(&master)?,original);
         for e in fs::read_dir(root.join("catalog-recovery"))? { assert_eq!(fs::read(e?.path())?,b"damaged catalog"); }
-        drop(store);assert_eq!(Store::open(root)?.repo(&id)?.load()?,model);Ok(())
+        // After a restart the saved library is closed (no local copy) and opens again from its file.
+        drop(store);let mut store=Store::open(root)?;assert_eq!(store.status(&id)?["closed"],true);
+        let file=store.entry(&id)?.master.unwrap();store.open_master(&file)?;assert_eq!(store.repo(&id)?.load()?,model);Ok(())
     }
     #[test]
     fn registered_legacy_transition_preserves_paused_source_and_rejects_stale_review() -> Result<()> {
@@ -964,9 +1231,12 @@ mod tests {
         let new=d.path().join("Recovered.ytnh");
         store.portable_publish(&id,arg(&saved,"revision")?,Some(&new))?;
         drop(store);
-        let store=Store::open(d.path().join("local"))?;
-        assert!(store.entry(&id)?.portable); assert_eq!(store.repo(&id)?.load()?,model);
-        assert_eq!(store.portable.session(&id)?.unwrap().master,new.canonicalize()?);
+        // Restarting closes the saved library: no working copy stays, and it opens again from the file it was saved to.
+        let mut store=Store::open(d.path().join("local"))?;
+        assert!(store.entry(&id)?.portable); assert_eq!(store.status(&id)?["closed"],true);
+        assert!(store.portable.session(&id)?.is_none()); assert_eq!(store.portable.recovery_report()?.copies.len(),0);
+        assert_eq!(store.entry(&id)?.master,Some(new.canonicalize()?));
+        let file=store.entry(&id)?.master.unwrap();store.open_master(&file)?;assert_eq!(store.repo(&id)?.load()?,model);
         Ok(())
     }
     #[test]
