@@ -2,6 +2,17 @@
 
 User-visible changes to YTNH. Older entries keep their original wording; names such as "Local Notes & Todos", "database" and "master" refer to how the app was called at the time.
 
+## 11.10.0 — 2026-11-28
+
+- **Plan as:** a dropdown (None, Milestone, Target) replaces the separate checkboxes; an item is never both. Notes under a finished parent leave the Outline with it, and Target titles are semi-bold.
+- **Writing:** strikethrough, highlight, links and web addresses turn into formatting as you type, and characters that aren't formatting stay exactly as typed. New shortcuts for strikethrough, highlight and headings; brackets close themselves and wrap selected text; a typed header row starts a table; "1)" lists; pasting a web address over words links them.
+- **Folding:** headings fold the text under them with a chevron or Ctrl/Cmd+., remembered for each item on this computer.
+- **Calendar:** can also list unscheduled Notes on the day they were created or modified. Middle-click or Delete removes a date from an item.
+- **Privacy:** a library's working copy on this computer is removed once everything is saved and the library is closed. Automatic backups can be kept next to the library file or turned off, and a library can be forgotten on this computer. Recover Unsaved Copy can discard a copy.
+- **Backups:** Back Up Library saves a separate .ytnh copy; Export as JSON is its own command. Restore Earlier Version and Recover Unsaved Copy have clearer names.
+- **Fixes:** pasting puts text where you clicked, copying keeps formatting in Word and Outlook, an embed at the end of a note keeps a line after it, tags typed in the text count as the item's own tags, and several keyboard and focus fixes.
+- A new app icon; completed Todos show a check in a blue circle. README screenshots.
+
 ## 11.9.2 — 2026-11-26
 
 - The Calendar's day header matches the Targets month header and says "Week" instead of "Wk".

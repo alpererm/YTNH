@@ -25,13 +25,14 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.deepEqual(await day('2026-11-10'),['Scheduled todo','Scheduled note']);
  // Created: Notes only (not Todos, not archived, not twice on a day they're scheduled), muted, after scheduled ones.
  await set('created');
- assert.deepEqual(await day('2026-11-10'),['Scheduled todo','Scheduled note','~Written Tuesday+']);
+ assert.deepEqual(await day('2026-11-10'),['Scheduled todo','Scheduled note','~Written Tuesday']);
  assert.equal(await page.evaluate(()=>db.settings.calendarNoteDates),'created','saved with the library');
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('#calendarBody .chip.datedNote')).boxShadow),'none','no border around them');
  assert.match(await page.locator('#mainSub').textContent(),/Notes by created date/);
  // Modified uses the last change.
  await set('modified');
  assert.deepEqual(await day('2026-11-10'),['Scheduled todo','Scheduled note']);
- assert.deepEqual(await day('2026-11-12'),['~Written Tuesday✎']);
+ assert.deepEqual(await day('2026-11-12'),['~Written Tuesday']);
  // The control in More filters and the Settings choice follow the setting.
  assert.equal(await page.locator('#calendarNoteDates').inputValue(),'modified');
  await page.evaluate(()=>{const s=$('calendarNoteDates');s.value='created';s.dispatchEvent(new Event('change',{bubbles:true}))});

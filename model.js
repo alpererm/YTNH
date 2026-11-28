@@ -291,7 +291,7 @@ function itemMarker(item,{status=null,date=null,passive=false,code=false,planner
  // In the Outline a recurring Todo uses the plain Todo circle; the repeat icon moves to the right-hand indicators.
  const plainRecurring=outline&&kind==='Recurring Todo',special=!plainRecurring&&!['Note','Todo'].includes(kind);
  // Drawn to one optical size: a Note page is as tall as a Todo circle; Target and Milestone are only a touch larger.
- let shape=kind==='Target'?'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>':kind==='Milestone'?'<path d="m12 3.5 8.5 8.5-8.5 8.5L3.5 12z"/>':kind==='Recurring Todo'&&!plainRecurring?ITEM_ICON_PATHS.repeat:item.type==='Note'?ITEM_ICON_PATHS.note:'<circle cx="12" cy="12" r="8"'+(state==='Done'?' fill="currentColor"':'')+'/>';
+ let shape=kind==='Target'?'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>':kind==='Milestone'?'<path d="m12 3.5 8.5 8.5-8.5 8.5L3.5 12z"/>':kind==='Recurring Todo'&&!plainRecurring?ITEM_ICON_PATHS.repeat:item.type==='Note'?ITEM_ICON_PATHS.note:'<circle cx="12" cy="12" r="8"'+(state==='Done'?' fill="currentColor"':'')+'/>'+(state==='Done'?'<path d="m8.6 12.3 2.5 2.5 4.4-4.9" stroke="var(--bg)" stroke-width="2"/>':''); // Done: a filled circle with a check, as in the app icon
  if(item.type==='Todo'&&special&&['Done','Cancelled','On hold'].includes(state))shape+='<circle cx="19" cy="19" r="5" fill="var(--bg)" stroke="none"/>'+(state==='Done'?'<circle cx="19" cy="19" r="3" fill="currentColor" stroke="none"/>':state==='Cancelled'?'<path d="m16.5 16.5 5 5m0-5-5 5"/>':'<path d="M16 19h6"/>');
  else if(item.type==='Todo'&&state==='Cancelled')shape+='<path d="m8 8 8 8m0-8-8 8"/>';
  else if(item.type==='Todo'&&state==='On hold')shape+='<path d="M7 12h10"/>';
