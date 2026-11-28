@@ -378,7 +378,7 @@ html.no-motion *,html.no-motion *::before,html.no-motion *::after{animation:none
 html.no-motion .navigationFlash{outline:1px solid var(--accent)}
 
 /* Details: one ID row with its copy buttons. */
-:root body #sidebar-details .detailCopyButtons{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+:root body #sidebar-details .detailCopyButtons{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-top:4px;font-size:11px}
 :root body #sidebar-details .detailCopyButtons button{padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--ink);font-size:11px}
 :root body #sidebar-details .detailCopyButtons button:hover{background:var(--soft)}
 
@@ -412,3 +412,65 @@ html.no-motion .navigationFlash{outline:1px solid var(--accent)}
 /* The Calendar's day header matches the Targets month header: normal weight, the first column left-aligned. */
 :root body #calendarBody .weekheader>div{font-weight:400;padding:4px 0}
 :root body #calendarBody .weekheader>div:first-child{text-align:left;padding-left:2px}
+
+/* Targets lead their branch; Notes under a finished parent look finished too when shown. */
+:root body :is(#tree,#pinnedOutline) .row.targetRow .title{font-weight:600}
+:root body #tree .row.inactiveNoteRow :is(.title,.itemMarker){opacity:.6}
+
+/* #51: tags written in the text sit with the item's own tags, without a remove button. */
+:root body #tagChips .tagChip.inTextTag{padding-right:8px;opacity:.85}
+
+/* #46: choice lists in library dialogs. */
+:root body dialog.libraryDialog .libraryChoice{display:block;width:100%;margin-top:4px}
+:root body dialog.libraryDialog .modalactions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+/* #56: the "shown here" flash on an Outline row is a tint across the row, strong enough to see on a selected row.
+   With Reduce motion or Animations off it stays still for its two seconds instead of fading. */
+@keyframes outlineRevealFlash{0%,35%{background-color:color-mix(in srgb,var(--accent) 30%,transparent)}100%{background-color:var(--soft)}}
+:root body :is(#tree,#pinnedOutline) .row.navigationFlash{animation:outlineRevealFlash 2s ease-out}
+@media (prefers-reduced-motion:reduce){:root body :is(#tree,#pinnedOutline) .row.navigationFlash{animation:none;background-color:color-mix(in srgb,var(--accent) 22%,transparent)!important}}
+html.no-motion :is(#tree,#pinnedOutline) .row.navigationFlash{background-color:color-mix(in srgb,var(--accent) 22%,transparent)!important}
+
+/* #43: Archive dialog tools in a menu beside the search field. */
+:root body .archiveTools .archiveSearchRow{display:flex;gap:6px;align-items:center}
+:root body .archiveTools .archiveSearchRow #archiveSearch{flex:1;min-width:0}
+:root body .archiveTools .archiveMore{position:relative;flex:none}
+:root body .archiveTools .archiveMore>summary{list-style:none;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;font-weight:700;color:var(--muted)}
+:root body .archiveTools .archiveMore>summary::-webkit-details-marker{display:none}
+:root body .archiveTools .archiveMore[open]>summary,:root body .archiveTools .archiveMore>summary:hover{background:var(--soft);color:var(--ink)}
+:root body .archiveTools .archiveMoreMenu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;display:grid;gap:6px;width:280px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 8px 24px rgb(0 0 0/.16)}
+:root body .archiveTools .archiveMoreMenu label{display:grid;gap:3px;font-size:12px;color:var(--muted)}
+:root body .archiveTools .archiveMoreMenu :is(input,select){width:100%;height:28px;font-size:12px}
+:root body .archiveTools .archiveMoreMenu button{justify-self:stretch;text-align:left;height:28px;padding:0 10px;font-size:12px}
+:root body .archiveTools .archiveMoreMenu hr{width:100%;border:0;border-top:1px solid var(--line);margin:2px 0}
+:root body .archiveTools .archiveMoreMenu select{padding:0 24px 0 8px;line-height:26px}
+/* #49: links to items read as plain coloured text: no box, shading or icon, underlined on hover. Green, so they
+   stay distinct from inline Todos (accent blue) and every status colour; finished items are not struck through. */
+:root body{--item-link:#2f7a4a}
+:root body[data-theme="dark"]{--item-link:#8ccf9c}
+@media (prefers-color-scheme:dark){:root body:not([data-theme="light"]){--item-link:#8ccf9c}}
+:root body #richEditor .mdref:not(.embedref):not(.brokenref){display:inline;background:none;border:0;border-radius:0;padding:0;margin:0;font-weight:inherit;font-size:inherit;color:var(--item-link);text-decoration:none}
+:root body #richEditor .mdref:not(.embedref):not(.brokenref) .itemMarker{display:none}
+:root body #richEditor .mdref:not(.embedref):not(.brokenref):hover{text-decoration:underline;text-underline-offset:3px}
+:root body #richEditor .mdref:not(.embedref):not(.brokenref)::selection,:root body #richEditor .mdref:not(.embedref):not(.brokenref) *::selection{color:inherit}
+/* #66: highlight (==text==) in the editor, in both themes. */
+:root{--mark-bg:#fbeaa0;--mark-ink:inherit}
+body[data-theme="dark"]{--mark-bg:#5b4c1f;--mark-ink:#f4ead0}
+#richEditor mark,.embedsnippet mark{background:var(--mark-bg);color:var(--mark-ink);border-radius:2px;padding:0 1px}
+/* #57: unscheduled Notes listed by created/modified date: muted, after the scheduled items, with a small mark. */
+#calendarBody .chip.datedNote{opacity:.62;background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+#calendarBody .chip.datedNote:hover,#calendarBody .chip.datedNote.selected,#calendarBody .chip.datedNote:focus-within{opacity:1}
+#calendarBody .chip.datedNote .datedMark{margin-left:auto;padding-left:3px;color:var(--muted);font-size:.9em;flex:none}
+.calendarNoteDatesChoice{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.calendarNoteDatesChoice select{width:auto;padding:2px 6px}
+/* #40: folding headings. The chevron sits in the editor's left padding, like the Outline's: on hover, and
+   always on a folded heading, which ends with "…". Folded sections are hidden, never removed. */
+#richEditor>:is([data-mdblock="h1"],[data-mdblock="h2"],[data-mdblock="h3"],[data-mdblock="h4"],[data-mdblock="h5"],[data-mdblock="h6"]).foldable{position:relative}
+#richEditor>.foldable::before{content:"";position:absolute;left:-16px;top:calc(.8em - 7px);width:14px;height:14px;background:var(--muted);opacity:0;cursor:pointer;
+ -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center/contain no-repeat;
+ mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center/contain no-repeat;transition:opacity .12s}
+#richEditor>.foldable:hover::before{opacity:.75}
+#richEditor>.foldable.folded::before{opacity:.75;transform:rotate(-90deg)}
+#richEditor>.folded::after{content:" …";color:var(--muted);font-weight:400}
+#richEditor>.foldHidden{display:none!important}
+.no-motion #richEditor>.foldable::before{transition:none}
+@media (prefers-reduced-motion:reduce){#richEditor>.foldable::before{transition:none}}

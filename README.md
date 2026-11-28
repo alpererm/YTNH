@@ -4,6 +4,8 @@
 
 YTNH is a local-first desktop app for Windows and macOS. It combines a hierarchical Outline, a rich-text editor, a Calendar with a Daily Planner, and a five-year view of Targets in one workspace. Everything lives in a library file that you control. There's no account, server or telemetry.
 
+![The Outline beside the Calendar](docs/screenshots/outline-calendar.png)
+
 ## New to YTNH? Take the Tour
 
 The first time you open YTNH, choose **Take the Tour**, or later **☰ → Open the Tour…**. It creates a practice library with short hands-on exercises that walk you through every part of the app in a few minutes. Your own libraries are never touched.
@@ -12,7 +14,7 @@ The first time you open YTNH, choose **Take the Tour**, or later **☰ → Open 
 
 - **Organise in an Outline.** Notes and Todos side by side, nested as deep as you like, with headings that divide a project into sections, tags that children inherit, filters and grouping.
 - **Finish things with satisfaction.** Completing a Todo ticks it, leaves it in place for a moment so you can undo, then moves it out of the way. Todos can also be Waiting for, On hold or Cancelled.
-- **Write naturally.** Rich text with headings, lists (numbered from any number), checklists, quotes, tables, code blocks and images, with Markdown underneath and a Source view. Type `/` for a menu of blocks; select text for a formatting toolbar. Focus Mode hides everything but your writing.
+- **Write naturally.** Rich text with headings you can fold, lists (numbered from any number), checklists, highlights, quotes, tables, code blocks and images, with Markdown underneath and a Source view. Markdown turns into formatting as you type. Type `/` for a menu of blocks; select text for a formatting toolbar. Focus Mode hides everything but your writing.
 - **Capture tasks inside your writing.** Type `<call the supplier>` in a sentence and it becomes a real Todo, with an optional date, parent and status, without leaving the sentence.
 - **Link ideas.** Type `[[` to link or embed another item from suggestions that appear as you type; links survive renaming and moving, and every item shows its backlinks.
 - **Plan your time.** Schedule items on the Calendar by dragging, repeat Todos daily, weekly or monthly, and plan the day hour by hour in the Daily Planner. Small icons in the Outline show what's scheduled, repeating, planned or overdue, and take you there. One set of status colours is used everywhere.
@@ -21,6 +23,15 @@ The first time you open YTNH, choose **Take the Tour**, or later **☰ → Open 
 - **Bring your notes and meetings.** Import a folder of Markdown files (subfolders, front matter tags and dates, images and links included) and meetings from an Outlook calendar export.
 - **Work from the keyboard.** Shortcuts for nearly everything, shown in tooltips and menus; on macOS every command is also in the menu bar. See ☰ → Help.
 - **Make it yours.** Paper White and Graphite Dark themes, fonts, interface and editor sizes, and a Calendar-first or editor-first layout.
+
+## Screenshots
+
+| | |
+| --- | --- |
+| ![The editor with headings, lists, a checklist, a quote and a table](docs/screenshots/editor.png) | ![The Daily Planner beside the Calendar](docs/screenshots/daily-planner.png) |
+| **Write** with headings, lists, checklists, highlights, quotes and tables. | **Plan the day** hour by hour in the Daily Planner. |
+| ![Targets across five years](docs/screenshots/targets.png) | ![The Graphite Dark theme](docs/screenshots/dark.png) |
+| **Think long-term** with Targets across five years. | **Graphite Dark**, or Paper White. |
 
 ## Download
 

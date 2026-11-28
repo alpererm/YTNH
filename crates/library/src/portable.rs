@@ -2,6 +2,7 @@
 //! Creation never overwrites a file; publication uses the explicit expected fingerprint.
 //! No cloud coordination or provider-specific behavior is implemented.
 //! Hosts must supply an application-controlled LOCAL root, not a synced directory.
+mod cleanup;
 mod publication;
 
 use crate::{canonical, images, transfer, Repository, Result, V};
@@ -473,7 +474,8 @@ impl WorkingCopy {
     }
 }
 /// One lock for this local store, retained across local editing. No shared/cloud locks.
-/// New generations are immutable activations; old copies are retained without automatic pruning.
+/// New generations are immutable activations. Old copies are pruned only when their content is
+/// preserved (see cleanup.rs); copies with unsaved work are kept for explicit recovery.
 pub struct WorkingStore {
     root: PathBuf,
     _lock: File,

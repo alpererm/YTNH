@@ -59,11 +59,11 @@ Press **Esc** to go back to the Outline, then mark this Todo done.`,ch1);
    const ch2=todo('2 · Organise a project','A project is any Todo with children. Headings divide a project into sections without adding another level.');
    note('Preparation','',ch2,{heading:true});
    todo('Click the arrow beside “Preparation” to fold this section',null,ch2);
-   todo('Right-click this circle to see the other statuses','Todos can be Todo, Done, Waiting for, On hold or Cancelled. A middle-click cancels.',ch2);
+   todo('Right-click this circle to see the other statuses','Todos can be Todo, Done, Waiting for, On hold or Cancelled.',ch2);
    todo('Waiting for: a reply from the printer',null,ch2,{status:'Waiting for'});
    note('Delivery','',ch2,{heading:true});
    todo('Select a Todo in this project and press H to add a heading below it','Headings are labels only: they have no status or dates. Right-click a heading to rename it or turn it into a real parent.',ch2);
-   todo('Open the side panel (Properties) and add the tag “home” to this Todo','Press '+key('Mod+Backslash')+' to show or hide the side panel. Tags you add to a parent are inherited by everything inside it.',ch2);
+   todo('Open the side panel (Properties) and add the tag “home” to this Todo','Press '+key('Mod+Backslash')+' to show or hide the side panel. Tags you add to a parent are inherited by everything inside it. You can also type a tag in the text: a hash sign followed by the name.',ch2);
 
    // 3 · Write in the editor
    const ch3=note('3 · Write in the editor','');
@@ -71,10 +71,19 @@ Press **Esc** to go back to the Outline, then mark this Todo done.`,ch1);
    ch3.content=(
 `The editor is rich text with Markdown underneath. Type these at the **start of a line**:
 
-- \`- \` for a bullet, \`1. \` for a numbered list (start with any number, such as \`5. \`)
+- \`- \` for a bullet, \`1. \` or \`1) \` for a numbered list (start with any number, such as \`5. \`)
 - \`[] \` for a checklist
 - \`> \` for a quote, \`# \` to \`### \` for headings
 - \`---\` for a divider, three backticks and Enter for a code block
+- a header row such as \`| Name | Date |\` and Enter for a table
+
+## Formatting as you type
+
+Type \`**bold**\`, \`*italic*\`, \`~~strikethrough~~\`, \`==highlight==\` or \`[text](https://example.com)\`: it turns into formatting as soon as you type the closing mark, and a web address becomes a link when you type a space after it. Brackets close themselves, and typing a bracket or \`*\` with words selected wraps them. Shortcuts: ${key('Mod+Shift+X')} strikethrough, ${key('Mod+Shift+H')} highlight, ${key('Mod+Alt+1')} to ${key('Mod+Alt+6')} headings.
+
+## Fold a section
+
+Hover over a heading in this note and click the small chevron to its left: everything up to the next heading of the same level folds away. ${key('Mod+.')} folds or unfolds the section you're in. Folding only changes what you see on this computer, never the note.
 
 ## Or use the slash menu
 
@@ -135,6 +144,7 @@ Type \`!<\` to pick an existing Todo. It's shown in the sentence the same way, a
 
 Angle brackets that look like code, web addresses or comparisons (such as \`a < b\`) are left alone.`,ch3);
    todo('Open “Todos inside your writing” and create an inline Todo',`Try: \`<buy stamps @tomorrow>\`, then right-click the result to mark it done.`,ch3);
+   todo('Fold the section “Links between items” in “3 · Write in the editor”','Open the chapter, hover over that heading and click the chevron to its left, or put the cursor under it and press '+key('Mod+.')+'. Click the chevron again to unfold it.',ch3);
 
    // 4 · Plan your time
    const ch4=todo('4 · Plan your time','Items appear on the Calendar on their scheduled dates. Show the Calendar with '+key('Mod+3')+'.');
@@ -142,7 +152,8 @@ Angle brackets that look like code, web addresses or comparisons (such as \`a < 
    todo('Drag my Calendar chip to another day',null,ch4,{scheduledDates:[addDays(date,1)]});
    todo('Water the plants','This Todo repeats every week; the repeat icon on the right shows its next date. Completing it finishes only this week’s occurrence. A Todo whose dates have all passed gets a red calendar icon, so overdue work stands out.',ch4,{recurrence:{frequency:'weekly',interval:1,startDate:date}});
    const planned=todo('Open the Daily Planner to see when this is planned','Press '+key('Mod+Shift+D')+' or use the panel button beside Targets. Click an empty time slot to plan something new, or drag an item from the Outline onto the timeline. The clock icon on this row jumps to the session.',ch4);
-   todo('Click an empty part of a day in the Calendar','The Outline then shows only that day’s items. Press Esc to show everything again.',ch4);
+   todo('Double-click an empty part of a day in the Calendar','A click selects the day; a double-click (or Enter) shows only that day’s items in the Outline. Press Esc to show everything again.',ch4);
+   todo('Show the Notes you wrote today on the Calendar','Open Filters ('+key('Alt+Shift+F')+'), then More, and set **Notes in Calendar by** to Created. Unscheduled Notes appear greyed out on the day they were written; drag one onto a day to schedule it. Set it back to Off when you’re done.',ch4);
    // A session later today (or tomorrow morning if it's late).
    const clock=minutes??(new Date().getHours()*60+new Date().getMinutes());
    let day=date,startAt=Math.ceil((clock+1)/60)*60;
@@ -152,8 +163,8 @@ Angle brackets that look like code, web addresses or comparisons (such as \`a < 
    // 5 · Think long-term
    const month=date.slice(0,7),later=addDays(date,120).slice(0,7);
    const ch5=todo('5 · Think long-term','Targets show work that spans months; Milestones mark a week. Open Targets with '+key('Mod+4')+'.');
-   const goal=todo('Finish the tour (a Target)','A Target is a Todo with a start and end month, shown as a bar in Targets. Items under it count towards it.',ch5,{target:{startMonth:month,endMonth:later}});
-   todo('Try every chapter (a Milestone)','A Milestone is a Todo planned for a week. Mark it done and watch the count on the Target bar change.',goal,{milestone:{targetWeek:isoWeekKey(date)}});
+   const goal=todo('Finish the tour (a Target)','A Target is a Todo with a start and end month, shown as a bar in Targets: choose **Plan as → Target** in the side panel. Items under it count towards it.',ch5,{target:{startMonth:month,endMonth:later}});
+   todo('Try every chapter (a Milestone)','A Milestone is a Todo planned for a week (**Plan as → Milestone**). Mark it done and watch the count on the Target bar change.',goal,{milestone:{targetWeek:isoWeekKey(date)}});
    todo('Open Targets and find the bar for “Finish the tour”',null,ch5);
 
    // 6 · Find things
@@ -169,7 +180,7 @@ Angle brackets that look like code, web addresses or comparisons (such as \`a < 
 
 A library is one \`.ytnh\` file in a folder you choose, such as a OneDrive folder. Changes save automatically while you work; **Save** (${key('Mod+S')}) and closing the app update the file. Keep a copy with ☰ → Back Up Library….
 
-YTNH has no account and sends nothing anywhere.
+YTNH has no account and sends nothing anywhere. While a library is open, YTNH works on a copy of it on this computer; once everything is saved, that copy is removed when you close the library or open another one. For a library in an encrypted or private folder, ☰ → Automatic Backups… keeps its backups next to the file or turns them off, and ☰ → Forget This Library on This Computer… removes everything YTNH kept of it here.
 
 ## Bring things in
 
@@ -178,7 +189,7 @@ YTNH has no account and sends nothing anywhere.
 
 ## Make it yours
 
-- **Settings** (${key('Mod+,')}), in four tabs: General (whether the app opens on the Calendar or the editor), Appearance (theme, font, sizes), Editor (width, spelling, scroll past end) and Calendar (Daily Planner hours, weekends).
+- **Settings** (${key('Mod+,')}), in four tabs: General (whether the app opens on the Calendar or the editor), Appearance (theme, font, sizes, tags under items), Editor (width, spelling, scroll past end) and Calendar (Daily Planner hours, weekends, Notes by date).
 - **Help** (?): every feature and keyboard shortcut, with search.
 
 You've reached the end of the tour. Open your own library with ☰ → Open Library…, or start a new one with ☰ → New Library….`);

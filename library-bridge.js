@@ -4,6 +4,29 @@ function createDesktopLibraries(call) {
   const cancel = () => new DOMException('Cancelled', 'AbortError');
   let busy = false;
 
+  // #46: a dialog that lists many choices (backups, recovery copies, archives) shows them in a dropdown with one
+  // action button and Cancel, instead of a row of buttons that runs off the edge.
+  function chooseFrom(title, message, choices, actionLabel, selected, extra) {
+    return new Promise(resolve => {
+      const dialog = document.createElement('dialog');dialog.className = 'libraryDialog';
+      const heading = document.createElement('h3');heading.textContent = title;
+      const text = document.createElement('p');text.textContent = message;
+      const select = document.createElement('select');select.className = 'field libraryChoice';select.setAttribute('aria-label', title);
+      for (const [value, label] of choices) { const option = document.createElement('option');option.value = value;option.textContent = label;select.append(option); }
+      const actions = document.createElement('div');actions.className = 'modalactions';
+      const finish = (choice, value = '') => { dialog.close(); dialog.remove(); resolve({choice, value}); };
+      const go = document.createElement('button');go.className = 'primary';go.textContent = actionLabel;go.onclick = () => finish(select.value);
+      const cancel = document.createElement('button');cancel.textContent = 'Cancel';cancel.onclick = () => finish('cancel');
+      // With nothing valid to choose (for example only damaged recovery copies), offer just Cancel.
+      // An optional second action (for example Discard) works on the selected choice.
+      const more = extra && choices.length ? Object.assign(document.createElement('button'), {textContent: extra[1], onclick: () => finish(extra[0], select.value)}) : null;
+      if (choices.length) { actions.append(...(more ? [more] : []), cancel, go);dialog.append(heading, text, select, actions); } else { actions.append(cancel);dialog.append(heading, text, actions); }
+      dialog.addEventListener('cancel', event => { event.preventDefault(); finish('cancel'); });
+      dialog.onkeydown = event => { event.stopPropagation(); if (event.key === 'Enter' && event.target === select) { event.preventDefault(); finish(select.value); } };
+      if (selected !== undefined) select.value = selected;
+      document.body.append(dialog); dialog.showModal(); (choices.length ? select : cancel).focus();
+    });
+  }
   function question(title, message, buttons, field) {
     return new Promise(resolve => {
       const dialog = document.createElement('dialog');
@@ -106,13 +129,28 @@ function createDesktopLibraries(call) {
     for(;;){
       try{return await action('portable_reopen',{id:handle.id})}
       catch(error){
-        const reply=await question('Library file unavailable',error.message+' Your local working copy is retained.',[['retry','Retry'],['recover','Recover local work'],['cancel','Cancel']]);
+        const reply=await question('Library file unavailable',error.message+' Your local working copy is retained. If you deleted the library file on purpose, Forget on This Computer removes what YTNH kept of it here.',[['retry','Retry'],['recover','Recover local work'],['forget','Forget on This Computer'],['cancel','Cancel']]);
         if(reply.choice==='retry')continue;
+        if(reply.choice==='forget'){await forgetLibrary(handle.id,handle.name);throw cancel()}
         if(reply.choice!=='recover')throw cancel();
         const record=await action('portable_recover',{id:handle.id});
         handle.masterIssue=error.message;return record;
       }
     }
+  }
+  // Removes everything YTNH keeps about a library on this computer. Unsaved local edits are only
+  // discarded after a second, explicit confirmation. Returns false when cancelled.
+  async function forgetLibrary(id,name){
+    const reply=await question('Forget “'+name+'” on this computer?','YTNH removes its local copies, its automatic backups in YTNH’s folder and its place in Open Recent from this computer. The library file itself, and any backups next to it, are not touched; open it again with Open Library….',[['cancel','Cancel'],['forget','Forget']]);
+    if(reply.choice!=='forget')return false;
+    try{await action('portable_forget',{id})}
+    catch(error){
+      const again=await question('Local edits aren’t in the library file',error.message,[['cancel','Cancel'],['discard','Discard and Forget']]);
+      if(again.choice!=='discard')return false;
+      await action('portable_forget',{id,discard:true});
+    }
+    toast('“'+name+'” is forgotten on this computer');
+    return true;
   }
   async function savePortable(handle,{closing=false,saveAs=false}={}){
     let asNew=saveAs;
@@ -187,7 +225,8 @@ function createDesktopLibraries(call) {
     }
     async reverify(){
       if(!this.portable)throw new Error('Convert the registered local library before editing.');
-      await action('portable_recover',{id:this.id});this.checked=true;
+      // A library whose local copy was removed after a clean save opens again from its file.
+      await action(this.closed?'portable_reopen':'portable_recover',{id:this.id});this.closed=false;this.checked=true;
     }
     async saveModel(model){
       if(!this.revision)throw new Error('Verify and open this local library before saving.');
@@ -200,11 +239,20 @@ function createDesktopLibraries(call) {
   }
 
   async function activate(handle){
+    const previous=storage.handle;
     const file=await handle.getFile();
     const text=await file.text(),model=migrateDatabase(JSON.parse(text));
     storage.handle=handle;storage.name=handle.name;storage.lastLoadedText=text;
     installDatabase(model,!!model.__migratedFromSchema);
     await rememberLastFile();
+    // The library we switched away from was saved first: keep nothing of it on this computer.
+    if(previous?.portable&&previous.id!==handle.id)await closeLocalCopy(previous);
+  }
+  // Removes a library's local working copy once everything in it is in the library file. The copy
+  // stays (for Recover Unsaved Copy) whenever something isn't saved to the file yet.
+  async function closeLocalCopy(handle){
+    try{const result=await action('portable_close',{id:handle.id});if(result?.closed){handle.closed=true;handle.checked=false}}
+    catch(error){console.warn('The local copy was kept',error)}
   }
   async function flush(){
     flushPendingInputs();if(savePromise)await savePromise;
@@ -248,12 +296,15 @@ function createDesktopLibraries(call) {
   }
   function setup(){
     if(window.notesDesktop.sqlite.imageEditing)addMenu('Export Note as Markdown…',exportDocument,'exportMarkdown');
+    // #45: the open-format export stays available beside the .ytnh backup.
+    addMenu('Export as JSON…',async()=>{await flush();const dest=await exportModel(storage.handle,db);if(dest)toast('JSON export saved')},'exportJson');
 
-    const restore=addMenu('Restore Backup…',async()=>{
+    const restore=addMenu('Restore Earlier Version…',async()=>{
       const handle=storage.handle;if(!handle?.sqlite)return;await flush();
       const backups=await action('backups',{id:handle.id});
       if(!backups.length){toast('No local backups are available yet.');return;}
-      const answer=await question('Restore local backup','Choose a backup to restore as a new revision. The current state will be backed up first.',[...backups.map(name=>[name,(name.startsWith('legacy-')?'Previous library · ':'')+new Date(Number(name.replace(/^legacy-/, '').split('-')[0])).toLocaleString('en-GB',{hourCycle:'h23'})]),['cancel','Cancel']]);
+      const when=name=>Number(name.replace(/^legacy-/, '').split('-')[0]);
+      const answer=await chooseFrom('Restore Earlier Version','Go back to an earlier state of this library, from the automatic backups YTNH keeps on this computer. Your current state is backed up first, so you can return to it.',[...backups].sort((a,b)=>when(b)-when(a)).map(name=>[name,(name.startsWith('legacy-')?'Previous library · ':'')+new Date(when(name)).toLocaleString('en-GB',{hourCycle:'h23'})]),'Restore');
       if(answer.choice==='cancel')return;
       const r=await action('restore_backup',{id:handle.id,revision:handle.revision,backup:answer.choice});
       if(r)await activate(new LibraryHandle(handle));
@@ -261,7 +312,7 @@ function createDesktopLibraries(call) {
     const archive=addMenu('Restore Cold Archive…',async()=>{
       const handle=storage.handle;if(!handle?.sqlite)return;await flush();
       const files=new Map(db.archiveIndex.map(e=>[e.archiveId||e.archiveFile,e.archiveFile]));
-      const result=await question('Cold archives','Choose an archive to restore.',[...files.entries(),['cancel','Cancel']]);
+      const result=await chooseFrom('Restore Cold Archive','Choose an archive to restore.',[...files.entries()],'Restore');
       if(result.choice==='cancel')return;
       const text=await action('read_archive',{id:handle.id,archive:result.choice});
       if(await restoreColdArchiveFile(new File([text],files.get(result.choice)))){render();await flush();}
@@ -274,16 +325,41 @@ function createDesktopLibraries(call) {
     $('newFile').onclick=()=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_new',{model:createEmptyDatabase()}))}).catch(report);
     $('saveFile').onclick=()=>storage.handle?.portable?exclusive(()=>savePortable(storage.handle)).catch(report):requestDatabaseSave({manual:true});
     const saveAs=addMenu('Save As…',()=>savePortable(storage.handle,{saveAs:true}),'saveAsFile','afterSave');
-    addMenu('Recover Local Library…',async()=>{
+    addMenu('Recover Unsaved Copy…',async()=>{
       if(!await beforeSwitch())return;
       const report=await action('portable_recovery_list'),copies=report.copies;
       const warnings=report.issues.map(i=>i.copy+': '+i.error).join('\n');
-      if(!copies.length&&!warnings){toast('No local portable recovery copies are available.');return}
-      const message='Choose a verified retained copy explicitly. No copy is selected automatically. Saving still checks the library file for conflicts.'+(warnings?'\n\nSome recovery records could not be verified. Their original bytes are retained when you explicitly recover a verified copy:\n'+warnings:'');
-      const reply=await question('Local recovery copies',message,[...copies.map(c=>[c.copy,c.name+' · '+String(c.revision||'').slice(0,8)+(c.unpublished?' · local edits':'')]),['cancel','Cancel']]);
+      if(!copies.length&&!warnings){toast('No unsaved copies are kept on this computer.');return}
+      const message='Open a copy that YTNH kept on this computer because its work wasn’t saved to the library file yet, for example after a crash or when the file couldn’t be saved. Copies are removed from this computer once their work is in the library file. Saving checks the library file for conflicts.'+(warnings?'\n\nSome recovery records could not be verified. Their original bytes are retained when you explicitly recover a verified copy:\n'+warnings:'');
+      const reply=await chooseFrom('Recover Unsaved Copy',message,copies.map(c=>[c.copy,c.name+' · '+String(c.revision||'').slice(0,8)+(c.unpublished?' · local edits':'')]),'Open',undefined,['discard','Discard…']);
       if(reply.choice==='cancel')return;
+      if(reply.choice==='discard'){
+        const copy=copies.find(c=>c.copy===reply.value);if(!copy)return;
+        if(!await appConfirm('Discard this copy?','The copy of “'+copy.name+'” kept on this computer is deleted'+(copy.unpublished?', including its edits that aren’t in a library file':'')+'. This can’t be undone. The library file itself is not touched.','Discard'))return;
+        await action('portable_discard_copy',{copy:copy.copy,open:storage.handle?.id||''});
+        toast('Copy discarded');return;
+      }
       await activateRecord(await action('portable_adopt',{copy:reply.choice}));
     },'recoverLibrary');
+    // Privacy: where this library's automatic backups go on this computer.
+    addMenu('Automatic Backups…',async()=>{
+      const handle=storage.handle;if(!handle?.portable){toast('Open a library file first.');return}
+      const current=(await action('status',{id:handle.id})).backups||'app';
+      const reply=await chooseFrom('Automatic Backups','YTNH keeps automatic backups of “'+storage.name+'” for Restore Earlier Version and item History. For a library kept in an encrypted or private folder, keep them next to the library file (in a hidden folder, locked with it) or turn them off. This choice applies on this computer.',
+        [['app','In YTNH’s folder on this computer'],['beside','Next to the library file'],['off','Don’t keep automatic backups']],'Apply',current);
+      if(reply.choice==='cancel'||reply.choice===current)return;
+      if(reply.choice==='off'&&!await appConfirm('Delete automatic backups?','The automatic backups of this library in YTNH’s folder are deleted, and Restore Earlier Version and History will have nothing to show.','Delete Backups'))return;
+      await action('backup_location',{id:handle.id,mode:reply.choice});
+      toast(reply.choice==='beside'?'Backups are kept next to the library file':reply.choice==='off'?'Automatic backups are off for this library':'Backups are kept in YTNH’s folder');
+    },'backupLocation');
+    // Privacy: remove everything YTNH keeps about this library on this computer.
+    addMenu('Forget This Library on This Computer…',async()=>{
+      const handle=storage.handle;if(!handle?.portable){toast('Open a library file first.');return}
+      // Save first, so nothing is lost when the library file is available.
+      if(!handle.masterIssue&&!await savePortable(handle))return;
+      if(!await forgetLibrary(handle.id,storage.name))return;
+      storage.handle=null;markClean();location.reload();
+    },'forgetLibrary');
   }
   return {
     setup,get busy(){return busy},
@@ -294,6 +370,10 @@ function createDesktopLibraries(call) {
     remember:id=>action('remember',{id}),
     newLibrary:(model,name)=>exclusive(async()=>{if(!await beforeSwitch())return;await activateRecord(await action('portable_new',{model,name}))}).catch(report),
     exportModel,cleanImages:()=>exclusive(cleanImages).catch(report),
+    // #45: Back Up Library… saves a complete .ytnh copy that Open Library can open again.
+    backupCopy:()=>exclusive(async()=>{const handle=storage.handle;if(!handle?.sqlite)return null;await flush();
+      const base=String(storage.name||'Library').replace(/\.ytnh$/i,'').replace(/[\\/]/g,'-'),name=`${base} backup ${new Date().toISOString().slice(0,10)}.ytnh`;
+      return action('backup_copy',{id:handle.id,model:db,name})}),
     // Earlier versions of one item from this library's automatic backups (read-only).
     itemHistory:item=>storage.handle?.sqlite?action('item_history',{id:storage.handle.id,item}):Promise.resolve([]),
     imageEditing: /* image-preview-build */ false,
@@ -306,7 +386,9 @@ function createDesktopLibraries(call) {
       const h=storage.handle;if(!h?.sqlite)return true;
       return exclusive(async()=>{
         if(!h.portable)throw new Error('Convert the registered local library before closing with edits. Local work is retained.');
-        return savePortable(h,{closing:true});
+        const saved=await savePortable(h,{closing:true});
+        if(saved)await closeLocalCopy(h);
+        return saved;
       });
     }
   };

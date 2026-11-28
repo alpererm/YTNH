@@ -316,7 +316,7 @@ body{font-family:var(--app-font,system-ui,-apple-system,"Segoe UI",sans-serif);f
 .chip.milestone-unrelated{opacity:.45}
 .weekrow.milestone-drop{outline:2px dashed var(--accent);outline-offset:-2px}
 .milestoneCount{flex:none;margin-left:auto;padding:1px 4px;border-radius:4px;background:var(--panel);color:var(--ink);font-size:10px}
-#milestoneFields{margin-top:8px;max-width:420px}#milestoneHint{display:block;color:var(--muted);font-size:11px;margin-top:5px}
+#milestoneFields,#targetFields{margin-top:8px;max-width:420px}#milestoneFields label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}#planBox .planKindLabel{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 
 .targetBar:has(.milestoneCount){display:flex;align-items:center;gap:4px}
 .targetBar:has(.milestoneCount)>span:first-child{flex:1;min-width:0}

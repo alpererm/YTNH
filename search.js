@@ -56,7 +56,7 @@ function termTier(term,title,titleWords,body,bodyWords,codes){
  if(bodyWords.some(w=>fuzzyWordMatch(term,w)))return 9;
  return Infinity;
 }
-function inactiveRank(item){return item?.type!=='Todo'?0:({'On hold':1,Done:2,Cancelled:3}[item.status]||0)}
+function inactiveRank(item){if(item?.type==='Note')return inactiveTodoAbove(item)?2:0;return item?.type!=='Todo'?0:({'On hold':1,Done:2,Cancelled:3}[item.status]||0)}
 // stable: equally good results keep their given (Outline) order, so moving items in search results stays predictable.
 function rankItems(items,query,{title=i=>i.title,body=i=>descriptionSearchText(i.content),codes=i=>itemSearchCodes(db,i),item=i=>i,stable=false}={}){
  const terms=Array.isArray(query)?query.map(t=>searchFold(t)).filter(Boolean):searchTerms(query);

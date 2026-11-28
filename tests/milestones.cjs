@@ -6,7 +6,7 @@ const {chromium,webkit}=require(process.env.PLAYWRIGHT_MODULE||'playwright');con
  await page.goto(require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../app.html')).href);
  const evalp=fn=>page.evaluate(fn);
  await evalp(()=>{installDatabase(createEmptyDatabase());db.settings.hideWeekends=false;$('showDone').checked=true;const target=createItem(db,'Todo');target.title='Equipment';target.target={startMonth:'2026-10',endMonth:'2027-03'};const m=createItem(db,'Todo',target.id);m.title='Requirements agreed';const child=createItem(db,'Note',m.id);child.title='Technical requirements';child.scheduledDates=['2026-11-03'];const deep=createItem(db,'Todo',child.id);deep.title='Review';deep.scheduledDates=['2026-11-04'];const unrelated=createItem(db,'Todo');unrelated.title='Unrelated';unrelated.scheduledDates=['2026-11-03'];window.ids={target:target.id,m:m.id,child:child.id,deep:deep.id,unrelated:unrelated.id};weekAnchor=new Date('2026-11-02T12:00:00');edit(m.id)});
- await page.locator('#milestoneEnabled').check();await page.locator('#milestoneWeek').fill('2026-W45');await page.locator('#milestoneWeek').dispatchEvent('change');
+ await page.locator('#planKind').selectOption('milestone');await page.locator('#milestoneWeek').fill('2026-W45');await page.locator('#milestoneWeek').dispatchEvent('change');
  assert.deepEqual(await evalp(()=>[itemById(db,ids.m).milestone,itemById(db,ids.m).scheduledDates]),[{targetWeek:'2026-W45'},[]]);
  await evalp(()=>{const second=createItem(db,'Todo',ids.target);second.title='Supplier evaluation';second.milestone={targetWeek:'2026-W45'};ids.second=second.id;showCalendar()});
  const ids=await evalp(()=>window.ids);const chip=id=>page.locator(`[data-milestone-id="${id}"]`);

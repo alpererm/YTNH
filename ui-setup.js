@@ -298,6 +298,7 @@ function initDocumentFind(){
    prev.disabled=next.disabled=!matches.length;replace.disabled=!matches.length||!!matches[index].protectedText;all.disabled=!matches.some(m=>!m.protectedText);
    if(sourceMode()){drawSource(scroll);return}
    if(!matches.length)return;
+   if(scroll&&typeof revealEditorBlock==='function')revealEditorBlock(bodyBlock(matches[index].range.startContainer)); // #40: unfold the section holding the match
    if(globalThis.Highlight&&CSS.highlights){const other=new Highlight();for(const m of matches)other.add(m.range);CSS.highlights.set('doc-matches',other);CSS.highlights.set('doc-current',new Highlight(matches[index].range))}
    if(scroll){const pane=rich.closest('.documentScroll'),box=pane.getBoundingClientRect(),r=matches[index].range.getBoundingClientRect();if(r.top<box.top||r.bottom>box.bottom)pane.scrollTop+=r.top-box.top-box.height/2}
  }
@@ -405,6 +406,23 @@ function initManagedImageImports(){
    if(!image)throw new DOMException('Cancelled','AbortError');
    return image;
  }
+ // #66: a typed ![alt](https://…) line imports that image into the library and shows it.
+ const importingTyped=new WeakSet();
+ window.importTypedImage=async block=>{
+   const m=/^!\[([^\]\n]*)\]\(([^)\s]+)\)$/.exec(richBlockPlainText(block).replace(/\u200b/g,'').trim());
+   const dest=here();if(!m||!dest||importingTyped.has(block))return;
+   importingTyped.add(block);
+   try{
+     const asset=await reference(dest.lib,m[2]);
+     if(!block.isConnected||db!==dest.model||selected!==dest.id||storage.handle?.id!==dest.lib)throw Error('The document changed during import. Retry.');
+     forceRichHistoryCheckpoint();track(asset,asset.name);
+     const holder=document.createElement('div');holder.innerHTML=markdownToEditorHTML(managedImageMarkdown(m[1]||asset.name.replace(/\.[^.]+$/,''),asset.hash,asset.extension));
+     const image=holder.firstElementChild;block.replaceWith(image);
+     let next=image.nextElementSibling;if(!next||next.dataset.mdblock!=='p'||richBlockPlainText(next)){next=document.createElement('div');next.dataset.mdblock='p';next.innerHTML='<br>';image.after(next)}
+     placeCaretAtBodyStart(next);rememberRichSelection();syncModelFromRich();
+   }catch(error){if(error.name!=='AbortError')toast(error.message)}
+   finally{importingTyped.delete(block)}
+ };
  function openImageHit(e){
    const hit=e.target.closest('.imageSearchHit');if(!hit||(e.type==='pointerdown'&&e.button!==0))return;
    e.preventDefault();e.stopImmediatePropagation();const index=Number(hit.dataset.imageIndex),id=hit.closest('[data-id]').dataset.id;

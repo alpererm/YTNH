@@ -79,8 +79,9 @@ function quickCreateRoot(type,{heading=false}={}){
   if(spot&&spot.item.id!==branchZoomRoot){const after=new OutlineLocations(db);after.move(after.primary(i),spot.parent,graph.siblings(spot.parent).indexOf(spot)+1);after.commit(false)}
   else if(!graph&&sibling&&sibling.id!==branchZoomRoot){const siblings=childrenOf(db,parentId).filter(x=>x.id!==i.id);moveItem(db,i.id,parentId,siblings.findIndex(x=>x.id===sibling.id)+1)}
   outlineCreation={...draft,id:i.id};selected=i.id;completeSearchAction(i.id);
-  if(heading)renderTree();else if(appearance.defaultView==='editor')edit(i.id);else showCalendar();revealOutlineItem(i.id);
-  startInlineEdit(i.id);
+  const inEditor=!heading&&(draft.editorOpen||appearance.defaultView==='editor');
+  if(heading)renderTree();else if(inEditor)edit(i.id);else showCalendar();revealOutlineItem(i.id);
+  if(inEditor)beginNewItemTitle(i.id);else startInlineEdit(i.id);
   toast(heading?'Heading created':`${type} created`);
 }
 
@@ -226,6 +227,7 @@ function weekdaysInclusive(start,end){
 // changes through the item's marker, never by clicking the title.
 function selectAndReveal(id){
  const item=itemById(db,id);if(!item)return;
+ if($('layout').classList.contains('editor-focus'))setEditorFocus(false); // #59: the Outline is hidden in Focus Mode
  clearTimeout(calendarSingleClickTimer);calendarSingleClickTimer=null;
  if(item.archived){selected=id;toast('This item is archived. Restore it from ☰ → Archive… to see it in the Outline.');return}
  revealOutlineItem(id,{flash:true});
@@ -295,3 +297,16 @@ function moveItemTo(id){
 
 // One date format for dates shown as text: 24/11/2026 (date inputs keep the system's own picker format).
 function displayDate(isoDate){const d=new Date(String(isoDate).slice(0,10)+'T12:00:00');return isNaN(d)?String(isoDate||''):d.toLocaleDateString('en-GB')}
+
+// #52: with the editor open (or in Editor-first mode) a new item starts in the editor's title, its
+// "Untitled …" text selected so typing replaces it. Esc before typing removes the new item again.
+function beginNewItemTitle(id){
+ edit(id);setView('editor');const title=$('editorTitle');title.focus({preventScroll:true});title.select();
+ const typed=()=>{if(outlineCreation?.id===id)outlineCreation=null;title.removeEventListener('input',typed)};
+ title.addEventListener('input',typed);
+}
+function cancelOutlineCreation(){
+ const draft=outlineCreation;if(!draft||draft.owner!==db)return false;
+ outlineCreation=null;selectedLocation=draft.location;selected=draft.previous;undoStack=draft.undo;redoStack=draft.redo;
+ restoreSnapshot(draft.before);if(draft.editorOpen&&selected)edit(selected);else showCalendar();renderTree();focusOutlineItem(selected);return true;
+}

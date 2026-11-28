@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Simplified YTNH icon for 16–32 px: two Outline rows with bigger marks and a brighter edge. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#202123"/>
+  <rect x="104" y="104" width="816" height="816" rx="181" fill="none" stroke="#4a4d53" stroke-width="8"/>
+  <circle cx="330" cy="380" r="78" fill="none" stroke="#a0bbce" stroke-width="44"/>
+  <rect x="460" y="344" width="270" height="72" rx="36" fill="#6a6e74"/>
+  <circle cx="410" cy="644" r="88" fill="#a0bbce"/>
+  <path d="M366 646l32 32 60-64" fill="none" stroke="#202123" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="540" y="608" width="190" height="72" rx="36" fill="#6a6e74"/>
+</svg>

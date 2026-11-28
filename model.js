@@ -29,6 +29,8 @@ function migrateDatabase(input){
  if(!input||input.format!=='local-notes-todos')throw new Error('This file is not a YTNH library.');
  if(![9,10,11].includes(input.schemaVersion))throw new Error('Unsupported library format. Open a YTNH library that uses data format 9, 10 or 11.');
  const next=JSON.parse(JSON.stringify(input));
+ // An item is a Milestone or a Target, not both: keep the Target (the larger plan); saved with the next save.
+ for(const item of next.items||[])if(item&&item.target&&item.milestone)item.milestone=null;
  validateDatabase(next);reconcileAllocator(next);
  // Schema 9 already uses current RootIDs; only the optional Targets field differs.
  if(next.schemaVersion===9){
@@ -253,6 +255,15 @@ function checkLabel(text){return String(text??'').replace(/[*_`~#<>\[\]]/g,'').r
 // Shared drawings, so the same idea looks the same everywhere (markers, Outline indicators, Daily Planner).
 // One way to write weeks in text: "W49 2026" (the Calendar's week column shows just the number).
 function weekLabel(isoWeek){const m=/^(\d{4})-W(\d{2})$/.exec(String(isoWeek||''));return m?`W${Number(m[2])} ${m[1]}`:String(isoWeek||'')}
+// The nearest Todo (Target, Milestone) above an item, when it is finished: Done, Cancelled or On hold.
+// Notes have no status of their own, so they follow it.
+function inactiveTodoAbove(item){
+ const seen=new Set();
+ for(let p=item?.parentId&&itemById(db,item.parentId);p&&!seen.has(p.id);p=p.parentId&&itemById(db,p.parentId)){
+   seen.add(p.id);if(p.type==='Todo')return ['Done','Cancelled','On hold'].includes(p.status)?p:null;
+ }
+ return null;
+}
 // Month and week fields: shown as "11/2026" and "W48 2026", stored as "2026-11" and "2026-W48".
 // Typing either form works (also "11.2026", "48 2026", "w48/2026").
 function monthText(month){const m=/^(\d{4})-(\d{2})$/.exec(String(month||''));return m?`${m[2]}/${m[1]}`:String(month||'')}
@@ -453,7 +464,8 @@ function filterItems(db,{text="",texts=[],status=[],tag="",tags=[],createdFrom="
    if(requiredTags.length){
      const inherited=inheritedTags(db,i);
      // Querying #project matches #project and descendants such as #project/research.
-     if(requiredTags.some(t=>!inherited.some(x=>x===t||x.startsWith(t+"/"))))return false;
+     // #53: #data also finds #git/hub/data (any level of a nested tag) and the tags below it.
+     if(requiredTags.some(t=>!inherited.some(x=>x===t||x.startsWith(t+"/")||("/"+x+"/").includes("/"+t+"/"))))return false;
    }
    const c=(i.createdAt||"").slice(0,10);if(createdFrom&&c<createdFrom)return false;if(createdTo&&c>createdTo)return false;
    if(scheduledFrom||scheduledTo){const ds=scheduledDatesForItem(i);if(!ds.some(d=>(!scheduledFrom||d>=scheduledFrom)&&(!scheduledTo||d<=scheduledTo)))return false}
@@ -604,7 +616,9 @@ function openEditorLink(href){
 }
 function mdInlineToEditor(s){
   let x=esc(String(s||""));const stash=[];let tokenPrefix="%%REF";while(x.includes(tokenPrefix))tokenPrefix+="_";
-  x=x.replace(/`([^`]+)`|&lt;span data-inline-todo=&quot;([\w-]+)&quot; data-occurrence=&quot;([\w-]+)&quot;&gt;([\s\S]*?)&lt;\/span&gt;/g,(all,code,id,occurrence,body)=>{const key=`${tokenPrefix}${stash.length}%%`;if(code!==undefined)stash.push(`<code>${code}</code>`);else{const decoder=document.createElement('textarea');decoder.innerHTML=body;decoder.innerHTML=decoder.value;stash.push(makeInlineTodo(id,occurrence,decoder.value).outerHTML)}return key});
+  x=x.replace(/(?<!\\)`([^`]+)`|&lt;span data-inline-todo=&quot;([\w-]+)&quot; data-occurrence=&quot;([\w-]+)&quot;&gt;([\s\S]*?)&lt;\/span&gt;/g,(all,code,id,occurrence,body)=>{const key=`${tokenPrefix}${stash.length}%%`;if(code!==undefined)stash.push(`<code>${code}</code>`);else{const decoder=document.createElement('textarea');decoder.innerHTML=body;decoder.innerHTML=decoder.value;stash.push(makeInlineTodo(id,occurrence,decoder.value).outerHTML)}return key});
+  // #66: backslash escapes keep Markdown characters literal.
+  x=x.replace(/\\(&lt;|&gt;|[\\`*_{}\[\]()#+\-.!~=|])/g,(all,ch)=>{const key=`${tokenPrefix}${stash.length}%%`;stash.push(ch);return key});
   let sizeDepth=0;
   x=x.replace(/&lt;span data-text-size=&quot;(\d{1,2})&quot;&gt;|&lt;\/span&gt;/g,(tag,size)=>{
     const n=Number(size);if(size&&n>=8&&n<=96){sizeDepth++;const key=`${tokenPrefix}${stash.length}%%`;stash.push(`<span data-text-size="${n}">`);return key}
@@ -622,7 +636,7 @@ function mdInlineToEditor(s){
       const snippet=String(t.content||"").replace(/!\[\[[^\]]+\]\]/g,"").replace(/\[\[[^\]]+\]\]/g,"").replace(/[#*_`>-]/g," ").replace(/\s+/g," ").trim().slice(0,180);
       stash.push(`<span class="mdref embedref" contenteditable="false" data-md="${esc(md)}" data-ref-id="${esc(t.id)}"><span class="embedtitle">↳ ${itemMarker(t,{passive:true})} ${esc(t.title||"(untitled)")}</span><span class="embedsnippet">${esc(snippet||"Empty embedded item")}</span><button type="button" class="embedEditBtn" data-edit-embed="${esc(t.id)}">Edit source</button></span>`);
     }else{
-      stash.push(`<span class="mdref" contenteditable="false" data-md="${esc(md)}" data-ref-id="${esc(t.id)}" title="${IS_MAC?'⌘':'Ctrl'}+click or double-click to open linked item">${itemMarker(t,{passive:true})} ${esc(t.title)}</span>`);
+      stash.push(`<span class="mdref" contenteditable="false" data-md="${esc(md)}" data-ref-id="${esc(t.id)}" title="${IS_MAC?'⌘':'Ctrl'}+click or double-click to open linked item">${itemMarker(t,{passive:true})}<span class="refTitle">${esc(t.title)}</span></span>`);
     }
     return key;
   });
@@ -634,7 +648,7 @@ function mdInlineToEditor(s){
     if(!safeEditorURL(href))return raw;
     const key=`${tokenPrefix}${stash.length}%%`;stash.push(`<a href="${esc(href)}" rel="noopener noreferrer">${urlText}</a>`);return key+raw.slice(urlText.length);
   });
-  x=x.replace(/~~([^~]+)~~/g,'<s>$1</s>').replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g,'<u>$1</u>');
+  x=x.replace(/~~([^~]+)~~/g,'<s>$1</s>').replace(/==([^=\n]+)==/g,'<mark>$1</mark>').replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g,'<u>$1</u>');
   x=x.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/\*([^*]+)\*/g,"<em>$1</em>");
   stash.forEach((v,i)=>x=x.replace(`${tokenPrefix}${i}%%`,v));return x;
 }
@@ -680,6 +694,7 @@ function imageSearchResult(item,text){
  return '';
 }
 function descriptionSearchText(content){
+ content=String(content||'').replace(/\\([\\`*_{}\[\]()#+\-.!~=|<>])/g,'$1'); // escaped characters search as typed
  if(!content.includes('assets/'))return content;
  return content.split('\n').map(line=>{const image=managedImageLine(line);return image?image.alt+' '+(image.caption||''):line}).join('\n');
 }
@@ -732,11 +747,11 @@ function markdownToEditorHTML(text){
    const headerless=line.trim()==='<!-- table:no-header -->',tableIndex=headerless?index+1:index,first=pipeCells(lines[tableIndex]||''),separator=pipeCells(lines[tableIndex+1]||'');
    if(first&&separator&&first.length===separator.length&&separator.every(x=>/^:?-{3,}:?$/.test(x))){const rows=[first];index=tableIndex+1;while(index+1<lines.length){const cells=pipeCells(lines[index+1]);if(!cells)break;rows.push(Array.from({length:first.length},(_,i)=>cells[i]||''));index++}out.push(tableHTML(rows,!headerless));indents=[];continue}
    let type='p',body=line,extra='',attrs='',m;
-   if((m=line.match(/^([ \t]*)(- \[([ xX])\] |(\d+)\. |- )(.*)$/))){
+   if((m=line.match(/^([ \t]*)(- \[([ xX])\] |(\d+)([.)]) |- )(.*)$/))){
      const indent=m[1].replace(/\t/g,'    ').length;
      while(indents.length&&indents.at(-1)>indent)indents.pop();
      if(!indents.length||indents.at(-1)<indent)indents.push(indent);
-     const depth=indents.length-1;body=m[5];type=m[3]!==undefined?'check':m[4]?'ol':'ul';
+     const depth=indents.length-1;body=m[6];type=m[3]!==undefined?'check':m[4]?'ol':'ul';
      attrs=` data-mddepth="${depth}" data-mdindent="${esc(m[1])}"`;
      if(type==='check'){
        const heading=/^(#{1,6}) (.*)$/.exec(body);
@@ -744,7 +759,7 @@ function markdownToEditorHTML(text){
        else if(body.startsWith('> ')){attrs+=' data-check-heading="quote"';body=body.slice(2)}
      }
      if(type==='check')extra=`<input class="md-check" type="checkbox" contenteditable="false" aria-label="${esc(checkLabel(body))}" ${m[3].toLowerCase()==='x'?'checked':''}>`;
-     if(type==='ol'){attrs+=` data-mdnum="${m[4]}"`;extra=`<span class="md-list-marker" contenteditable="false">${m[4]}.</span>`}
+     if(type==='ol'){attrs+=` data-mdnum="${m[4]}"`+(m[5]===')'?' data-mddelim=")"':'');extra=`<span class="md-list-marker" contenteditable="false">${m[4]}${m[5]}</span>`}
    }else{
      if(line.trim())indents=[];
      const heading=line.match(/^(#{1,6}) (.*)$/);

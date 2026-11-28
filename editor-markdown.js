@@ -2,8 +2,18 @@
 // Rich editor <-> Markdown conversion, references, embeds and editor locations.
 // Declarations only; loaded before the main script.
 const caretAnchors=new WeakSet();
+// #66: literal characters that would otherwise turn into formatting when the text is read back.
+function escapeMarkdownText(s){
+  return String(s).replace(/\\(?=[\\`*~=\[\]<#>+.!-])/g,'\\\\').replace(/[*`]/g,'\\$&').replace(/~~/g,'\\~\\~').replace(/==/g,'\\=\\=')
+    .replace(/\[(?=\[|[^\]\n]*\]\()/g,'\\[').replace(/<(?=\/?(?:u|span)\b)/gi,'\\<');
+}
+// A plain paragraph whose text starts like a heading, list, quote, rule or fence keeps that text literal.
+function escapeMarkdownBlockStart(s){
+  if(/^\d+[.)] /.test(s))return s.replace(/^(\d+)([.)])/,'$1\\$2');
+  return /^(#{1,6} |[-+] |> |---\s*$|- \[[ xX]?\])/.test(s)?'\\'+s:s;
+}
 function serializeInline(node){
-  if(node.nodeType===Node.TEXT_NODE)return caretAnchors.has(node)?(node.nodeValue||"").replace("\u200b",""):(node.nodeValue||"");
+  if(node.nodeType===Node.TEXT_NODE){const value=caretAnchors.has(node)?(node.nodeValue||"").replace("\u200b",""):(node.nodeValue||"");return node.parentElement?.closest('code,pre')?value:escapeMarkdownText(value)}
   if(node.nodeType!==Node.ELEMENT_NODE)return "";
   if(node.hasAttribute?.('data-inline-todo'))return serializeInlineTodo(node);
   if(node.classList?.contains("mdref"))return node.dataset.md||node.dataset.brokenMd||node.textContent||"";
@@ -13,6 +23,7 @@ function serializeInline(node){
   if(tag==="EM"||tag==="I")return `*${inner}*`;
   if(tag==='U'||node.style?.textDecorationLine?.includes('underline'))return `<u>${inner}</u>`;
   if(['S','STRIKE','DEL'].includes(tag)||node.style?.textDecorationLine?.includes('line-through'))return `~~${inner}~~`;
+  if(tag==='MARK')return `==${inner}==`;
   if(tag==='A'&&safeEditorURL(node.getAttribute('href')))return `[${inner}](${node.getAttribute('href').replace(/\)/g,'%29')})`;
   if(tag==="CODE")return `\`${inner}\``;
   if(tag==="BR")return "\n";
@@ -24,6 +35,8 @@ function editorHTMLToMarkdown(e=$("richEditor")){
   for(let idx=0;idx<nodes.length;idx++){
     const n=nodes[idx];
     if(n.nodeType===Node.TEXT_NODE){parts.push(n.nodeValue||"");continue}
+    // The editor's own empty line after a trailing link/embed (#62) isn't part of the note until used.
+    if(n.dataset?.autoLine!==undefined&&!n.textContent.replace(/\u200b/g,'').trim())continue;
     const block=n.dataset?.mdblock||"p";
     if(block==="image" && managedImageLine(n.dataset.imageSource||'')){const image=managedImageLine(n.dataset.imageSource),caption=n.querySelector("figcaption"),width=parseFloat(n.querySelector("figure")?.style.width)||image.width;parts.push(width!==image.width||caption&&caption.textContent!==image.caption?imageSource({...image,width,caption:caption?.textContent??image.caption}):n.dataset.imageSource);continue}
     if(block==="code"){parts.push(n.textContent.replace(/\u200b/g,""));continue}
@@ -34,7 +47,8 @@ function editorHTMLToMarkdown(e=$("richEditor")){
     let prefix="";
     if(/^h[1-6]$/.test(block))prefix="#".repeat(Number(block[1]))+" ";
     else if(block==="li"||block==="ul")prefix="- ";
-    else if(block==="ol")prefix=`${n.dataset.mdnum||"1"}. `;
+    else if(block==="ol")prefix=`${n.dataset.mdnum||"1"}${n.dataset.mddelim===')'?')':'.'} `;
+    else if(block==="p")inner=escapeMarkdownBlockStart(inner);
     else if(block==="quote")prefix="> ";
     else if(block==="check")prefix=`- [${n.querySelector(".md-check")?.checked?"x":" "}] `;
     parts.push((isEditorList(n)?n.dataset.mdindent||"":"")+prefix+(block==="check"&&n.dataset.checkHeading?(n.dataset.checkHeading==="quote"?"> ":"#".repeat(Number(n.dataset.checkHeading[1]))+" "):"")+inner);
@@ -110,7 +124,7 @@ function normalizeEditorLists(){
      b.dataset.mdnum=String(n);
      let marker=b.querySelector(':scope > .md-list-marker');
      if(!marker){marker=document.createElement('span');marker.className='md-list-marker';marker.contentEditable='false';b.prepend(marker)}
-     const label=entry.path.join('.')+(entry.depth?'':'.');if(marker.textContent!==label)marker.textContent=label;
+     const label=entry.path.join('.')+(entry.depth?'':b.dataset.mddelim===')'?')':'.');if(marker.textContent!==label)marker.textContent=label;
      b.style.paddingLeft=Math.max(1.7,label.length*.68+.6)+'em';
    }else b.style.removeProperty('padding-left');
  }
@@ -205,15 +219,24 @@ function rangeAtBlockEnd(block,range){
  const r=range.cloneRange();r.selectNodeContents(block);r.setStart(range.endContainer,range.endOffset);
  return r.toString()==="";
 }
+function caretOnFirstLine(block,range){
+ if(atBodyBlockStart(block,range))return true;
+ const caret=range.getClientRects()[0]||range.getBoundingClientRect(),start=document.createRange();start.selectNodeContents(block);start.collapse(true);
+ const first=[...block.childNodes].find(n=>n.nodeType===3&&n.data.replace(/\u200b/g,'').length);
+ if(first){start.setStart(first,0);start.setEnd(first,Math.min(1,first.length))}
+ const top=(start.getClientRects()[0]||block.getBoundingClientRect()).top;
+ return !!caret&&caret.height>0&&Math.abs(caret.top-top)<caret.height*.6;
+}
 function protectTitleBodyBoundary(e){
  const sel=window.getSelection(),root=$("richEditor");
  if(!sel?.rangeCount||!sel.isCollapsed||e.ctrlKey||e.metaKey||e.altKey)return false;
  const r=sel.getRangeAt(0),block=bodyBlock(r.startContainer);
- if(!block||!atBodyBlockStart(block,r))return false;
- if(block.dataset.mdblock==="code")return false;
- if(e.key==="ArrowUp"&&block===root.firstElementChild){
+ // #66: Up anywhere on the first line goes to the title, not only from the start of the line.
+ if(e.key==="ArrowUp"&&!e.shiftKey&&block&&block===root.firstElementChild&&block.dataset.mdblock!=="code"&&caretOnFirstLine(block,r)){
    e.preventDefault();focusDocumentTitle();return true;
  }
+ if(!block||!atBodyBlockStart(block,r))return false;
+ if(block.dataset.mdblock==="code")return false;
  if(e.key!=="Backspace")return false;
  e.preventDefault();forceRichHistoryCheckpoint();
  if(isEditorList(block)&&editorListDepth(block)>0&&block.dataset.mdblock!=="check"){
@@ -258,6 +281,20 @@ function codeBlockCaret(block,range){
 }
 // Enter and Backspace inside code blocks: Enter on an empty last line leaves the block; Backspace never removes a hidden fence.
 function handleCodeBlockKey(e){
+ if(e.key==='Tab'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.isComposing){
+   const sel=window.getSelection(),range=sel?.rangeCount&&sel.getRangeAt(0),block=range&&bodyBlock(range.startContainer);
+   if(!block||block.dataset.mdblock!=='code')return false;
+   e.preventDefault();e.stopPropagation();forceRichHistoryCheckpoint();
+   // Work on one text node: merge the code's text, keeping the caret's place.
+   const open=block.querySelector(':scope > .md-fence');const head=document.createRange();if(open&&open===block.firstChild)head.setStartAfter(open);else head.setStart(block,0);head.setEnd(range.startContainer,range.startOffset);
+   const offset=head.toString().length;block.normalize();
+   let node=[...block.childNodes].find(n=>n.nodeType===3);if(!node){node=document.createTextNode('');if(open)open.after(node);else block.prepend(node)}
+   const at=Math.min(offset,node.length),lineStart=node.data.lastIndexOf('\n',at-1)+1;let caret=at;
+   if(!e.shiftKey){node.insertData(at,'\t');caret=at+1}
+   else{const m=/^(\t| {1,4})/.exec(node.data.slice(lineStart));if(m){node.deleteData(lineStart,m[0].length);caret=Math.max(lineStart,at-m[0].length)}} // Shift+Tab: one tab or up to four spaces
+   const r=document.createRange();r.setStart(node,caret);r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+   rememberRichSelection();syncModelFromRich();return true;
+ }
  if(!['Enter','Backspace'].includes(e.key)||e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return false;
  const sel=window.getSelection();if(!sel?.rangeCount||!sel.isCollapsed)return false;
  const range=sel.getRangeAt(0),block=bodyBlock(range.startContainer);if(!block||block.dataset.mdblock!=='code'||!block.querySelector('.md-fence'))return false;
@@ -311,12 +348,20 @@ function applyMarkdownTypingShortcut(e){
    const r=document.createRange();r.setStart(body,1);r.collapse(true);sel.removeAllRanges();sel.addRange(r);
    rememberRichSelection();syncModelFromRich();return true;
  }
+ // #66: a typed header row like "| Name | Date |" becomes a table when you press Enter at its end.
+ const headerCells=type==='p'&&e.key==='Enter'&&!e.shiftKey&&pipeCells(before);
+ if(headerCells&&headerCells.length>1&&!richBlockPlainText(block).replace(/\u200b/g,'').slice(before.length).trim()){
+   e.preventDefault();forceRichHistoryCheckpoint();
+   const holder=document.createElement('div');holder.innerHTML=tableHTML([headerCells,headerCells.map(()=>'')],true);const table=holder.firstElementChild;block.replaceWith(table);
+   if(!table.nextElementSibling){const after=document.createElement('div');after.dataset.mdblock='p';after.innerHTML='<br>';table.after(after)}
+   focusTableCell(table.querySelector('table').rows[1].cells[0]);syncModelFromRich();return true;
+ }
  if(e.key!==' ')return false;
- let next=null,checked=false,num=1;
+ let next=null,checked=false,num=1,delim='.';
  if((type==="ul"||/^h[1-6]$/.test(type))&&/^\[[ xX]?\]$/.test(before)){next="check";checked=/x/i.test(before)}
  if(type==="p"){
    if(/^[-*+]$/.test(before))next="ul";
-   else if(/^\d+\.$/.test(before)){next="ol";num=parseInt(before)}
+   else if(/^\d+[.)]$/.test(before)){next="ol";num=parseInt(before);delim=before.slice(-1)}
    else if(before===">")next="quote";
    else if(/^#{1,6}$/.test(before))next="h"+before.length;
    else if(/^(?:- )?\[[ xX]?\]$/.test(before)){next="check";checked=/x/i.test(before)}
@@ -324,9 +369,9 @@ function applyMarkdownTypingShortcut(e){
  if(!next)return false;
  e.preventDefault();forceRichHistoryCheckpoint();
  const prefix=range.cloneRange();prefix.selectNodeContents(block);prefix.setEnd(range.startContainer,range.startOffset);prefix.deleteContents();
- setBodyBlock(block,next,num,checked);placeCaretAtBodyStart(block);rememberRichSelection();syncModelFromRich();return true;
+ setBodyBlock(block,next,num,checked,delim);placeCaretAtBodyStart(block);rememberRichSelection();syncModelFromRich();return true;
 }
-function setBodyBlock(block,type,num=1,checked=false){
+function setBodyBlock(block,type,num=1,checked=false,delim='.'){
  if(block.dataset.mdblock==='table')return;
  if(isEditorList(block)&&!['ul','li','ol','check'].includes(type)){
    const entry=editorStructure().records.get(block);
@@ -337,10 +382,10 @@ function setBodyBlock(block,type,num=1,checked=false){
  block.querySelectorAll(".md-check,.md-list-marker").forEach(n=>n.remove());
  if(type==='check'&&/^(h[1-6]|quote)$/.test(block.dataset.mdblock))block.dataset.checkHeading=block.dataset.mdblock;
  if(type!=='check')delete block.dataset.checkHeading;
- block.dataset.mdblock=type;block.className=type==="check"?"md-check-block":"md-"+type;delete block.dataset.mdnum;
+ block.dataset.mdblock=type;block.className=type==="check"?"md-check-block":"md-"+type;delete block.dataset.mdnum;delete block.dataset.mddelim;
  if(type==="ol"){
-   block.dataset.mdnum=String(num);const marker=document.createElement("span");marker.className="md-list-marker";
-   marker.contentEditable="false";marker.textContent=num+".";block.prepend(marker);
+   block.dataset.mdnum=String(num);if(delim===')')block.dataset.mddelim=')';const marker=document.createElement("span");marker.className="md-list-marker";
+   marker.contentEditable="false";marker.textContent=num+delim;block.prepend(marker);
  }
  if(type==="check"){
    const c=document.createElement("input");c.type="checkbox";c.className="md-check";c.contentEditable="false";c.checked=checked;c.setAttribute("aria-label",checkLabel(block.textContent));block.prepend(c);
@@ -375,18 +420,24 @@ function continueRichBlock(e){
  const sel=window.getSelection();if(!sel?.rangeCount)return false;
  let range=sel.getRangeAt(0),block=bodyBlock(range.startContainer);if(!block)return false;
  e.preventDefault();forceRichHistoryCheckpoint();
+ if(range.collapsed&&linkTypedAddress(range.startContainer,range.startOffset,false))range=sel.getRangeAt(0);
+ // #40: Enter in a folded heading unfolds it, so the new line is never hidden.
+ if(block.classList?.contains('folded')){block.classList.remove('folded');applyEditorFolds();saveEditorFolds()}
  if(!range.collapsed)block=deleteBodySelection(range)||block;
  const type=block.dataset.mdblock||"p";
  if(type==="code"){insertTextAtRange(range,"\n")}else if(e.shiftKey){
    const br=document.createElement("br");range.insertNode(br);range.setStartAfter(br);range.collapse(true);
    if(!br.nextSibling)br.after(document.createElement("br"));sel.removeAllRanges();sel.addRange(range);
  }else if(isEditorList(block)&&richBlockPlainText(block)&&atBodyBlockStart(block,range)){
-   const empty=document.createElement('div');setBodyBlock(empty,type);
+   const empty=document.createElement('div');setBodyBlock(empty,type,1,false,block.dataset.mddelim||'.');
    empty.dataset.mddepth=String(editorListDepth(block));empty.dataset.mdindent=block.dataset.mdindent||'';
    if(type==='check'){
      const anchor=document.createTextNode('\u200b');caretAnchors.add(anchor);empty.append(anchor,document.createElement('br'));
    }
    block.before(empty);normalizeEditorLists();placeCaretAtBodyStart(block);
+ }else if(isEditorList(block)&&!richBlockPlainText(block)&&editorListDepth(block)>0){
+   // In place, as in Obsidian and Typora: following siblings become its children.
+   setEditorDepth(block,editorListDepth(block)-1);normalizeEditorLists();placeCaretAtBodyStart(block);
  }else if(range.collapsed&&atBodyBlockStart(block,range)&&richBlockPlainText(block)){
    const empty=document.createElement('div');empty.dataset.mdblock='p';empty.innerHTML='<br>';block.before(empty);placeCaretAtBodyStart(block);
  }else if(["ul","ol","check","quote"].includes(type)&&!richBlockPlainText(block)){
@@ -395,7 +446,7 @@ function continueRichBlock(e){
    const tail=range.cloneRange();tail.setEnd(block,block.childNodes.length);const rest=tail.extractContents();
    const next=document.createElement("div");next.append(rest);
    const nextType=["ul","ol","check","quote"].includes(type)?type:"p";
-   setBodyBlock(next,nextType,(Number(block.dataset.mdnum)||1)+1);
+   setBodyBlock(next,nextType,(Number(block.dataset.mdnum)||1)+1,false,nextType==='ol'&&block.dataset.mddelim||'.');
    if(isEditorList(block)){next.dataset.mddepth=String(editorListDepth(block));next.dataset.mdindent=block.dataset.mdindent||"";}
    if(!richBlockPlainText(block)&&!block.querySelector("br"))block.append(document.createElement("br"));
    const entry=editorStructure().records.get(block),subtreeTail=entry?editorSubtree(entry).at(-1):block;
@@ -446,14 +497,15 @@ function updateFormatButtons(){
    if(command==='bold')return Number(style.fontWeight)>=600||style.fontWeight==='bold';
    if(command==='italic')return ['italic','oblique'].includes(style.fontStyle);
    if(command==='code')return !!el.closest('code');
+   if(command==='highlight')return !!el.closest('mark');
    const decoration=command==='underline'?'underline':'line-through';
    for(let n=el;n&&n!==$('richEditor');n=n.parentElement)if(getComputedStyle(n).textDecorationLine.includes(decoration))return true;
    return false;
  };
- for(const command of ['bold','italic','underline','strikeThrough','code']){
+ for(const command of ['bold','italic','underline','strikeThrough','highlight','code']){
    let active=false;
    if(range){if(!range.collapsed)active=elements.length>0&&elements.every(el=>formatted(el,command));
-     else if(command==='code'){const n=range.startContainer;active=!!(n.nodeType===3?n.parentElement:n).closest?.('code')}
+     else if(command==='code'||command==='highlight'){const n=range.startContainer;active=!!(n.nodeType===3?n.parentElement:n).closest?.(command==='code'?'code':'mark')}
      else active=document.queryCommandState(command);}
    document.querySelector(`[data-format="${command}"]`)?.setAttribute('aria-pressed',String(active));
  }
@@ -471,8 +523,8 @@ function restoreManagedImageWidths(root=$('richEditor')){
 }
 function syncRichFromModel(item){
  $("editorTitle").value=item?.title||"";resizeDocumentTitle();
- $("richEditor").innerHTML=markdownToEditorHTML(item?.content||"");restoreManagedImageWidths();ensureInlineTodoExits();
- savedRichRange=null;resetEditorHistoryGroup();normalizeRichTitleLine();normalizeEditorLists();
+ $("richEditor").innerHTML=markdownToEditorHTML(item?.content||"");restoreManagedImageWidths();ensureInlineTodoExits();ensureLineAfterTrailingReference();
+ savedRichRange=null;resetEditorHistoryGroup();normalizeRichTitleLine();normalizeEditorLists();restoreEditorFolds(item?.id);
 }
 function paintItemTitle(item){
  for(const row of document.querySelectorAll('#tree .row[data-id],#pinnedOutline .row[data-id]')){
@@ -556,18 +608,35 @@ function setBlock(type){
  }
  rememberRichSelection();syncModelFromRich();
 }
+// Typed Markdown becomes formatting as soon as its closing mark is typed (#66: also strikethrough,
+// highlight, links and typed web addresses), so what you see is what is saved.
 function applyInlineMarkdown(){
  if(activeTableCell())return;
  const sel=window.getSelection();if(!sel?.isCollapsed||!sel.rangeCount)return;
  const range=sel.getRangeAt(0),node=range.startContainer;if(node.nodeType!==3)return;
- if(node.parentElement.closest('code,.mdref,.inlineTodo,[data-mdblock=code]')||inlineDraftToken())return;
+ if(node.parentElement.closest('code,a,.mdref,.inlineTodo,[data-mdblock=code]')||inlineDraftToken())return;
  const text=node.nodeValue.slice(0,range.startOffset);
- const match=/(\*\*([^*\n]+)\*\*|(?<!\*)\*([^*\n]+)\*|`([^`\n]+)`)$/.exec(text);
- if(!match)return;
- const tag=match[2]?'strong':match[3]?'em':'code',value=match[2]||match[3]||match[4];
+ const block=bodyBlock(node);
+ if(block&&window.importTypedImage&&/^!\[[^\]\n]*\]\([^)\s]+\)$/.test(richBlockPlainText(block).replace(/\u200b/g,'').trim())&&text.endsWith(')')){window.importTypedImage(block);return}
+ const match=/(\*\*([^*\n]+)\*\*|(?<![*\\])\*([^*\n]+)\*|`([^`\n]+)`|~~([^~\n]+)~~|==([^=\n]+)==|(?<!!)\[([^\]\n]+)\]\(([^)\s]+)\))$/.exec(text);
+ if(!match){linkTypedAddress(node,range.startOffset,true);return}
+ const tag=match[2]?'strong':match[3]?'em':match[4]?'code':match[5]?'s':match[6]?'mark':'a',value=match[2]||match[3]||match[4]||match[5]||match[6]||match[7];
+ if(tag==='a'&&!safeEditorURL(match[8]))return;
  const r=document.createRange();r.setStart(node,match.index);r.setEnd(node,range.startOffset);r.deleteContents();
- const el=document.createElement(tag);el.textContent=value;r.insertNode(el);
+ const el=document.createElement(tag);el.textContent=value;if(tag==='a'){el.href=match[8];el.rel='noopener noreferrer'}r.insertNode(el);
  const exit=document.createTextNode("\u200b");caretAnchors.add(exit);el.after(exit);r.setStart(exit,1);r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+}
+// A web address followed by a space (or Enter) becomes a link, as it would when the note is reopened.
+function linkTypedAddress(node,offset,needsSpace){
+ if(node?.nodeType!==3||node.parentElement.closest('code,a,.mdref,.inlineTodo,[data-mdblock=code]'))return false;
+ const text=node.nodeValue.slice(0,offset),m=(needsSpace?/(^|[\s\u200b(])((?:https?:\/\/|www\.)[^\s\u200b]+?)([.,;:!?)]*)[ \u00a0]$/:/(^|[\s\u200b(])((?:https?:\/\/|www\.)[^\s\u200b]+?)([.,;:!?)]*)$/).exec(text);
+ if(!m)return false;
+ const href=/^www\./i.test(m[2])?'https://'+m[2]:m[2];if(!safeEditorURL(href))return false;
+ const start=m.index+m[1].length,sel=getSelection(),caret=sel.rangeCount?sel.getRangeAt(0):null,after=caret&&caret.startContainer===node?caret.startOffset-start-m[2].length:null;
+ const r=document.createRange();r.setStart(node,start);r.setEnd(node,start+m[2].length);
+ const a=document.createElement('a');a.href=href;a.rel='noopener noreferrer';r.surroundContents(a);
+ if(after!==null&&a.nextSibling?.nodeType===3){const c=document.createRange();c.setStart(a.nextSibling,Math.min(after,a.nextSibling.length));c.collapse(true);sel.removeAllRanges();sel.addRange(c)}
+ return true;
 }
 function formatInlineCode(){
  const sel=window.getSelection();if(!sel?.rangeCount)return;
@@ -583,7 +652,7 @@ function clipboardHTMLToMarkdown(html){
  const doc=new DOMParser().parseFromString(html,'text/html');
  doc.querySelectorAll('script,style,iframe,object,embed,svg,math,template,link,meta').forEach(n=>n.remove());
  const inline=node=>{
-   if(node.nodeType===3)return node.parentElement?.closest('pre')?node.nodeValue:node.nodeValue.replace(/\s+/g,' ');if(node.nodeType!==1)return '';
+   if(node.nodeType===3)return node.parentElement?.closest('pre')?node.nodeValue:escapeMarkdownText(node.nodeValue.replace(/\s+/g,' '));if(node.nodeType!==1)return '';
    if(node.hasAttribute('data-inline-todo'))return serializeInlineTodo(node);
    const tag=node.tagName;let text=[...node.childNodes].map(inline).join('');
    if(tag==='BR')return '\n';if(tag==='IMG')return node.getAttribute('alt')||'';
@@ -593,6 +662,7 @@ function clipboardHTMLToMarkdown(html){
    if(['I','EM'].includes(tag)||node.style.fontStyle==='italic')text='*'+text+'*';
    if(tag==='U'||node.style.textDecoration.includes('underline'))text='<u>'+text+'</u>';
    if(['S','STRIKE','DEL'].includes(tag)||node.style.textDecoration.includes('line-through'))text='~~'+text+'~~';
+   if(tag==='MARK')text='=='+text+'==';
    return text;
  };
  const lines=[];
@@ -613,7 +683,7 @@ function clipboardHTMLToMarkdown(html){
      else if(tag==='PRE'){flush();lines.push('```\n'+node.textContent+'\n```')}
      else if(/^(P|DIV|H[1-6]|BLOCKQUOTE|SECTION|ARTICLE|TR|TABLE|TBODY)$/.test(tag)){
        flush();if(node.querySelector('p,div,ul,ol,pre,table'))blocks(node,depth);
-       else lines.push((/^H/.test(tag)?'#'.repeat(Math.min(6,Number(tag[1])))+' ':tag==='BLOCKQUOTE'?'> ':'')+inline(node));
+       else lines.push(/^H/.test(tag)?'#'.repeat(Math.min(6,Number(tag[1])))+' '+inline(node):tag==='BLOCKQUOTE'?'> '+inline(node):escapeMarkdownBlockStart(inline(node)));
      }else pending+=inline(node);
    }flush();
  }blocks(doc.body);while(lines.length&&!lines[0].trim())lines.shift();while(lines.length&&!lines.at(-1).trim())lines.pop();return lines.join('\n');
@@ -629,7 +699,7 @@ function insertFormattedPaste(markdown,range){
  for(const next of incoming){previous.after(next);previous=next}
  if(previous.previousElementSibling?.dataset.mdblock==='image'&&rest.textContent&&previous.childNodes.length===1&&previous.firstChild.nodeName==='BR')previous.replaceChildren();
  const marker=document.createTextNode('');previous.append(marker,rest);const sel=window.getSelection(),caret=document.createRange();caret.setStartBefore(marker);caret.collapse(true);sel.removeAllRanges();sel.addRange(caret);marker.remove();
- normalizeRichTitleLine();normalizeEditorLists();rememberRichSelection();syncModelFromRich();
+ normalizeRichTitleLine();normalizeEditorLists();ensureLineAfterTrailingReference();rememberRichSelection();syncModelFromRich();
 }
 function keepRichCaretVisible(){
  requestAnimationFrame(()=>{
@@ -659,10 +729,22 @@ function pasteBodyText(e){
  if(fileURL&&bodyBlock(range.startContainer)?.dataset.mdblock!=='code'){
    insertFormattedPaste(`[${fileURL}](${fileURL})`,range);return;
  }
- if(bodyBlock(range.startContainer)?.dataset.mdblock!=='code'&&(html||safeEditorURL(text.trim()))){
-   const markdown=html?clipboardHTMLToMarkdown(html):`[${text.trim()}](${text.trim().replace(/\)/g,'%29')})`;
+ const url=text.trim(),pastedURL=/^\S+$/.test(url)&&safeEditorURL(url);
+ if(pastedURL&&!range.collapsed&&bodyBlock(range.startContainer)===bodyBlock(range.endContainer)&&bodyBlock(range.startContainer)?.dataset.mdblock!=='code'){
+   // #66: a web address pasted over selected words turns those words into a link.
+   const label=[...range.cloneContents().childNodes].map(serializeInline).join('').replace(/\n/g,' ').trim();
+   if(label){insertFormattedPaste(`[${label}](${url.replace(/\)/g,'%29')})`,range);return}
+ }
+ if(bodyBlock(range.startContainer)?.dataset.mdblock!=='code'&&(html||pastedURL)){
+   const own=e.clipboardData?.getData('application/x-ytnh-markdown');
+   let markdown=own||(html?clipboardHTMLToMarkdown(html):text.match(/^[ \t\u00a0]*/)[0]+`[${escapeMarkdownText(url)}](${url.replace(/\)/g,'%29')})`+text.match(/[ \t\u00a0]*$/)[0]);
+   // #64: clipboard HTML often wraps the copied text in line breaks or space markers, which would arrive as
+   // extra spaces. Take the leading and trailing spaces from the plain-text copy instead.
+   if(!own&&html&&markdown&&text){const edge=/^[ \t\u00a0]*|[ \t\u00a0]*$/g,[lead,trail]=[text.match(/^[ \t\u00a0]*/)[0],text.match(/[ \t\u00a0]*$/)[0]];markdown=lead+markdown.replace(edge,'')+trail}
    if(markdown){insertFormattedPaste(markdown,range);return}
  }
+ // #61: pasted item references (from Copy link / Copy embed) become links and embeds straight away.
+ if(bodyBlock(range.startContainer)?.dataset.mdblock!=='code'&&/!?\[\[[^\]\n]+\]\]/.test(text)){insertFormattedPaste(text,range);return}
  let block=deleteBodySelection(range);
  if(!block){normalizeRichTitleLine();block=$('richEditor').firstElementChild;range.setStart(block,0);range.collapse(true)}
  const lines=text.replace(/\r\n?/g,'\n').split('\n');
@@ -984,7 +1066,7 @@ function makeReferenceElement(target,embed=false){
  if(embed){
    const snippet=String(target.content||"").replace(/\s+/g," ").trim().slice(0,180);
    span.innerHTML=`<span class="embedtitle">↳ ${itemMarker(target,{passive:true})} ${esc(target.title||"(untitled)")}</span><span class="embedsnippet">${esc(snippet||"Empty embedded item")}</span><button type="button" class="embedEditBtn" data-edit-embed="${esc(target.id)}">Edit source</button>`;
- }else span.innerHTML=`${itemMarker(target,{passive:true})} ${esc(target.title)}`;
+ }else span.innerHTML=`${itemMarker(target,{passive:true})}<span class="refTitle">${esc(target.title)}</span>`;
  return span;
 }
 
@@ -1001,7 +1083,11 @@ function rememberEditorLocation(){
 function restoreItemEditorLocation(id,focus=true){
  const state=editorLocations.get(id);if(!state||id!==selected)return;
  const active=document.activeElement;restoringEditorLocation=true;
- try{restoreEditorSelection(state);document.querySelector('.documentScroll').scrollTop=state.scrollTop||0;const control=$(state.control);if(control)control.scrollTop=state.controlScrollTop||0;if(!focus&&active?.isConnected)active.focus({preventScroll:true})}finally{restoringEditorLocation=false}
+ try{restoreEditorSelection(state);
+   // A remembered caret inside a folded section waits on the heading that hides it.
+   const sel=getSelection(),hiddenBlock=sel.rangeCount&&bodyBlock(sel.getRangeAt(0).startContainer);
+   if(hiddenBlock?.classList?.contains('foldHidden')){let n=hiddenBlock;while(n?.classList?.contains('foldHidden'))n=n.previousElementSibling;if(n)placeCaretAtEnd(n)}
+   document.querySelector('.documentScroll').scrollTop=state.scrollTop||0;const control=$(state.control);if(control)control.scrollTop=state.controlScrollTop||0;if(!focus&&active?.isConnected)active.focus({preventScroll:true})}finally{restoringEditorLocation=false}
 }
 function typedReferenceTrigger(){
  if(activeTableCell())return;
@@ -1011,4 +1097,224 @@ function typedReferenceTrigger(){
  const text=node.data.slice(0,range.startOffset),match=/(!?\[\[)$/.exec(text);if(!match)return;
  // [[ and ![[ open item suggestions right at the caret; the toolbar's Link/Embed buttons keep the dialog.
  openCaretPopover('reference',node,range.startOffset-match[1].length,match[1].length,{embed:match[1].startsWith('!')});return true;
+}
+
+// #65: copying from the editor puts standard formatting on the clipboard (headings, bold, italic, links, lists,
+// checklists, quotes, code, tables) without the app's fonts and colours, so other apps such as Word and Outlook
+// keep the structure and use their own look. Apps without formatting get readable text.
+function copyEscape(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c])}
+function copyInlineHTML(node){
+ if(node.nodeType===3)return copyEscape(node.data.replace(/​/g,''));
+ if(node.nodeType!==1)return '';
+ const el=node;
+ if(el.matches('.md-list-marker,.md-fence,input,svg,.itemMarker,button,[hidden],.embedEditBtn,.embedsnippet'))return '';
+ if(el.matches('.mdref'))return copyEscape((el.querySelector('.embedtitle')||el).textContent.replace(/^[\s↳]+/,'').trim());
+ const inner=[...el.childNodes].map(copyInlineHTML).join('');
+ const tag=el.tagName.toLowerCase();
+ if(tag==='br')return '<br>';
+ if(['strong','b'].includes(tag))return `<strong>${inner}</strong>`;
+ if(['em','i'].includes(tag))return `<em>${inner}</em>`;
+ if(tag==='u')return `<u>${inner}</u>`;
+ if(['s','del','strike'].includes(tag))return `<s>${inner}</s>`;
+ if(tag==='mark')return `<mark>${inner}</mark>`;
+ if(tag==='code')return `<code>${inner}</code>`;
+ if(tag==='a'&&el.getAttribute('href'))return `<a href="${copyEscape(el.getAttribute('href'))}">${inner}</a>`;
+ return inner;
+}
+function copyInlineText(node){
+ if(node.nodeType===3)return node.data.replace(/​/g,'');
+ if(node.nodeType!==1)return '';
+ if(node.matches('.md-list-marker,.md-fence,input,svg,.itemMarker,button,[hidden],.embedEditBtn,.embedsnippet'))return '';
+ if(node.matches('.mdref'))return (node.querySelector('.embedtitle')||node).textContent.replace(/^[\s↳]+/,'').trim();
+ if(node.tagName==='BR')return '\n';
+ return [...node.childNodes].map(copyInlineText).join('');
+}
+function editorSelectionForCopy(holder){
+ const blocks=[...holder.children].filter(el=>el.dataset?.mdblock);
+ if(!blocks.length){const html=[...holder.childNodes].map(copyInlineHTML).join(''),text=[...holder.childNodes].map(copyInlineText).join('');return {html,text}}
+ const html=[],text=[];let lists=[],quote=null;
+ const closeLists=(depth=-1)=>{while(lists.length>depth+1)html.push(`</li></${lists.pop()}>`)};
+ for(const node of holder.childNodes){
+   if(node.nodeType!==1||!node.dataset.mdblock){const t=copyInlineText(node);if(t.trim()){closeLists();html.push(`<p>${copyInlineHTML(node)}</p>`);text.push(t)}continue}
+   const kind=node.dataset.mdblock,inner=[...node.childNodes].map(copyInlineHTML).join(''),plain=[...node.childNodes].map(copyInlineText).join('');
+   if(kind!=='quote'&&quote){html.push('</blockquote>');quote=null}
+   if(['ul','ol','check'].includes(kind)){
+     const depth=Number(node.dataset.mddepth||0),tag=kind==='ol'?'ol':'ul';
+     if(lists.length>depth+1)closeLists(depth);
+     if(lists.length===depth+1&&lists[depth]!==tag){closeLists(depth-1)}
+     if(lists.length===depth+1)html.push('</li><li>');
+     while(lists.length<depth+1){lists.push(tag);html.push(`<${tag}><li>`)}
+     const box=kind==='check'?(node.querySelector('input.md-check')?.checked?'☑ ':'☐ '):'';
+     html.push(copyEscape(box)+inner);
+     text.push('  '.repeat(depth)+(kind==='ol'?(node.dataset.mdnum||'1')+'. ':kind==='check'?box:'• ')+plain);
+     continue;
+   }
+   closeLists();
+   if(/^h[1-6]$/.test(kind)){html.push(`<${kind}>${inner}</${kind}>`);text.push(plain)}
+   else if(kind==='quote'){if(!quote){html.push('<blockquote>');quote=true}html.push(`<p>${inner}</p>`);text.push(plain)}
+   else if(kind==='code'){const code=[...node.childNodes].filter(n=>!(n.nodeType===1&&n.matches('.md-fence'))).map(n=>n.textContent).join('').replace(/^\n|\n$/g,'');html.push(`<pre><code>${copyEscape(code)}</code></pre>`);text.push(code)}
+   else if(kind==='hr'){html.push('<hr>');text.push('———')}
+   else if(kind==='table'){const rows=[...node.querySelectorAll('tr')];
+     html.push('<table border="1" cellpadding="4" style="border-collapse:collapse">'+rows.map(r=>'<tr>'+[...r.children].map(c=>`<${c.tagName.toLowerCase()}>${[...c.childNodes].map(copyInlineHTML).join('')}</${c.tagName.toLowerCase()}>`).join('')+'</tr>').join('')+'</table>');
+     text.push(rows.map(r=>[...r.children].map(c=>copyInlineText(c).trim()).join('\t')).join('\n'))}
+   else if(kind==='image'){continue}
+   else{if(!plain.trim()){text.push('');continue}html.push(`<p>${inner}</p>`);text.push(plain)}
+ }
+ if(quote)html.push('</blockquote>');closeLists();
+ return {html:html.join(''),text:text.join('\n').replace(/\n{3,}/g,'\n\n').replace(/^\n+|\n+$/g,'')};
+}
+function copyEditorSelection(e){
+ if(e.defaultPrevented)return;
+ const sel=getSelection();if(!sel?.rangeCount||sel.isCollapsed)return;
+ const range=sel.getRangeAt(0);if(!rangeBelongsToRichEditor(range))return;
+ const holder=document.createElement('div');holder.append(range.cloneContents());
+ if(holder.querySelector('[data-mdblock=image]'))return; // images have their own copy handling
+ const {html,text}=editorSelectionForCopy(holder);if(!text&&!html)return;
+ e.preventDefault();
+ e.clipboardData.setData('text/html','<meta charset="utf-8">'+html);e.clipboardData.setData('text/plain',text);
+ // Pasting back into YTNH uses the exact Markdown, so checklists, quotes and spacing survive.
+ e.clipboardData.setData('application/x-ytnh-markdown',clipboardHTMLToMarkdown(holder.innerHTML));
+ if(e.type==='cut'){forceRichHistoryCheckpoint();sel.deleteFromDocument();syncModelFromRich()}
+}
+
+// #62: a link or embed is a single, uneditable unit. When one ends the note there is nowhere to click or type
+// after it, so keep an empty line below it (not saved as extra blank lines).
+function trailingReference(block){
+ const nodes=[...(block?.childNodes||[])].filter(n=>!(n.nodeType===3&&!n.data.replace(/\u200b/g,'').trim())&&n.nodeName!=='BR');
+ const last=nodes.at(-1);return last?.nodeType===1&&last.matches('.mdref')?last:null;
+}
+function ensureLineAfterTrailingReference(){
+ const rich=$('richEditor'),last=rich?.lastElementChild;if(!last||!trailingReference(last))return;
+ const line=document.createElement('div');line.dataset.mdblock='p';line.dataset.autoLine='';line.append(document.createElement('br'));rich.append(line);
+}
+// The link or embed right next to a collapsed caret (before it for Backspace, after it for Delete).
+function referenceNextToCaret(backward){
+ const sel=getSelection();if(!sel?.rangeCount||!sel.isCollapsed)return null;
+ let node=sel.getRangeAt(0).startContainer,offset=sel.getRangeAt(0).startOffset,candidate=null;
+ const skipEmpty=(n,dir)=>{while(n&&n.nodeType===3&&!n.data.replace(/\u200b/g,''))n=dir<0?n.previousSibling:n.nextSibling;return n};
+ if(node.nodeType===3){const before=node.data.slice(0,offset).replace(/\u200b/g,''),after=node.data.slice(offset).replace(/\u200b/g,'');
+   if(backward&&!before)candidate=skipEmpty(node.previousSibling,-1);else if(!backward&&!after)candidate=skipEmpty(node.nextSibling,1)}
+ else candidate=skipEmpty(backward?node.childNodes[offset-1]:node.childNodes[offset],backward?-1:1);
+ return candidate?.nodeType===1&&candidate.matches('.mdref')?candidate:null;
+}
+function removeReference(ref){
+ forceRichHistoryCheckpoint();const after=document.createRange();after.setStartBefore(ref);after.collapse(true);ref.remove();
+ const sel=getSelection();sel.removeAllRanges();sel.addRange(after);syncModelFromRich();rememberRichSelection();
+}
+
+// #66: highlight (==text==). With a selection it marks the text; inside a highlight it removes it.
+function toggleHighlight(){
+ const sel=window.getSelection();if(!sel?.rangeCount)return;
+ const range=sel.getRangeAt(0);if(!rangeBelongsToRichEditor(range))return;
+ const el=n=>n.nodeType===3?n.parentElement:n,mark=el(range.startContainer)?.closest('mark');
+ if(mark&&(range.collapsed||mark.contains(el(range.endContainer)))){const r=document.createRange(),kids=[...mark.childNodes];mark.replaceWith(...kids);if(kids.length){r.setStartBefore(kids[0]);r.setEndAfter(kids.at(-1));sel.removeAllRanges();sel.addRange(r)}return}
+ if(range.collapsed){toast('Select text to highlight. You can also type ==text==.');return}
+ if(bodyBlock(range.startContainer)!==bodyBlock(range.endContainer)){toast('Select text within one paragraph to highlight it.');return}
+ const m=document.createElement('mark');m.append(range.extractContents());range.insertNode(m);range.selectNodeContents(m);sel.removeAllRanges();sel.addRange(range);
+}
+
+// #66: brackets close themselves, and typing a bracket, quote or formatting mark with text selected wraps it,
+// as in Obsidian and Typora. "[" doesn't close itself, so "[[" still starts a link to an item.
+const AUTO_PAIRS={'(':')','{':'}','[':']','"':'"',"'":"'"},AUTO_WRAP_FORMATS={'*':'italic','`':'code','~':'strikeThrough','=':'highlight'};
+let autoPairAt=null;
+function autoPairKey(e){
+ if(e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return false;
+ const sel=window.getSelection();if(!sel?.rangeCount)return false;
+ const range=sel.getRangeAt(0),block=bodyBlock(range.startContainer);
+ if(!block||block.dataset.mdblock==='code'||!rangeBelongsToRichEditor(range))return false;
+ const node=range.startContainer,inCode=(node.nodeType===3?node.parentElement:node)?.closest('code,.mdref,.inlineTodo');
+ const pending=autoPairAt&&autoPairAt.node===node&&node.nodeType===3&&node.length-range.startOffset===autoPairAt.fromEnd;
+ if(e.key==='Backspace'){
+   if(range.collapsed&&pending&&AUTO_PAIRS[node.data[range.startOffset-1]]===node.data[range.startOffset]){
+     e.preventDefault();ensureRichHistoryCheckpoint();node.deleteData(range.startOffset-1,2);const r=document.createRange();r.setStart(node,range.startOffset-1);r.collapse(true);sel.removeAllRanges();sel.addRange(r);autoPairAt=null;syncModelFromRich();rememberRichSelection();return true;
+   }
+   autoPairAt=null;return false;
+ }
+ if(e.key.length!==1||inCode){autoPairAt=null;return false}
+ if(!range.collapsed){
+   if(bodyBlock(range.endContainer)!==block||block.dataset.mdblock==='table')return false;
+   if(AUTO_WRAP_FORMATS[e.key]){e.preventDefault();rememberRichSelection();document.querySelector('[data-format="'+AUTO_WRAP_FORMATS[e.key]+'"]')?.click();return true}
+   if(!AUTO_PAIRS[e.key])return false;
+   e.preventDefault();ensureRichHistoryCheckpoint();
+   const open=document.createTextNode(e.key),close=document.createTextNode(AUTO_PAIRS[e.key]),inner=range.extractContents();
+   range.insertNode(close);range.insertNode(inner);range.insertNode(open);
+   const r=document.createRange();r.setStartAfter(open);r.setEndBefore(close);sel.removeAllRanges();sel.addRange(r);
+   syncModelFromRich();rememberRichSelection();return true;
+ }
+ // Typing the closing bracket that was just added steps over it.
+ if(pending&&e.key===node.data[range.startOffset]&&Object.values(AUTO_PAIRS).includes(e.key)){
+   e.preventDefault();const r=document.createRange();r.setStart(node,range.startOffset+1);r.collapse(true);sel.removeAllRanges();sel.addRange(r);autoPairAt=null;
+   applyInlineMarkdown();syncModelFromRich();rememberRichSelection();return true;
+ }
+ if(!['(','{'].includes(e.key)){if(!pending)autoPairAt=null;return false}
+ const nextChar=node.nodeType===3?node.data.slice(range.startOffset).replace(/^​+/,'')[0]:undefined;
+ if(nextChar&&!/[\s)\]}.,;:!?]/.test(nextChar))return false;
+ e.preventDefault();ensureRichHistoryCheckpoint();
+ // Insert into the same text node, so typed Markdown around the brackets is still recognised as one piece.
+ let pair=node,at=range.startOffset+1;
+ if(node.nodeType===3)node.insertData(range.startOffset,e.key+AUTO_PAIRS[e.key]);else{pair=document.createTextNode(e.key+AUTO_PAIRS[e.key]);range.insertNode(pair);at=1}
+ const r=document.createRange();r.setStart(pair,at);r.collapse(true);sel.removeAllRanges();sel.addRange(r);autoPairAt={node:pair,fromEnd:pair.length-at};
+ syncModelFromRich();rememberRichSelection();return true;
+}
+
+// #40: folding. A heading folds everything under it up to the next heading of the same or a higher level.
+// Folds are view state only (never saved in the note) and are remembered per item on this computer.
+const FOLD_STORAGE_KEY='ytnh-editor-folds';
+function headingLevelOf(block){const t=block?.dataset?.mdblock||'';return /^h[1-6]$/.test(t)?Number(t[1]):0}
+function foldSection(heading){
+ const level=headingLevelOf(heading),blocks=[];if(!level)return blocks;
+ for(let n=heading.nextElementSibling;n;n=n.nextElementSibling){const l=headingLevelOf(n);if(l&&l<=level)break;blocks.push(n)}
+ return blocks;
+}
+function applyEditorFolds(){
+ const root=$('richEditor');if(!root)return;const hidden=new Set();
+ for(const h of root.querySelectorAll(':scope > .folded')){if(headingLevelOf(h)&&foldSection(h).length)foldSection(h).forEach(b=>hidden.add(b));else h.classList.remove('folded')}
+ for(const b of root.children){b.classList.toggle('foldHidden',hidden.has(b));if(headingLevelOf(b))b.classList.toggle('foldable',foldSection(b).length>0)}
+}
+function editorFoldKeys(){
+ const seen=new Map();
+ return [...$('richEditor').children].filter(headingLevelOf).map(h=>{const k=headingLevelOf(h)+'|'+h.textContent.replace(/​/g,'');const i=seen.get(k)||0;seen.set(k,i+1);return [h,k+'|'+i]});
+}
+function readEditorFolds(){try{return JSON.parse(localStorage.getItem(FOLD_STORAGE_KEY)||'{}')||{}}catch{return {}}}
+function saveEditorFolds(id=selected){
+ if(!id)return;const all=readEditorFolds(),keys=editorFoldKeys().filter(([h])=>h.classList.contains('folded')).map(([,k])=>k);
+ if(keys.length)all[id]=keys;else delete all[id];
+ try{localStorage.setItem(FOLD_STORAGE_KEY,JSON.stringify(all))}catch{}
+}
+function restoreEditorFolds(id=selected){
+ const keys=new Set(readEditorFolds()[id]||[]);
+ for(const [h,k] of editorFoldKeys())h.classList.toggle('folded',keys.has(k));
+ applyEditorFolds();
+}
+// Folds or unfolds a heading's section; the caret never stays inside hidden text.
+function toggleEditorFold(heading,fold=!heading.classList.contains('folded')){
+ if(!headingLevelOf(heading)||fold&&!foldSection(heading).length)return false;
+ heading.classList.toggle('folded',fold);applyEditorFolds();saveEditorFolds();
+ const sel=getSelection(),block=sel?.rangeCount&&bodyBlock(sel.getRangeAt(0).startContainer);
+ if(block?.classList?.contains('foldHidden')){placeCaretAtEnd(heading);rememberRichSelection()}
+ return true;
+}
+// The heading whose section holds the caret (the caret's own block when it is a heading).
+function editorSectionHeading(block){
+ for(let n=block;n;n=n.previousElementSibling)if(headingLevelOf(n)&&(n===block||foldSection(n).includes(block)))return n;
+ return null;
+}
+function toggleFoldAtCaret(){
+ const sel=getSelection(),block=sel?.rangeCount&&bodyBlock(sel.getRangeAt(0).startContainer);
+ const heading=block&&editorSectionHeading(block);
+ if(!heading){toast('Place the caret in a section under a heading to fold it.');return}
+ if(!toggleEditorFold(heading))toast('This heading has nothing under it to fold.');
+}
+function setAllEditorFolds(fold){
+ let changed=0;for(const h of $('richEditor').children)if(headingLevelOf(h)&&foldSection(h).length&&h.classList.contains('folded')!==fold){h.classList.toggle('folded',fold);changed++}
+ applyEditorFolds();saveEditorFolds();
+ const sel=getSelection(),block=sel?.rangeCount&&bodyBlock(sel.getRangeAt(0).startContainer);
+ if(block?.classList?.contains('foldHidden')){const h=editorSectionHeading(block);let top=h;while(top?.classList.contains('foldHidden'))top=editorSectionHeading(top.previousElementSibling)||null;if(top){placeCaretAtEnd(top);rememberRichSelection()}}
+ if(!changed)toast(fold?'No sections to fold.':'Nothing is folded.');
+}
+// Find, the document outline and jumps unfold whatever hides the block they go to.
+function revealEditorBlock(block){
+ if(!block?.classList?.contains('foldHidden'))return false;
+ for(let n=block.previousElementSibling;n;n=n.previousElementSibling)if(n.classList.contains('folded')&&foldSection(n).includes(block))n.classList.remove('folded');
+ applyEditorFolds();saveEditorFolds();return true;
 }
